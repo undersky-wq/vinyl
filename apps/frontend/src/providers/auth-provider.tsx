@@ -50,7 +50,7 @@ export function AuthProvider({
               You can browse the collection freely, but listening, playlists and favorites require an account.
             </p>
             <div className="auth-prompt__actions">
-              <Link href="/profile?mode=login" className="primary-button" onClick={() => setIsPromptOpen(false)}>
+              <Link href="/profile?mode=login" className="auth-prompt__button" onClick={() => setIsPromptOpen(false)}>
                 Sign in
               </Link>
               <Link href="/profile?mode=register" className="nav-link" onClick={() => setIsPromptOpen(false)}>

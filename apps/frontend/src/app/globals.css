@@ -1985,6 +1985,27 @@ input {
   align-items: center;
 }
 
+.auth-prompt__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: #2f2f2f;
+  color: #d8d8d8;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.auth-prompt__button:hover {
+  background: #3a3a3a;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 .tracklist-layout,
 .library-shell {
   display: grid;
