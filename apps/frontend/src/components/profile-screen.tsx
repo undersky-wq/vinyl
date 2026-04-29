@@ -109,13 +109,14 @@ export function ProfileScreen({
 
     try {
       const updatedUser = await uploadAvatar(file);
+      const avatarStorageUrl = updatedUser.avatarStorageUrl || null;
+
       setUser({
         ...updatedUser,
-        avatarStorageUrl: updatedUser.avatarStorageUrl
-          ? `${updatedUser.avatarStorageUrl}${updatedUser.avatarStorageUrl.includes('?') ? '&' : '?'}v=${Date.now()}`
-          : updatedUser.avatarStorageUrl,
+        avatarStorageUrl,
       });
-      setAvatarPreviewUrl(nextPreviewUrl);
+      setAvatarPreviewUrl(avatarStorageUrl);
+      URL.revokeObjectURL(nextPreviewUrl);
       setStatus(lang === 'ru' ? 'Аватар обновлён.' : 'Avatar updated.');
     } catch {
       setAvatarPreviewUrl(activeUser.avatarStorageUrl || null);
@@ -234,20 +235,22 @@ export function ProfileScreen({
           </div>
         </div>
 
-        <div className="profile-stats">
-          <div className="stat-card">
-            <span className="muted">{lang === 'ru' ? 'Релизы' : 'Releases'}</span>
-            <strong>{releasesCount}</strong>
+        {activeUser.role === 'ADMIN' ? (
+          <div className="profile-stats">
+            <div className="stat-card">
+              <span className="muted">{lang === 'ru' ? 'Релизы' : 'Releases'}</span>
+              <strong>{releasesCount}</strong>
+            </div>
+            <div className="stat-card">
+              <span className="muted">{lang === 'ru' ? 'Плейлисты' : 'Playlists'}</span>
+              <strong>{playlistsCount}</strong>
+            </div>
+            <div className="stat-card">
+              <span className="muted">{lang === 'ru' ? 'Треки' : 'Tracks'}</span>
+              <strong>{tracksCount}</strong>
+            </div>
           </div>
-          <div className="stat-card">
-            <span className="muted">{lang === 'ru' ? 'Плейлисты' : 'Playlists'}</span>
-            <strong>{playlistsCount}</strong>
-          </div>
-          <div className="stat-card">
-            <span className="muted">{lang === 'ru' ? 'Треки' : 'Tracks'}</span>
-            <strong>{tracksCount}</strong>
-          </div>
-        </div>
+        ) : null}
 
         <div className="profile-actions">
           {activeUser.role === 'ADMIN' ? (

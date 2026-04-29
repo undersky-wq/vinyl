@@ -17,7 +17,7 @@ const envSchema = z.object({
   SELECTEL_S3_SECRET_KEY: z.string().optional(),
   SELECTEL_S3_BUCKET_COVERS: z.string().default('covers'),
   SELECTEL_S3_BUCKET_AUDIO: z.string().default('audio'),
-  SELECTEL_S3_BUCKET_AVATARS: z.string().default('avatars'),
+  SELECTEL_S3_BUCKET_AVATARS: z.string().optional(),
   REGISTRATION_INVITE_CODE: z.string().optional(),
   REGISTRATION_INVITE_CODE_ADMIN: z.string().optional(),
 });

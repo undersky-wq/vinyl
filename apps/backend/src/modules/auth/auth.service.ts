@@ -270,11 +270,12 @@ export class AuthService {
   }
 
   private getAvatarBucket() {
-    return (
-      this.configService.get<string>('SELECTEL_S3_BUCKET_AVATARS') ||
-      this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') ||
-      'avatars'
-    );
+    const avatarBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AVATARS')?.trim();
+    if (avatarBucket) {
+      return avatarBucket;
+    }
+
+    return this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS')?.trim() || 'covers';
   }
 
   private getCookieOptions() {

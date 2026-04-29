@@ -1834,18 +1834,6 @@ input {
   cursor: pointer;
 }
 
-.auth-submit-button {
-  background: #2f2f2f;
-  color: #d6d6d6;
-  box-shadow: none;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
-}
-
-.auth-submit-button:hover {
-  background: #3a3a3a;
-  color: #ffffff;
-}
-
 .auth-submit-button:disabled {
   cursor: wait;
   opacity: 0.7;
