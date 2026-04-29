@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ImageType {
+  COVER
+  GALLERY
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id              String           @id @default(cuid())
+  email           String?          @unique
+  displayName     String
+  discogsUsername String?          @unique
+  passwordHash    String?
+  role            UserRole         @default(USER)
+  avatarStorageKey String?
+  avatarStorageUrl String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  collectionItems CollectionItem[]
+  audioFiles      AudioFile[]
+  playlists       Playlist[]
+  sessions        Session[]
+  favoriteTracks  FavoriteTrack[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FavoriteTrack {
+  id        String   @id @default(cuid())
+  userId    String
+  trackId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trackId])
+}
+
+model Release {
+  id                String           @id @default(cuid())
+  discogsReleaseId  Int              @unique
+  artist            String
+  title             String
+  year              Int?
+  country           String?
+  genres            String[]
+  styles            String[]
+  notes             String?
+  coverImageUrl     String?
+  coverStorageKey   String?
+  coverStorageUrl   String?
+  coverThumbStorageKey  String?
+  coverThumbStorageUrl  String?
+  coverMediumStorageKey String?
+  coverMediumStorageUrl String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  tracks            Track[]
+  collectionItems   CollectionItem[]
+  images            Image[]
+}
+
+model Track {
+  id             String           @id @default(cuid())
+  discogsTrackId String?
+  releaseId      String
+  position       String?
+  title          String
+  durationRaw    String?
+  durationSec    Int?
+  artists        String[]
+  bpm            Int?
+  key            String?
+  waveformData   Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  release        Release          @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  audioFiles     AudioFile[]
+  playlistItems  PlaylistItem[]
+  storeLinks     TrackStoreLink[]
+  favoriteTracks FavoriteTrack[]
+
+  @@unique([releaseId, position, title])
+}
+
+model CollectionItem {
+  id            String   @id @default(cuid())
+  userId        String
+  releaseId     String
+  discogsItemId String?  @unique
+  rating        Int?
+  notes         String?
+  addedAt       DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  release       Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, releaseId])
+}
+
+model Image {
+  id         String    @id @default(cuid())
+  releaseId  String
+  type       ImageType @default(COVER)
+  url        String
+  storageKey String    @unique
+  createdAt  DateTime  @default(now())
+  release    Release   @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+}
+
+model AudioFile {
+  id              String   @id @default(cuid())
+  userId          String
+  trackId         String
+  originalName    String
+  mimeType        String
+  sizeBytes       Int
+  storageKey      String   @unique
+  storageUrl      String?
+  acquiredLegally Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track           Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+}
+
+model Playlist {
+  id          String         @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       PlaylistItem[]
+}
+
+model PlaylistItem {
+  id         String   @id @default(cuid())
+  playlistId String
+  trackId    String
+  sortOrder  Int
+  createdAt  DateTime @default(now())
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track      Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, trackId])
+  @@unique([playlistId, sortOrder])
+}
+
+model TrackStoreLink {
+  id        String   @id @default(cuid())
+  trackId    String
+  title     String
+  url       String
+  storeName String
+  createdAt DateTime @default(now())
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+}

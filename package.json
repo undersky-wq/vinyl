@@ -1,0 +1,13 @@
+{
+  "name": "vinyl-collection",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose up --build",
+    "dev:down": "docker compose down",
+    "install:backend": "npm.cmd install --prefix apps/backend",
+    "install:frontend": "npm.cmd install --prefix apps/frontend",
+    "prisma:generate": "npm.cmd --prefix apps/backend run prisma:generate",
+    "prisma:migrate": "npm.cmd --prefix apps/backend run prisma:migrate"
+  }
+}

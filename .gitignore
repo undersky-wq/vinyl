@@ -1,0 +1,11 @@
+node_modules
+.next
+dist
+.turbo
+coverage
+.env
+apps/backend/prisma/migrations
+apps/backend/generated
+*.log
+tmp_*.json
+*.tsbuildinfo
