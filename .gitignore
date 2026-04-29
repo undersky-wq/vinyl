@@ -7,5 +7,6 @@ coverage
 apps/backend/prisma/migrations
 apps/backend/generated
 *.log
+backups/
 tmp_*.json
 *.tsbuildinfo
