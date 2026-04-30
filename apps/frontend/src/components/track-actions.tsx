@@ -170,7 +170,9 @@ export function TrackPlaylistMenu({
 
   return (
     <div
-      className={`track-playlist-menu${align === 'up' ? ' track-playlist-menu--up' : ''}${
+      className={`track-playlist-menu${isOpen ? ' open' : ''}${
+        align === 'up' ? ' track-playlist-menu--up' : ''
+      }${
         className ? ` ${className}` : ''
       }`}
       ref={menuRef}

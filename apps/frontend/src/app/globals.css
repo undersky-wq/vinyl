@@ -2796,6 +2796,14 @@ input {
   position: relative;
   display: inline-flex;
   justify-content: flex-end;
+  z-index: 30;
+}
+
+.track-playlist-menu.open,
+.library-track .track-playlist-menu.open,
+.playlist-track .track-playlist-menu.open,
+.track-row .track-playlist-menu.open {
+  z-index: 5000;
 }
 
 .track-playlist-menu__trigger {
@@ -2806,7 +2814,7 @@ input {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  z-index: 1000;
+  z-index: 5001;
   display: grid;
   gap: 14px;
   width: 288px;
@@ -2814,6 +2822,7 @@ input {
   border-radius: 14px;
   background: rgba(17, 17, 17, 0.98);
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
+  pointer-events: auto;
 }
 
 .track-playlist-menu--up .track-playlist-menu__popup {
