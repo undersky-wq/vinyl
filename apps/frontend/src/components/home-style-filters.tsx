@@ -59,7 +59,7 @@ export function HomeStyleFilters({
   const canToggle = styles.length > collapsedStyles.length;
 
   return (
-    <section className="filters filters--home">
+    <section className={`filters filters--home${isExpanded ? ' expanded' : ''}`}>
       <Link
         className={`chip${!selectedStyles.length && !hasAudio ? ' active' : ''}`}
         href={buildFilterHref({

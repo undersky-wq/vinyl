@@ -37,6 +37,23 @@ export function ReleaseCard({ release }: ReleaseCardProps) {
     })
     .filter((track): track is PlayerTrack => Boolean(track));
 
+  function playRelease() {
+    if (playableTracks.length) {
+      playQueue(playableTracks, 0);
+      return;
+    }
+
+    requireAuth();
+  }
+
+  function isTouchViewport() {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  }
+
   return (
     <div className="release-card">
       <div className="cover-frame">
@@ -44,6 +61,14 @@ export function ReleaseCard({ release }: ReleaseCardProps) {
           href={`/releases/${release.id}`}
           aria-label={`${release.artist} — ${release.title}`}
           className="cover-link"
+          onClick={(event) => {
+            if (!isTouchViewport()) {
+              return;
+            }
+
+            event.preventDefault();
+            playRelease();
+          }}
         >
           <CoverArtwork src={coverSrc} alt={release.title} />
         </Link>
@@ -56,11 +81,7 @@ export function ReleaseCard({ release }: ReleaseCardProps) {
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              if (playableTracks.length) {
-                playQueue(playableTracks, 0);
-              } else {
-                requireAuth();
-              }
+              playRelease();
             }}
           >
             <Play size={24} fill="currentColor" />

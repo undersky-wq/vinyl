@@ -92,7 +92,7 @@ function getFilterLabel(params: {
   }
 
   if (params.filter === 'style') {
-    return params.lang === 'ru' ? 'Все стили' : 'All styles';
+    return params.lang === 'ru' ? 'Стиль' : 'Style';
   }
 
   if (params.filter === 'artist') {
@@ -484,7 +484,7 @@ export function TracklistBrowser({
         <div className="library-filter__menu-shell" ref={isOpen ? filterRef : null}>
           <button
             type="button"
-            className={`library-filter__trigger${isOpen ? ' active' : ''}`}
+            className={`library-filter__trigger${isOpen ? ' active' : ''}${value ? ' selected' : ''}`}
             onClick={() => setOpenFilter((current) => (current === filter ? null : filter))}
           >
             <span>{getFilterLabel({ lang, filter, value })}</span>

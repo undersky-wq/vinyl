@@ -195,6 +195,7 @@ export function PlaylistBrowser({
   const [activePlaylistId, setActivePlaylistId] = useState(
     initialPlaylistId || initialPlaylist?.id || playlistSummaries[0]?.id || '',
   );
+  const [arePlaylistChipsExpanded, setArePlaylistChipsExpanded] = useState(false);
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [isReorderDirty, setIsReorderDirty] = useState(false);
   const [isPlaylistLoading, setIsPlaylistLoading] = useState(false);
@@ -344,7 +345,7 @@ export function PlaylistBrowser({
 
   return (
     <section className="playlists-page">
-      <div className="playlist-chip-row">
+      <div className={`playlist-chip-row${arePlaylistChipsExpanded ? ' expanded' : ''}`}>
         {localSummaries.length ? (
           localSummaries.map((playlist) => (
             <button
@@ -362,6 +363,16 @@ export function PlaylistBrowser({
             {lang === 'ru' ? 'Плейлисты появятся здесь после создания.' : 'Playlists will appear here after creation.'}
           </p>
         )}
+        {localSummaries.length > 6 ? (
+          <button
+            type="button"
+            className="playlist-chip playlist-chip-toggle"
+            onClick={() => setArePlaylistChipsExpanded((current) => !current)}
+            aria-expanded={arePlaylistChipsExpanded}
+          >
+            ...
+          </button>
+        ) : null}
       </div>
 
       <PlaylistWaveform tracks={tracks} />
