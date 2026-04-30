@@ -1,9 +1,9 @@
 'use client';
 
-import { Play, Trash2, X } from 'lucide-react';
+import { ImagePlus, Play, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
-import { deleteRelease, deleteTrackAudio, updateTrackMetadata } from '../lib/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { deleteRelease, deleteTrackAudio, updateTrackMetadata, uploadReleaseCover } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayer } from '../providers/player-provider';
@@ -273,6 +273,8 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [deletingAudioId, setDeletingAudioId] = useState<string | null>(null);
   const [isDeletingRelease, setIsDeletingRelease] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [trackMetaById, setTrackMetaById] = useState(() =>
     Object.fromEntries(
       release.tracks.map((track) => [
@@ -284,8 +286,8 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       ]),
     ),
   );
-  const coverOriginalSrc =
-    release.coverStorageUrl || release.coverImageUrl || 'https://placehold.co/800x800/png';
+  const hasCover = Boolean(release.coverStorageUrl || release.coverImageUrl);
+  const coverOriginalSrc = release.coverStorageUrl || release.coverImageUrl || 'https://placehold.co/800x800/png';
   const coverSrc = release.coverMediumStorageUrl || release.coverThumbStorageUrl || coverOriginalSrc;
 
   const galleryImages = useMemo(
@@ -382,6 +384,16 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
     }
   }
 
+  async function handleCoverUpload(file: File) {
+    setIsUploadingCover(true);
+    try {
+      await uploadReleaseCover(release.id, file);
+      router.refresh();
+    } finally {
+      setIsUploadingCover(false);
+    }
+  }
+
   async function handleTrackMetaSave(trackId: string, patch: { bpm?: number | null; key?: string | null }) {
     const currentMeta = trackMetaById[trackId] || { bpm: null, key: null };
     const nextMeta = {
@@ -408,10 +420,16 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   return (
     <div className="release-page">
       <div className="release-header">
+        <div className="release-cover-shell">
         <button
           type="button"
-          className="release-cover-button"
+          className={`release-cover-button${!hasCover ? ' release-cover-button--empty' : ''}`}
           onClick={() => {
+            if (!hasCover && user?.role === 'ADMIN') {
+              coverInputRef.current?.click();
+              return;
+            }
+
             setActiveImageIndex(0);
             setIsLightboxOpen(true);
           }}
@@ -424,8 +442,52 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
               sizes="(max-width: 900px) 90vw, 340px"
               priority
             />
+              {!hasCover && user?.role === 'ADMIN' ? (
+                <span className="release-cover-empty-hint">
+                  <ImagePlus size={28} />
+                  {lang === 'ru' ? 'Добавить обложку' : 'Add cover'}
+                </span>
+              ) : null}
           </div>
         </button>
+
+          {user?.role === 'ADMIN' ? (
+            <>
+              <button
+                type="button"
+                className="release-cover-upload"
+                disabled={isUploadingCover}
+                onClick={() => coverInputRef.current?.click()}
+              >
+                <ImagePlus size={16} />
+                {isUploadingCover
+                  ? lang === 'ru'
+                    ? 'Загрузка...'
+                    : 'Uploading...'
+                  : hasCover
+                    ? lang === 'ru'
+                      ? 'Заменить'
+                      : 'Replace'
+                    : lang === 'ru'
+                      ? 'Загрузить'
+                      : 'Upload'}
+              </button>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="release-cover-input"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    void handleCoverUpload(file);
+                  }
+                  event.target.value = '';
+                }}
+              />
+            </>
+          ) : null}
+        </div>
 
         <div className="release-panel">
           <div className="release-title-row">

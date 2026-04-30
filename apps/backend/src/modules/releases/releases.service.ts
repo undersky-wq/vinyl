@@ -567,6 +567,22 @@ export class ReleasesService {
     return { deleted: true };
   }
 
+  async uploadCover(id: string, file: Express.Multer.File) {
+    const release = await this.prisma.release.findUnique({
+      where: { id },
+      include: {
+        images: true,
+      },
+    });
+
+    if (!release) {
+      throw new NotFoundException('Release not found');
+    }
+
+    await this.uploadReleaseCover(release, file);
+    return this.findOne(id, true);
+  }
+
   async updateTrackMetadata(trackId: string, dto: UpdateTrackMetadataDto) {
     const key = dto.key?.trim() || null;
 
@@ -697,6 +713,33 @@ export class ReleasesService {
   }
 
   private async uploadManualCover(releaseId: string, file: Express.Multer.File) {
+    const release = await this.prisma.release.findUnique({
+      where: {
+        id: releaseId,
+      },
+      include: {
+        images: true,
+      },
+    });
+
+    if (!release) {
+      throw new NotFoundException('Release not found');
+    }
+
+    await this.uploadReleaseCover(release, file);
+  }
+
+  private async uploadReleaseCover(
+    release: {
+      id: string;
+      discogsReleaseId: number;
+      coverStorageKey: string | null;
+      coverThumbStorageKey: string | null;
+      coverMediumStorageKey: string | null;
+      images: Array<{ storageKey: string; type: ImageType }>;
+    },
+    file: Express.Multer.File,
+  ) {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
       throw new BadRequestException('Cover must be JPEG, PNG or WebP');
     }
@@ -705,23 +748,40 @@ export class ReleasesService {
     const safeName =
       sanitizeFilename(file.originalname).replace(/\s+/g, '-').toLowerCase() ||
       `front.${this.getImageExtension(file)}`;
-    const storageKey = `covers/manual/${releaseId}/${safeName}`;
+    const storageKey = `covers/manual/${release.id}/${safeName}`;
     const url = await this.storageService.uploadObject({
       bucket: coversBucket,
       key: storageKey,
       body: file.buffer,
       contentType: file.mimetype,
     });
+    const previousKeys = [
+      release.coverStorageKey,
+      release.coverThumbStorageKey,
+      release.coverMediumStorageKey,
+      ...release.images
+        .filter((image) => image.type === ImageType.COVER)
+        .map((image) => image.storageKey),
+    ].filter((key): key is string => Boolean(key) && key !== storageKey);
+
+    await Promise.all([...new Set(previousKeys)].map((key) => this.deleteStorageObject(coversBucket, key)));
 
     await this.prisma.release.update({
       where: {
-        id: releaseId,
+        id: release.id,
       },
       data: {
         coverStorageKey: storageKey,
         coverStorageUrl: url,
+        coverThumbStorageKey: null,
+        coverThumbStorageUrl: null,
+        coverMediumStorageKey: null,
+        coverMediumStorageUrl: null,
         coverImageUrl: url,
         images: {
+          deleteMany: {
+            type: ImageType.COVER,
+          },
           create: {
             type: ImageType.COVER,
             url: url || '',

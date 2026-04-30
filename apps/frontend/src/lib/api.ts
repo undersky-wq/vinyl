@@ -368,6 +368,23 @@ export async function deleteRelease(releaseId: string) {
   return parseJsonResponse<{ deleted: boolean }>(response);
 }
 
+export async function uploadReleaseCover(releaseId: string, file: File) {
+  const payload = new FormData();
+  payload.append('file', file);
+
+  const response = await fetch(`${API_URL}/releases/${releaseId}/cover`, {
+    method: 'POST',
+    credentials: 'include',
+    body: payload,
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Cover upload failed'));
+  }
+
+  return parseJsonResponse<Release>(response);
+}
+
 export async function updateTrackMetadata(trackId: string, input: { bpm?: number | null; key?: string | null }) {
   const response = await fetch(`${API_URL}/releases/tracks/${trackId}/metadata`, {
     method: 'PATCH',

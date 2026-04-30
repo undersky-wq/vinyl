@@ -10,10 +10,11 @@ import {
   Req,
   Body,
   UploadedFiles,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AdminGuard } from '../auth/auth.guards';
 import { AuthService } from '../auth/auth.service';
@@ -83,6 +84,23 @@ export class ReleasesController {
   @UseGuards(AdminGuard)
   async deleteRelease(@Param('id') id: string) {
     return this.releasesService.deleteRelease(id);
+  }
+
+  @Post(':id/cover')
+  @UseGuards(AdminGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 20 * 1024 * 1024,
+      },
+    }),
+  )
+  async uploadCover(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.releasesService.uploadCover(id, file);
   }
 
   @Patch('tracks/:trackId/metadata')

@@ -611,13 +611,72 @@ input {
   cursor: zoom-in;
 }
 
+.release-cover-shell {
+  position: relative;
+}
+
+.release-cover-button--empty {
+  cursor: pointer;
+}
+
 .release-cover-button .cover-frame {
+  position: relative;
   transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
 
 .release-cover-button:hover .cover-frame {
   transform: translateY(-2px);
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5);
+}
+
+.release-cover-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.44);
+  color: #f3f3f3;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.release-cover-upload {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 13px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(47, 47, 47, 0.92);
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.release-cover-upload:hover {
+  background: rgba(58, 58, 58, 0.96);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.release-cover-upload:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.release-cover-input {
+  display: none;
 }
 
 .release-panel {
