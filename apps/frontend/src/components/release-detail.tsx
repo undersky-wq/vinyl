@@ -579,6 +579,11 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                   <span className="track-row__artist">{getTrackArtist(track, release.artist)}</span>
                   <span className="track-row__title">{track.title}</span>
                 </div>
+
+                <span className="track-row__duration muted">
+                  {formatTrackDuration(track.durationRaw, track.durationSec)}
+                </span>
+
                 <div className="track-row__meta-actions">
                   <div className="track-row__meta-edit track-row__meta-edit--inline">
                     <EditableTrackMeta
@@ -631,10 +636,6 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                       <Trash2 size={15} />
                     </button>
                   ) : null}
-
-                  <span className="track-row__duration muted">
-                    {formatTrackDuration(track.durationRaw, track.durationSec)}
-                  </span>
                 </div>
               </div>
               );
