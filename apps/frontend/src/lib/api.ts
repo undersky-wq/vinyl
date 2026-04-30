@@ -8,6 +8,7 @@ import {
   ProfileStats,
   Release,
   SearchSuggestion,
+  Track,
   UserProfile,
 } from '../types';
 
@@ -194,6 +195,12 @@ export async function getProfileStats(cookieHeader?: string) {
 
 export async function getFavorites(cookieHeader?: string) {
   return fetchJson<string[]>('/favorites', {
+    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+  });
+}
+
+export async function getFavoriteTracks(cookieHeader?: string) {
+  return fetchJson<Array<Track & { release: Release }>>('/favorites/tracks', {
     headers: cookieHeader ? { cookie: cookieHeader } : undefined,
   });
 }

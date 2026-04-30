@@ -1046,6 +1046,67 @@ textarea {
   color: var(--muted);
 }
 
+.player-page {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  min-height: calc(100dvh - 180px);
+  align-content: center;
+  padding: 24px 0 110px;
+}
+
+.player-page img {
+  width: min(72vw, 420px);
+  height: min(72vw, 420px);
+  border-radius: 24px;
+  object-fit: cover;
+}
+
+.player-page__meta {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.player-page__meta p,
+.player-page__meta h1 {
+  margin: 0;
+}
+
+.player-page__meta p {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.player-page__meta h1 {
+  font-size: clamp(1.6rem, 7vw, 3rem);
+  line-height: 1;
+}
+
+.player-page__play {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border: none;
+  border-radius: 999px;
+  background: var(--player-accent);
+  color: #ffffff;
+}
+
+.player-page__timeline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: min(100%, 620px);
+}
+
+.player-page__timeline input {
+  width: 100%;
+  accent-color: var(--player-accent);
+}
+
 .mini-player {
   position: fixed;
   left: 50%;
@@ -1146,6 +1207,19 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 4px;
+}
+
+.mini-player__mobile-favorite {
+  display: none;
+}
+
+.favorites-page {
+  display: grid;
+  gap: 18px;
+}
+
+.favorites-track {
+  grid-template-columns: 44px minmax(0, 1fr) 34px 48px;
 }
 
 .progress {
@@ -3680,12 +3754,13 @@ textarea {
 
   .library-tracklist {
     grid-column: 1 / -1;
+    margin-top: 2px;
     gap: 2px;
   }
 
   .library-track {
     grid-template-columns: 40px minmax(0, 1fr) 46px;
-    min-height: 38px;
+    min-height: 32px;
     padding: 4px 0;
     column-gap: 8px;
   }
@@ -3700,7 +3775,7 @@ textarea {
   .library-track__index {
     justify-content: flex-start;
     height: auto;
-    font-size: 1rem;
+    font-size: 0.8rem;
   }
 
   .library-track__main {
@@ -3709,11 +3784,11 @@ textarea {
 
   .library-track__name {
     width: 100%;
-    font-size: 1rem;
+    font-size: 0.8rem;
   }
 
   .library-track__time {
-    font-size: 1rem;
+    font-size: 0.8rem;
   }
 
   .playlist-chip-row {
@@ -3779,23 +3854,26 @@ textarea {
   }
 
   .mini-player {
-    left: 10px;
-    right: 10px;
+    left: 50%;
+    right: auto;
     bottom: 72px;
-    width: auto;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 18px;
+    width: min(calc(100vw - 20px), 520px);
+    grid-template-columns: 50px minmax(0, 1fr) auto auto;
+    gap: 12px;
+    min-height: 60px;
+    padding: 8px 14px 8px 8px;
+    border-radius: 999px;
+    cursor: pointer;
+    transform: translateX(-50%);
   }
 
   .mini-player__track {
+    order: 2;
     min-width: 0;
   }
 
   .mini-player__track img {
-    width: 42px;
-    height: 42px;
+    display: none;
   }
 
   .mini-player__title,
@@ -3806,7 +3884,7 @@ textarea {
   }
 
   .mini-player__controls {
-    order: 2;
+    order: 1;
     width: auto;
   }
 
@@ -3816,19 +3894,41 @@ textarea {
   }
 
   .mini-player__timeline {
-    grid-column: 1 / -1;
-    order: 3;
+    grid-column: auto;
+    order: 4;
+    display: block;
+    min-width: 36px;
   }
 
   .mini-player__track-actions,
   .mini-player__volume,
-  .mini-player__stamp {
+  .mini-player__timeline .seekbar,
+  .mini-player__timeline .mini-player__stamp:last-child {
     display: none;
   }
 
+  .mini-player__mobile-favorite {
+    display: inline-flex;
+    order: 3;
+  }
+
+  .mini-player__mobile-favorite .track-favorite-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .mini-player__stamp {
+    display: block;
+    min-width: 36px;
+    text-align: right;
+    font-size: 0.78rem;
+  }
+
   .player-main-button {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
+    background: var(--player-accent);
+    color: #ffffff;
   }
 
   .progress-slider,
@@ -3870,6 +3970,21 @@ textarea {
   .mobile-nav a.active {
     color: var(--player-accent);
     background: rgba(181, 120, 255, 0.12);
+  }
+
+  .favorites-page__header {
+    display: none;
+  }
+
+  .favorites-track {
+    grid-template-columns: 48px minmax(0, 1fr) 34px 44px;
+    gap: 10px;
+    min-height: 56px;
+    padding: 4px 0;
+  }
+
+  .favorites-track .track-favorite-button {
+    opacity: 1;
   }
 
   .cover-overlay {

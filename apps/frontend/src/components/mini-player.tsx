@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   ListMusic,
   Pause,
@@ -32,6 +33,7 @@ function formatTime(value: number) {
 }
 
 export function MiniPlayer({ lang }: MiniPlayerProps) {
+  const router = useRouter();
   const {
     currentTrack,
     queue,
@@ -68,7 +70,18 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   }
 
   return (
-    <div className="mini-player">
+    <div
+      className="mini-player"
+      role="button"
+      tabIndex={0}
+      onClick={() => router.push('/player')}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          router.push('/player');
+        }
+      }}
+    >
       <div className="mini-player__track">
         <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={58} height={58} />
         <div className="mini-player__meta">
@@ -81,7 +94,10 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <button
           type="button"
           className={`player-icon-button ghost${isShuffleEnabled ? ' active' : ''}`}
-          onClick={toggleShuffle}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleShuffle();
+          }}
           aria-label={lang === 'ru' ? 'Смешивание' : 'Shuffle'}
           title={lang === 'ru' ? 'Смешивание' : 'Shuffle'}
         >
@@ -90,7 +106,10 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <button
           type="button"
           className="player-icon-button"
-          onClick={playPrevious}
+          onClick={(event) => {
+            event.stopPropagation();
+            playPrevious();
+          }}
           disabled={!canPlayPrevious}
           aria-label={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
           title={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
@@ -100,7 +119,10 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <button
           type="button"
           className="player-main-button"
-          onClick={togglePlayback}
+          onClick={(event) => {
+            event.stopPropagation();
+            togglePlayback();
+          }}
           aria-label={isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : 'Play'}
           title={isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : 'Play'}
         >
@@ -109,7 +131,10 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <button
           type="button"
           className="player-icon-button"
-          onClick={playNext}
+          onClick={(event) => {
+            event.stopPropagation();
+            playNext();
+          }}
           disabled={!canPlayNext}
           aria-label={lang === 'ru' ? 'Следующий трек' : 'Next track'}
           title={lang === 'ru' ? 'Следующий трек' : 'Next track'}
@@ -119,7 +144,10 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <button
           type="button"
           className={`player-icon-button ghost${isRepeatEnabled ? ' active' : ''}`}
-          onClick={toggleRepeat}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleRepeat();
+          }}
           aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
           title={lang === 'ru' ? 'Повтор' : 'Repeat'}
         >
@@ -127,7 +155,11 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         </button>
       </div>
 
-      <div className="mini-player__timeline">
+      <div className="mini-player__mobile-favorite" onClick={(event) => event.stopPropagation()}>
+        <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
+      </div>
+
+      <div className="mini-player__timeline" onClick={(event) => event.stopPropagation()}>
         <span className="mini-player__stamp muted">{formatTime(displayTime)}</span>
         <div className="seekbar">
           <div className="progress">
@@ -152,7 +184,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <span className="mini-player__stamp muted">{formatTime(duration)}</span>
       </div>
 
-      <div className="mini-player__track-actions">
+      <div className="mini-player__track-actions" onClick={(event) => event.stopPropagation()}>
         <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
         <div className="player-queue-menu">
           <button
@@ -201,7 +233,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         </div>
       </div>
 
-      <div className="mini-player__volume">
+      <div className="mini-player__volume" onClick={(event) => event.stopPropagation()}>
         <div className="volume-popover">
           <div className="volume-slider-shell">
             <div className="volume-rail">

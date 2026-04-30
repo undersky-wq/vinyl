@@ -55,6 +55,38 @@ export class AppController {
     return items.map((item) => item.trackId);
   }
 
+  @Get('favorites/tracks')
+  @UseGuards(AuthGuard)
+  async favoriteTracks(@Req() request: any) {
+    const items = await this.prisma.favoriteTrack.findMany({
+      where: {
+        userId: request.user.id,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        track: {
+          include: {
+            audioFiles: true,
+            release: {
+              include: {
+                images: true,
+                tracks: {
+                  include: {
+                    audioFiles: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return items.map((item) => item.track);
+  }
+
   @Post('favorites')
   @UseGuards(AuthGuard)
   async toggleFavorite(@Req() request: any, @Body() body: { trackId: string }) {

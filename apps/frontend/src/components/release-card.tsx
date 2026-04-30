@@ -46,14 +46,6 @@ export function ReleaseCard({ release }: ReleaseCardProps) {
     requireAuth();
   }
 
-  function isTouchViewport() {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-
-    return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-  }
-
   return (
     <div className="release-card">
       <div className="cover-frame">
@@ -61,14 +53,6 @@ export function ReleaseCard({ release }: ReleaseCardProps) {
           href={`/releases/${release.id}`}
           aria-label={`${release.artist} — ${release.title}`}
           className="cover-link"
-          onClick={(event) => {
-            if (!isTouchViewport()) {
-              return;
-            }
-
-            event.preventDefault();
-            playRelease();
-          }}
         >
           <CoverArtwork src={coverSrc} alt={release.title} />
         </Link>
