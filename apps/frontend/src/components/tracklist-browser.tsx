@@ -656,7 +656,7 @@ export function TracklistBrowser({
                             className="library-track__name"
                             onClick={() => playFromVisibleFeed(track.id)}
                           >
-                            {track.artist} {track.title}
+                            {track.artist} - {track.title}
                           </button>
                         </div>
 

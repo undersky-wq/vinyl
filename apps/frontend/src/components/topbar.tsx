@@ -14,13 +14,14 @@ type TopbarProps = {
   lang: SiteLang;
   search?: string;
   active?: 'home' | 'library' | 'playlists' | 'upload' | 'profile';
+  hideSearch?: boolean;
 };
 
 function getNavClass(isActive: boolean) {
   return `nav-link${isActive ? ' active' : ''}`;
 }
 
-export function Topbar({ lang, search, active }: TopbarProps) {
+export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps) {
   const { user } = useAuth();
   const router = useRouter();
   const [searchValue, setSearchValue] = useState(search ?? '');
@@ -110,6 +111,9 @@ export function Topbar({ lang, search, active }: TopbarProps) {
         </Link>
       </nav>
 
+      {hideSearch ? (
+        <div className="topbar__spacer" aria-hidden="true" />
+      ) : (
       <form className="topbar__search" onSubmit={handleSubmit} ref={searchRef}>
         <Search size={18} className="topbar__search-icon" />
         <input
@@ -151,6 +155,7 @@ export function Topbar({ lang, search, active }: TopbarProps) {
           </div>
         ) : null}
       </form>
+      )}
 
       <Link
         href="/profile"

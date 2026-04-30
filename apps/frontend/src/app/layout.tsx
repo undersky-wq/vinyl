@@ -1,7 +1,7 @@
 import './globals.css';
 import { cookies } from 'next/headers';
-import { MiniPlayer } from '../components/mini-player';
 import { MobileNav } from '../components/mobile-nav';
+import { PlayerChrome } from '../components/player-chrome';
 import { getCurrentUser, getFavorites } from '../lib/api';
 import { PlayerProvider } from '../providers/player-provider';
 import { AuthProvider } from '../providers/auth-provider';
@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <FavoritesProvider initialFavoriteTrackIds={favoriteTrackIds}>
             <PlayerProvider>
               {children}
-              <MiniPlayer lang={lang} />
+              <PlayerChrome lang={lang} />
               <MobileNav lang={lang} />
             </PlayerProvider>
           </FavoritesProvider>

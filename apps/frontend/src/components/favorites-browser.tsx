@@ -51,6 +51,9 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
       artist: track.artists?.length ? track.artists.join(', ') : track.release.artist,
       audioUrl: track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '',
       coverUrl: getCoverUrl(track.release),
+      waveformData: Array.isArray(track.waveformData)
+        ? track.waveformData.filter((value): value is number => typeof value === 'number')
+        : [],
     }))
     .filter((track) => Boolean(track.audioUrl));
 

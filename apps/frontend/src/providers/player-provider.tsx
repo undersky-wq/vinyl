@@ -15,6 +15,7 @@ export type PlayerTrack = {
   artist: string;
   audioUrl: string;
   coverUrl: string;
+  waveformData?: number[];
 };
 
 type PlayerContextType = {

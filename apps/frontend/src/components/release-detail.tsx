@@ -537,14 +537,6 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
         </div>
       </div>
 
-      <ReleaseWaveform
-        tracks={playableTracks}
-        currentTrackId={currentTrack?.id}
-        getAudioElement={getAudioElement}
-        playQueueAtPercent={playQueueAtPercent}
-        seekToPercent={seekToPercent}
-      />
-
       <div className="release-panel">
         <div className="tracklist">
           {release.tracks.length ? (
@@ -558,7 +550,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                   {audioFile ? (
                     <button
                       type="button"
-                      className="track-icon-button"
+                      className="track-icon-button track-row__play-button"
                       aria-label={lang === 'ru' ? 'Воспроизвести' : 'Play'}
                       onClick={() => {
                         const trackIndex = playableTracks.findIndex((item) => item.id === track.id);
@@ -570,7 +562,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                         playQueue(playableTracks, trackIndex);
                       }}
                     >
-                      <Play size={16} />
+                      <Play size={18} fill="currentColor" />
                     </button>
                   ) : user?.role === 'ADMIN' ? (
                     <TrackUploadButton trackId={track.id} lang={lang} />
@@ -582,7 +574,8 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                 <div>
                   <div>
                     {track.position ? <span className="track-row__position">{track.position}</span> : null}
-                    <span>{getTrackArtist(track, release.artist)} — {track.title}</span>
+                    <span className="track-row__artist">{getTrackArtist(track, release.artist)}</span>
+                    <span className="track-row__title">{track.title}</span>
                   </div>
                 </div>
                 <div className="track-row__meta-actions">

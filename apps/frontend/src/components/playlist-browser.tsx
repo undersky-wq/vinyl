@@ -446,7 +446,7 @@ export function PlaylistBrowser({
 
                 <button type="button" className="playlist-track__title" onClick={() => playFromPlaylist(track.id)}>
                   <span className="playlist-track__artist">{track.artist}</span>
-                  <span> - {track.title}</span>
+                  <span>{track.title}</span>
                 </button>
 
                 <div className="playlist-track__actions">

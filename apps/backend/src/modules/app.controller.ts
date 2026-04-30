@@ -1,10 +1,16 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from './auth/auth.guards';
 import { PrismaService } from './prisma/prisma.service';
+import { StorageService } from './storage/storage.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
   @Get('health')
   health() {
@@ -58,6 +64,8 @@ export class AppController {
   @Get('favorites/tracks')
   @UseGuards(AuthGuard)
   async favoriteTracks(@Req() request: any) {
+    const audioBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
+    const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
     const items = await this.prisma.favoriteTrack.findMany({
       where: {
         userId: request.user.id,
@@ -84,7 +92,43 @@ export class AppController {
       },
     });
 
-    return items.map((item) => item.track);
+    return Promise.all(
+      items.map(async (item) => ({
+        ...item.track,
+        release: {
+          ...item.track.release,
+          coverStorageUrl:
+            item.track.release.coverStorageKey
+              ? (await this.storageService.getSignedObjectUrl(
+                  coversBucket,
+                  item.track.release.coverStorageKey,
+                )) || item.track.release.coverStorageUrl
+              : item.track.release.coverStorageUrl,
+          coverThumbStorageUrl:
+            item.track.release.coverThumbStorageKey
+              ? (await this.storageService.getSignedObjectUrl(
+                  coversBucket,
+                  item.track.release.coverThumbStorageKey,
+                )) || item.track.release.coverThumbStorageUrl
+              : item.track.release.coverThumbStorageUrl,
+          coverMediumStorageUrl:
+            item.track.release.coverMediumStorageKey
+              ? (await this.storageService.getSignedObjectUrl(
+                  coversBucket,
+                  item.track.release.coverMediumStorageKey,
+                )) || item.track.release.coverMediumStorageUrl
+              : item.track.release.coverMediumStorageUrl,
+        },
+        audioFiles: await Promise.all(
+          item.track.audioFiles.map(async (audioFile) => ({
+            ...audioFile,
+            storageUrl:
+              (await this.storageService.getSignedObjectUrl(audioBucket, audioFile.storageKey)) ||
+              audioFile.storageUrl,
+          })),
+        ),
+      })),
+    );
   }
 
   @Post('favorites')
