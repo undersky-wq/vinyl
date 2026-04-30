@@ -1,6 +1,7 @@
 import './globals.css';
 import { cookies } from 'next/headers';
 import { MiniPlayer } from '../components/mini-player';
+import { MobileNav } from '../components/mobile-nav';
 import { getCurrentUser, getFavorites } from '../lib/api';
 import { PlayerProvider } from '../providers/player-provider';
 import { AuthProvider } from '../providers/auth-provider';
@@ -30,6 +31,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <PlayerProvider>
               {children}
               <MiniPlayer lang={lang} />
+              <MobileNav lang={lang} />
             </PlayerProvider>
           </FavoritesProvider>
         </AuthProvider>
