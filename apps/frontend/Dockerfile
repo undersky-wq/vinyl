@@ -8,6 +8,7 @@ FROM node:24-alpine AS builder
 WORKDIR /app/apps/frontend
 
 COPY --from=deps /app/apps/frontend/node_modules ./node_modules
+COPY tsconfig.base.json /app/tsconfig.base.json
 COPY apps/frontend ./
 
 ARG NEXT_PUBLIC_API_URL
