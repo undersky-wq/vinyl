@@ -858,8 +858,8 @@ textarea {
 .track-row {
   position: relative;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 52px;
-  gap: 8px 12px;
+  grid-template-columns: 56px 44px minmax(0, 1fr) 52px;
+  gap: 8px 14px;
   align-items: center;
   padding: 10px 14px;
   border-radius: 20px;
@@ -878,7 +878,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
+  min-width: 56px;
 }
 
 .track-row__actions--leading {
@@ -888,7 +888,7 @@ textarea {
 
 .track-row__duration {
   position: absolute;
-  top: 23px;
+  top: 27px;
   right: 14px;
   min-width: 44px;
   text-align: right;
@@ -900,10 +900,10 @@ textarea {
 .track-row__meta-actions {
   display: inline-flex;
   align-items: center;
-  grid-column: 2 / -1;
-  justify-content: flex-start;
-  gap: 12px;
-  padding-right: 54px;
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 4px;
 }
 
 .track-row .track-favorite-button,
@@ -922,14 +922,16 @@ textarea {
 
 .track-row__empty-action {
   display: inline-flex;
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
 }
 
 .track-row__position {
-  display: inline-block;
-  min-width: 2.4rem;
-  margin-right: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  margin-right: 0;
   color: var(--muted);
   font-size: 1rem;
   font-weight: 700;
@@ -938,18 +940,25 @@ textarea {
 
 .track-row__play-button,
 .track-row .track-upload-button--icon {
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   background: rgba(255, 255, 255, 0.86);
   color: #050505;
 }
 
-.track-row > div:nth-child(2) {
+.track-row__position-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+}
+
+.track-row__title-block {
   display: grid;
   gap: 4px;
   justify-content: start;
   min-width: 0;
-  min-height: 44px;
+  min-height: 56px;
   align-content: center;
   padding-right: 58px;
 }
@@ -976,23 +985,24 @@ textarea {
 .track-row__meta-edit {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   margin-top: 5px;
+  flex: 1;
 }
 
 .track-row__meta-edit--inline {
-  gap: 10px;
+  gap: 14px;
   margin-top: 0;
 }
 
 .track-row__meta-edit--inline .track-meta-pill:first-child {
-  min-width: 4.6rem;
-  text-align: right;
+  min-width: auto;
+  text-align: center;
 }
 
 .track-row__meta-edit--inline .track-meta-pill:last-child {
-  min-width: 2.35rem;
-  text-align: right;
+  min-width: auto;
+  text-align: center;
 }
 
 .track-meta-pill {
@@ -1470,6 +1480,7 @@ textarea {
 }
 
 .player-main-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1483,6 +1494,19 @@ textarea {
   box-shadow: 0 12px 28px rgba(182, 92, 255, 0.28);
   cursor: pointer;
   transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.player-main-button::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background:
+    conic-gradient(
+      var(--player-accent) var(--player-progress, 0%),
+      rgba(255, 255, 255, 0.16) 0
+    );
+  z-index: -1;
 }
 
 .player-main-button:hover {
@@ -3772,15 +3796,14 @@ textarea {
   }
 
   .track-row {
-    grid-template-columns: 44px minmax(0, 1fr) 48px;
+    grid-template-columns: 52px 38px minmax(0, 1fr) 46px;
     gap: 8px 10px;
   }
 
   .track-row__meta-actions {
-    grid-column: 2 / -1;
-    justify-content: flex-start;
-    padding-left: 0;
-    padding-right: 50px;
+    grid-column: 1 / -1;
+    justify-content: space-between;
+    padding: 0 2px;
   }
 
   .library-toolbar--filters-only {
@@ -3886,21 +3909,31 @@ textarea {
   }
 
   .library-track {
-    grid-template-columns: 40px minmax(0, 1fr) 46px;
+    grid-template-columns: 58px minmax(0, 1fr) 30px 30px 44px;
     min-height: 32px;
     padding: 4px 0;
-    column-gap: 8px;
+    column-gap: 10px;
   }
 
   .library-track__thumb,
-  .library-track__play,
-  .library-track__favorite,
-  .library-track .track-playlist-menu {
+  .library-track__play {
     display: none;
   }
 
+  .library-track__favorite,
+  .library-track .track-playlist-menu {
+    display: inline-flex;
+  }
+
+  .library-track .track-playlist-menu__trigger,
+  .library-track__favorite {
+    width: 30px;
+    height: 30px;
+    opacity: 1;
+  }
+
   .library-track__index {
-    justify-content: flex-start;
+    justify-content: center;
     height: auto;
     font-size: 0.8rem;
   }

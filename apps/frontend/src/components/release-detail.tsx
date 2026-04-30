@@ -571,12 +571,13 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                   )}
                 </div>
 
-                <div>
-                  <div>
-                    {track.position ? <span className="track-row__position">{track.position}</span> : null}
-                    <span className="track-row__artist">{getTrackArtist(track, release.artist)}</span>
-                    <span className="track-row__title">{track.title}</span>
-                  </div>
+                <div className="track-row__position-cell">
+                  {track.position ? <span className="track-row__position">{track.position}</span> : null}
+                </div>
+
+                <div className="track-row__title-block">
+                  <span className="track-row__artist">{getTrackArtist(track, release.artist)}</span>
+                  <span className="track-row__title">{track.title}</span>
                 </div>
                 <div className="track-row__meta-actions">
                   <div className="track-row__meta-edit track-row__meta-edit--inline">

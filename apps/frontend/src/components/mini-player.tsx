@@ -119,6 +119,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <button
           type="button"
           className="player-main-button"
+          style={{ '--player-progress': `${displayProgress}%` } as React.CSSProperties}
           onClick={(event) => {
             event.stopPropagation();
             togglePlayback();
