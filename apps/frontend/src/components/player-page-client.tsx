@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { SiteLang } from '../lib/language';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
 
@@ -31,6 +32,8 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
   const { currentTime, duration, progress } = usePlayerProgress();
   const { playPrevious, playNext, togglePlayback, seekToPercent, toggleShuffle, toggleRepeat } =
     usePlayerActions();
+  const [dragProgress, setDragProgress] = useState<number | null>(null);
+  const lastHapticStepRef = useRef(-1);
 
   if (!currentTrack) {
     return (
@@ -41,6 +44,25 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
   }
 
   const peaks = (currentTrack.waveformData?.length ? currentTrack.waveformData : fallbackWaveform()).slice(0, 160);
+  const displayedProgress = dragProgress ?? progress;
+
+  function getPointerProgress(event: React.PointerEvent<HTMLButtonElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const nextProgress = ((event.clientX - rect.left) / rect.width) * 100;
+    return Math.max(0, Math.min(nextProgress, 100));
+  }
+
+  function vibrateOnStep(nextProgress: number) {
+    const step = Math.round(nextProgress / 5);
+    if (step === lastHapticStepRef.current) {
+      return;
+    }
+
+    lastHapticStepRef.current = step;
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(4);
+    }
+  }
 
   return (
     <section className="player-page">
@@ -94,17 +116,38 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
         <span>{formatTime(currentTime)}</span>
         <button
           type="button"
-          className="player-page__waveform"
-          onClick={(event) => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            const nextProgress = ((event.clientX - rect.left) / rect.width) * 100;
-            seekToPercent(Math.max(0, Math.min(nextProgress, 100)));
+          className={`player-page__waveform${dragProgress !== null ? ' dragging' : ''}`}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            const nextProgress = getPointerProgress(event);
+            setDragProgress(nextProgress);
+            vibrateOnStep(nextProgress);
+          }}
+          onPointerMove={(event) => {
+            if (dragProgress === null) {
+              return;
+            }
+
+            const nextProgress = getPointerProgress(event);
+            setDragProgress(nextProgress);
+            vibrateOnStep(nextProgress);
+          }}
+          onPointerUp={(event) => {
+            const nextProgress = getPointerProgress(event);
+            seekToPercent(nextProgress);
+            setDragProgress(null);
+            lastHapticStepRef.current = -1;
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }}
+          onPointerCancel={() => {
+            setDragProgress(null);
+            lastHapticStepRef.current = -1;
           }}
           aria-label={lang === 'ru' ? 'Перемотка трека' : 'Seek track'}
         >
           {peaks.map((peak, index) => (
             <span
-              className={(index / Math.max(peaks.length - 1, 1)) * 100 <= progress ? 'active' : ''}
+              className={(index / Math.max(peaks.length - 1, 1)) * 100 <= displayedProgress ? 'active' : ''}
               key={`${currentTrack.id}-${index}`}
               style={{ height: `${Math.max(10, Math.round(peak * 100))}%` }}
             />

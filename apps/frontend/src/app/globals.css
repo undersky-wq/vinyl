@@ -1215,6 +1215,8 @@ textarea {
   border: none;
   background: transparent;
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
 }
 
 .player-page__waveform span {
@@ -1225,6 +1227,10 @@ textarea {
 
 .player-page__waveform span.active {
   background: var(--player-accent);
+}
+
+.player-page__waveform.dragging span.active {
+  background: #7e33c7;
 }
 
 .player-page__waveform:hover span {
@@ -1504,8 +1510,10 @@ textarea {
   background:
     conic-gradient(
       var(--player-accent) var(--player-progress, 0%),
-      rgba(255, 255, 255, 0.16) 0
+      rgba(255, 255, 255, 0.18) 0
     );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
   z-index: -1;
 }
 
