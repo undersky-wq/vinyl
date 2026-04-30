@@ -25,4 +25,4 @@ COPY --from=builder /app/apps/backend/dist ./dist
 COPY --from=builder /app/apps/backend/prisma ./prisma
 COPY --from=builder /app/apps/backend/package.json ./package.json
 
-CMD ["sh", "-c", "npm run prisma:deploy && node dist/main.js"]
+CMD ["sh", "-c", "npm run prisma:push && node dist/main.js"]
