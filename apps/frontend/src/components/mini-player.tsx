@@ -157,7 +157,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <div className="player-queue-menu">
           <button
             type="button"
-            className={`track-playlist-menu__trigger${isQueueOpen ? ' active' : ''}`}
+            className={`track-playlist-menu__trigger player-queue-menu__trigger${isQueueOpen ? ' active' : ''}`}
             aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
             title={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
             onClick={() => setIsQueueOpen((current) => !current)}

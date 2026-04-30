@@ -2699,6 +2699,20 @@ input {
   position: relative;
 }
 
+.player-queue-menu__trigger.active {
+  color: var(--player-accent) !important;
+  background: transparent;
+}
+
+.player-queue-menu__trigger.active svg {
+  color: var(--player-accent);
+}
+
+.player-queue-menu__trigger:not(.active):hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .player-queue-menu__popup {
   position: absolute;
   right: 0;
