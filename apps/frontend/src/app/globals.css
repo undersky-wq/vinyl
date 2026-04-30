@@ -276,7 +276,7 @@ input {
   background: rgba(255, 255, 255, 0.03);
   color: var(--muted);
   cursor: pointer;
-  transition: 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .icon-link:hover,
@@ -285,11 +285,16 @@ input {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.icon-link:hover .topbar-avatar {
+  transform: scale(1.08);
+}
+
 .topbar-avatar {
   width: 100%;
   height: 100%;
   border-radius: 999px;
   object-fit: cover;
+  transition: transform 0.22s ease;
 }
 
 .topbar-avatar--fallback {
