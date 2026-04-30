@@ -605,6 +605,7 @@ input {
 
 .release-cover-button {
   display: block;
+  width: 100%;
   padding: 0;
   border: none;
   background: transparent;
@@ -613,6 +614,7 @@ input {
 
 .release-cover-shell {
   position: relative;
+  width: 100%;
 }
 
 .release-cover-button--empty {
