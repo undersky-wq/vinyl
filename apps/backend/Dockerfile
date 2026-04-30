@@ -10,6 +10,7 @@ WORKDIR /app/apps/backend
 RUN apk add --no-cache ffmpeg
 
 COPY --from=deps /app/apps/backend/node_modules ./node_modules
+COPY tsconfig.base.json /app/tsconfig.base.json
 COPY apps/backend ./
 
 RUN npm run prisma:generate
