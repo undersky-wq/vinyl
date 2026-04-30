@@ -274,6 +274,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   const [deletingAudioId, setDeletingAudioId] = useState<string | null>(null);
   const [isDeletingRelease, setIsDeletingRelease] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [uploadedCoverUrl, setUploadedCoverUrl] = useState<string | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [trackMetaById, setTrackMetaById] = useState(() =>
     Object.fromEntries(
@@ -286,9 +287,17 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       ]),
     ),
   );
-  const hasCover = Boolean(release.coverStorageUrl || release.coverImageUrl);
-  const coverOriginalSrc = release.coverStorageUrl || release.coverImageUrl || 'https://placehold.co/800x800/png';
-  const coverSrc = release.coverMediumStorageUrl || release.coverThumbStorageUrl || coverOriginalSrc;
+  const coverOriginalSrc =
+    uploadedCoverUrl ||
+    release.coverStorageUrl ||
+    release.coverImageUrl ||
+    'https://placehold.co/800x800/png';
+  const coverSrc =
+    uploadedCoverUrl ||
+    release.coverMediumStorageUrl ||
+    release.coverThumbStorageUrl ||
+    coverOriginalSrc;
+  const hasCover = Boolean(uploadedCoverUrl || release.coverStorageUrl || release.coverImageUrl);
 
   const galleryImages = useMemo(
     () => [
@@ -387,7 +396,14 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   async function handleCoverUpload(file: File) {
     setIsUploadingCover(true);
     try {
-      await uploadReleaseCover(release.id, file);
+      const updatedRelease = await uploadReleaseCover(release.id, file);
+      setUploadedCoverUrl(
+        updatedRelease.coverMediumStorageUrl ||
+          updatedRelease.coverThumbStorageUrl ||
+          updatedRelease.coverStorageUrl ||
+          updatedRelease.coverImageUrl ||
+          null,
+      );
       router.refresh();
     } finally {
       setIsUploadingCover(false);
