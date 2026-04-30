@@ -19,6 +19,9 @@ export type PlayerTrack = {
 
 type PlayerContextType = {
   currentTrack: PlayerTrack | null;
+  queue: PlayerTrack[];
+  displayQueue: PlayerTrack[];
+  currentIndex: number;
   isPlaying: boolean;
   progress: number;
   currentTime: number;
@@ -29,7 +32,7 @@ type PlayerContextType = {
   canPlayPrevious: boolean;
   canPlayNext: boolean;
   playTrack: (track: PlayerTrack) => void;
-  playQueue: (tracks: PlayerTrack[], startIndex?: number) => void;
+  playQueue: (tracks: PlayerTrack[], startIndex?: number, displayTracks?: PlayerTrack[]) => void;
   playQueueAtPercent: (tracks: PlayerTrack[], startIndex: number, percent: number) => void;
   playPrevious: () => void;
   playNext: () => void;
@@ -46,6 +49,9 @@ const PlayerTransportContext = createContext<
   Pick<
     PlayerContextType,
     | 'currentTrack'
+    | 'queue'
+    | 'displayQueue'
+    | 'currentIndex'
     | 'isPlaying'
     | 'volume'
     | 'isShuffleEnabled'
@@ -61,6 +67,9 @@ const PlayerActionsContext = createContext<
   Omit<
     PlayerContextType,
     | 'currentTrack'
+    | 'queue'
+    | 'displayQueue'
+    | 'currentIndex'
     | 'isPlaying'
     | 'progress'
     | 'currentTime'
@@ -76,6 +85,7 @@ const PLAYER_STATE_KEY = 'vinyl-player-state';
 
 let sharedAudio: HTMLAudioElement | null = null;
 let sharedQueue: PlayerTrack[] = [];
+let sharedDisplayQueue: PlayerTrack[] = [];
 let sharedCurrentIndex = 0;
 let sharedCurrentTrack: PlayerTrack | null = null;
 let sharedVolume = 0.8;
@@ -105,6 +115,7 @@ function readStoredState() {
 
     return JSON.parse(raw) as {
       queue: PlayerTrack[];
+      displayQueue?: PlayerTrack[];
       currentIndex: number;
       currentTrack: PlayerTrack | null;
       currentTime: number;
@@ -144,10 +155,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const { requireAuth } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const queueRef = useRef<PlayerTrack[]>(sharedQueue);
+  const displayQueueRef = useRef<PlayerTrack[]>(sharedDisplayQueue);
   const currentIndexRef = useRef(sharedCurrentIndex);
   const currentTrackRef = useRef<PlayerTrack | null>(sharedCurrentTrack);
   const pendingSeekPercentRef = useRef<number | null>(null);
   const [queue, setQueue] = useState<PlayerTrack[]>(sharedQueue);
+  const [displayQueue, setDisplayQueue] = useState<PlayerTrack[]>(sharedDisplayQueue);
   const [currentIndex, setCurrentIndex] = useState(sharedCurrentIndex);
   const [currentTrack, setCurrentTrack] = useState<PlayerTrack | null>(sharedCurrentTrack);
   const [isPlaying, setIsPlaying] = useState(Boolean(sharedAudio && !sharedAudio.paused));
@@ -171,12 +184,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const stored = readStoredState();
       if (stored?.currentTrack) {
         sharedQueue = stored.queue || [];
+        sharedDisplayQueue = stored.displayQueue || sharedQueue;
         sharedCurrentIndex = stored.currentIndex || 0;
         sharedCurrentTrack = stored.currentTrack;
         queueRef.current = sharedQueue;
+        displayQueueRef.current = sharedDisplayQueue;
         currentIndexRef.current = sharedCurrentIndex;
         currentTrackRef.current = sharedCurrentTrack;
         setQueue(sharedQueue);
+        setDisplayQueue(sharedDisplayQueue);
         setCurrentIndex(sharedCurrentIndex);
         setCurrentTrack(sharedCurrentTrack);
 
@@ -318,6 +334,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [queue]);
 
   useEffect(() => {
+    displayQueueRef.current = displayQueue;
+    sharedDisplayQueue = displayQueue;
+  }, [displayQueue]);
+
+  useEffect(() => {
     currentIndexRef.current = currentIndex;
     sharedCurrentIndex = currentIndex;
   }, [currentIndex]);
@@ -336,6 +357,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       PLAYER_STATE_KEY,
         JSON.stringify({
           queue,
+          displayQueue,
           currentIndex,
           currentTrack,
           currentTime: persistedSecond,
@@ -344,7 +366,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           isRepeatEnabled,
         }),
       );
-  }, [queue, currentIndex, currentTrack, persistedSecond, volume, isShuffleEnabled, isRepeatEnabled]);
+  }, [queue, displayQueue, currentIndex, currentTrack, persistedSecond, volume, isShuffleEnabled, isRepeatEnabled]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -368,7 +390,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     void safelyPlay(audio);
   }, [currentTrack]);
 
-  const playQueue = (tracks: PlayerTrack[], startIndex = 0) => {
+  const playQueue = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
     if (!requireAuth()) {
       return;
     }
@@ -382,13 +404,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const nextTrack = playableTracks[safeIndex];
 
     sharedQueue = playableTracks;
+    sharedDisplayQueue = (displayTracks || playableTracks).filter((track) => Boolean(track.audioUrl));
     sharedCurrentIndex = safeIndex;
     sharedCurrentTrack = nextTrack;
     queueRef.current = playableTracks;
+    displayQueueRef.current = sharedDisplayQueue;
     currentIndexRef.current = safeIndex;
     currentTrackRef.current = nextTrack;
 
     setQueue(playableTracks);
+    setDisplayQueue(sharedDisplayQueue);
     setCurrentIndex(safeIndex);
     setCurrentTrack(nextTrack);
   };
@@ -543,6 +568,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const transportValue = {
     currentTrack,
+    queue,
+    displayQueue,
+    currentIndex,
     isPlaying,
     volume,
     isShuffleEnabled,

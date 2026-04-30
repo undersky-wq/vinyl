@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import {
+  ListMusic,
   Pause,
   Play,
   Repeat2,
@@ -14,7 +15,7 @@ import {
 import { useState } from 'react';
 import { SiteLang } from '../lib/language';
 import { usePlayer } from '../providers/player-provider';
-import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
+import { FavoriteButton } from './track-actions';
 
 type MiniPlayerProps = {
   lang: SiteLang;
@@ -33,6 +34,8 @@ function formatTime(value: number) {
 export function MiniPlayer({ lang }: MiniPlayerProps) {
   const {
     currentTrack,
+    queue,
+    displayQueue,
     isPlaying,
     progress,
     currentTime,
@@ -44,6 +47,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     canPlayNext,
     playPrevious,
     playNext,
+    playQueue,
     seekToPercent,
     setVolume,
     toggleShuffle,
@@ -51,9 +55,11 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     togglePlayback,
   } = usePlayer();
   const [dragProgress, setDragProgress] = useState<number | null>(null);
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
 
   const volumeLabel = lang === 'ru' ? 'Громкость' : 'Volume';
   const displayProgress = dragProgress ?? progress;
+  const visibleQueue = displayQueue.length ? displayQueue : queue;
   const displayTime =
     dragProgress !== null && duration > 0 ? (duration * dragProgress) / 100 : currentTime;
 
@@ -148,7 +154,51 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
 
       <div className="mini-player__track-actions">
         <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
-        <TrackPlaylistMenu trackId={currentTrack.id} lang={lang} align="up" />
+        <div className="player-queue-menu">
+          <button
+            type="button"
+            className={`track-playlist-menu__trigger${isQueueOpen ? ' active' : ''}`}
+            aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
+            title={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
+            onClick={() => setIsQueueOpen((current) => !current)}
+          >
+            <ListMusic size={18} />
+          </button>
+
+          {isQueueOpen ? (
+            <div className="player-queue-menu__popup">
+              <div className="player-queue-menu__title">
+                {lang === 'ru' ? 'Сейчас играет' : 'Now playing'}
+              </div>
+              <div className="player-queue-menu__list">
+                {visibleQueue.map((track) => {
+                  const queueIndex = queue.findIndex((item) => item.id === track.id);
+                  const isActive = track.id === currentTrack.id;
+
+                  return (
+                  <button
+                    type="button"
+                    className={`player-queue-menu__item${isActive ? ' active' : ''}`}
+                    key={track.id}
+                    onClick={() => {
+                      if (queueIndex >= 0) {
+                        playQueue(queue, queueIndex, visibleQueue);
+                      }
+                      setIsQueueOpen(false);
+                    }}
+                  >
+                    <Image src={track.coverUrl} alt="" width={34} height={34} />
+                    <span>
+                      <strong>{track.title}</strong>
+                      <em>{track.artist}</em>
+                    </span>
+                  </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="mini-player__volume">

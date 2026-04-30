@@ -415,12 +415,17 @@ export function TracklistBrowser({
 
   function playFromVisibleFeed(trackId: string) {
     const startIndex = playableFilteredFeed.findIndex((track) => track.id === trackId);
+    const activeTrack = playableFilteredFeed[startIndex];
+    const releaseQueue = activeTrack
+      ? playableFilteredFeed.filter((track) => track.releaseId === activeTrack.releaseId)
+      : [];
+
     if (startIndex < 0) {
       setStatus(lang === 'ru' ? 'Для этого трека ещё не загружен MP3.' : 'No MP3 uploaded for this track yet.');
       return;
     }
 
-    playQueue(playableFilteredFeed, startIndex);
+    playQueue(playableFilteredFeed, startIndex, releaseQueue);
   }
 
   async function handleCreatePlaylist() {
