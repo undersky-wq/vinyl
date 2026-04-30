@@ -52,7 +52,7 @@ export function HomeStyleFilters({
   selectedStyles,
 }: HomeStyleFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const popularStyles = styles.slice(0, 9);
+  const popularStyles = styles.slice(0, 8);
   const selectedHiddenStyles = selectedStyles.filter((style) => !popularStyles.includes(style));
   const collapsedStyles = [...new Set([...popularStyles, ...selectedHiddenStyles])];
   const visibleStyles = isExpanded ? styles : collapsedStyles;

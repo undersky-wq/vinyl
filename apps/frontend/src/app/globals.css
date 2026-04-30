@@ -3608,7 +3608,7 @@ textarea {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    max-height: 88px;
+    max-height: 76px;
     overflow: hidden;
     padding-bottom: 4px;
     scrollbar-width: none;
@@ -3624,10 +3624,14 @@ textarea {
 
   .filters--home .chip {
     flex: 0 0 auto;
+    padding: 7px 10px;
+    font-size: 0.72rem;
+    line-height: 1.15;
   }
 
   .home-style-toggle {
     order: 999;
+    min-width: 38px;
   }
 
   .cover-frame:active img,
@@ -3856,13 +3860,15 @@ textarea {
   .mini-player {
     left: 50%;
     right: auto;
-    bottom: 72px;
+    bottom: 82px;
     width: min(calc(100vw - 20px), 520px);
     grid-template-columns: 50px minmax(0, 1fr) auto auto;
     gap: 12px;
     min-height: 60px;
     padding: 8px 14px 8px 8px;
     border-radius: 999px;
+    background: rgba(24, 24, 24, 0.96);
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
     cursor: pointer;
     transform: translateX(-50%);
   }
