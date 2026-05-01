@@ -858,8 +858,8 @@ textarea {
 .track-row {
   position: relative;
   display: grid;
-  grid-template-columns: 56px 44px minmax(0, 1fr) 52px;
-  gap: 8px 14px;
+  grid-template-columns: 56px 44px minmax(0, 1fr) auto 52px;
+  gap: 8px 12px;
   align-items: center;
   padding: 10px 14px;
   border-radius: 20px;
@@ -887,9 +887,7 @@ textarea {
 }
 
 .track-row__duration {
-  position: absolute;
-  top: 27px;
-  right: 14px;
+  position: static;
   min-width: 44px;
   text-align: right;
   font-size: 1rem;
@@ -900,10 +898,10 @@ textarea {
 .track-row__meta-actions {
   display: inline-flex;
   align-items: center;
-  grid-column: 1 / -1;
+  grid-column: auto;
   justify-content: space-between;
-  gap: 14px;
-  padding: 0 4px;
+  gap: 12px;
+  padding: 0;
 }
 
 .track-row .track-favorite-button,
@@ -938,6 +936,10 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+.track-row__position::after {
+  content: '';
+}
+
 .track-row__play-button,
 .track-row .track-upload-button--icon {
   width: 56px;
@@ -954,22 +956,27 @@ textarea {
 }
 
 .track-row__title-block {
-  display: grid;
+  display: flex;
   gap: 4px;
-  justify-content: start;
+  align-items: center;
+  justify-content: flex-start;
   min-width: 0;
   min-height: 56px;
-  align-content: center;
-  padding-right: 58px;
+  padding-right: 0;
 }
 
 .track-row__artist,
 .track-row__title {
-  display: block;
+  display: inline;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.track-row__artist::after {
+  content: ' - ';
+  color: var(--text);
 }
 
 .track-row__artist {
@@ -2042,6 +2049,11 @@ textarea {
 .playlist-track__artist {
   color: #8d8d8d;
   font-size: 0.9rem;
+}
+
+.playlist-track__artist::after {
+  content: ' - ';
+  color: #ffffff;
 }
 
 .playlist-track__time {
@@ -3908,8 +3920,19 @@ textarea {
   }
 
   .track-row__title-block {
+    display: grid;
+    gap: 4px;
     min-height: 44px;
     padding-right: 6px;
+  }
+
+  .track-row__artist,
+  .track-row__title {
+    display: block;
+  }
+
+  .track-row__artist::after {
+    content: '';
   }
 
   .track-row__artist {
@@ -4134,6 +4157,10 @@ textarea {
     white-space: nowrap;
   }
 
+  .playlist-track__artist::after {
+    content: '';
+  }
+
   .playlist-track__actions {
     display: none;
   }
@@ -4287,16 +4314,21 @@ textarea {
   }
 
   .player-page__controls {
-    grid-template-columns: repeat(5, minmax(56px, 1fr));
-    gap: 0;
-    width: min(100%, 340px);
-    padding: 0 2px;
+    grid-template-columns: 64px 54px 68px 54px 64px;
+    gap: 2px;
+    width: min(100%, 314px);
+    padding: 0;
   }
 
   .player-page__control {
-    width: 56px;
+    width: 54px;
     height: 56px;
     margin: 0 auto;
+  }
+
+  .player-page__control--shuffle,
+  .player-page__control--repeat {
+    width: 64px;
   }
 
   .player-page__play {

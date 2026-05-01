@@ -145,7 +145,7 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
       <div className="player-page__controls">
         <button
           type="button"
-          className={`player-page__control${isShuffleEnabled ? ' active' : ''}`}
+          className={`player-page__control player-page__control--shuffle${isShuffleEnabled ? ' active' : ''}`}
           onClick={(event) => {
             event.stopPropagation();
             toggleShuffle();
@@ -156,7 +156,7 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
         </button>
         <button
           type="button"
-          className="player-page__control"
+          className="player-page__control player-page__control--previous"
           onClick={(event) => {
             event.stopPropagation();
             playPrevious();
@@ -178,7 +178,7 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
         </button>
         <button
           type="button"
-          className="player-page__control"
+          className="player-page__control player-page__control--next"
           onClick={(event) => {
             event.stopPropagation();
             playNext();
@@ -190,7 +190,7 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
         </button>
         <button
           type="button"
-          className={`player-page__control${isRepeatEnabled ? ' active' : ''}`}
+          className={`player-page__control player-page__control--repeat${isRepeatEnabled ? ' active' : ''}`}
           onClick={(event) => {
             event.stopPropagation();
             toggleRepeat();
