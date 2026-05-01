@@ -363,24 +363,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const trackToRefresh = currentTrack;
     let isCancelled = false;
 
     async function refreshSignedUrls() {
       try {
-        const refreshedTrack = await refreshPlayerTrack(currentTrack.id);
+        const refreshedTrack = await refreshPlayerTrack(trackToRefresh.id);
         if (isCancelled || !refreshedTrack.audioUrl) {
           return;
         }
 
         const hasChanged =
-          refreshedTrack.audioUrl !== currentTrack.audioUrl ||
-          refreshedTrack.coverUrl !== currentTrack.coverUrl;
+          refreshedTrack.audioUrl !== trackToRefresh.audioUrl ||
+          refreshedTrack.coverUrl !== trackToRefresh.coverUrl;
 
         if (!hasChanged) {
           return;
         }
 
-        const nextTrack = { ...currentTrack, ...refreshedTrack };
+        const nextTrack = { ...trackToRefresh, ...refreshedTrack };
         const nextQueue = mergeTrackById(queueRef.current, nextTrack);
         const nextDisplayQueue = mergeTrackById(displayQueueRef.current, nextTrack);
 
