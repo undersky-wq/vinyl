@@ -18,17 +18,39 @@ export function AuthScreen({
   const [currentMode, setCurrentMode] = useState<'login' | 'register'>(mode);
   const [status, setStatus] = useState('');
   const [isPending, setIsPending] = useState(false);
+  const isRu = lang === 'ru';
+  const isLogin = currentMode === 'login';
+
+  const copy = {
+    eyebrow: isLogin
+      ? isRu
+        ? 'Доступ для пользователя'
+        : 'Member access'
+      : isRu
+        ? 'Регистрация по инвайту'
+        : 'Invite registration',
+    title: isLogin ? (isRu ? 'Вход' : 'Sign in') : isRu ? 'Создать аккаунт' : 'Create account',
+    description: isLogin
+      ? isRu
+        ? 'Зарегистрированные пользователи могут слушать треки, сохранять избранное и создавать плейлисты.'
+        : 'Registered users can listen to tracks, save favorites and build personal playlists.'
+      : isRu
+        ? 'Для регистрации нужен инвайт-код. После входа будут доступны личные плейлисты, избранное и профиль.'
+        : 'New users need your invite code, then they get their own playlists, favorites and profile.',
+    displayName: isRu ? 'Имя' : 'Display name',
+    password: isRu ? 'Пароль' : 'Password',
+    inviteCode: isRu ? 'Инвайт-код' : 'Invite code',
+    submit: isLogin ? (isRu ? 'Войти' : 'Sign in') : isRu ? 'Зарегистрироваться' : 'Register',
+    failed: isLogin ? (isRu ? 'Не удалось войти.' : 'Login failed.') : isRu ? 'Не удалось зарегистрироваться.' : 'Registration failed.',
+    switchMode: isLogin ? (isRu ? 'Нужен аккаунт?' : 'Need an account?') : isRu ? 'Уже есть аккаунт?' : 'Already have an account?',
+  };
 
   return (
     <section className="auth-grid">
       <article className="release-panel auth-panel">
-        <p className="muted">{currentMode === 'login' ? 'Member access' : 'Invite registration'}</p>
-        <h1 className="profile-title">{currentMode === 'login' ? 'Sign in' : 'Create account'}</h1>
-        <p className="muted">
-          {currentMode === 'login'
-            ? 'Registered users can listen to tracks, save favorites and build personal playlists.'
-            : 'New users need your invite code, then they get their own playlists, favorites and profile.'}
-        </p>
+        <p className="muted">{copy.eyebrow}</p>
+        <h1 className="profile-title">{copy.title}</h1>
+        <p className="muted">{copy.description}</p>
 
         <form
           className="auth-form"
@@ -46,15 +68,14 @@ export function AuthScreen({
             setIsPending(true);
 
             try {
-              const user =
-                currentMode === 'login'
-                  ? await loginUser({ email: payload.email, password: payload.password })
-                  : await registerUser(payload);
+              const user = isLogin
+                ? await loginUser({ email: payload.email, password: payload.password })
+                : await registerUser(payload);
               setUser(user);
               router.push('/profile');
               router.refresh();
             } catch {
-              setStatus(currentMode === 'login' ? 'Login failed.' : 'Registration failed.');
+              setStatus(copy.failed);
             } finally {
               setIsPending(false);
             }
@@ -62,7 +83,7 @@ export function AuthScreen({
         >
           {currentMode === 'register' ? (
             <div className="field">
-              <label htmlFor="displayName">{lang === 'ru' ? 'Имя' : 'Display name'}</label>
+              <label htmlFor="displayName">{copy.displayName}</label>
               <input id="displayName" name="displayName" required />
             </div>
           ) : null}
@@ -73,19 +94,19 @@ export function AuthScreen({
           </div>
 
           <div className="field">
-            <label htmlFor="password">{lang === 'ru' ? 'Пароль' : 'Password'}</label>
+            <label htmlFor="password">{copy.password}</label>
             <input id="password" name="password" type="password" minLength={8} required />
           </div>
 
           {currentMode === 'register' ? (
             <div className="field">
-              <label htmlFor="inviteCode">{lang === 'ru' ? 'Инвайт-код' : 'Invite code'}</label>
+              <label htmlFor="inviteCode">{copy.inviteCode}</label>
               <input id="inviteCode" name="inviteCode" required />
             </div>
           ) : null}
 
           <button className="primary-button auth-submit-button" type="submit" disabled={isPending}>
-            {currentMode === 'login' ? 'Sign in' : 'Register'}
+            {copy.submit}
           </button>
           {status ? <p className="muted">{status}</p> : null}
         </form>
@@ -95,7 +116,7 @@ export function AuthScreen({
           className="auth-mode-switch"
           onClick={() => setCurrentMode((current) => (current === 'login' ? 'register' : 'login'))}
         >
-          {currentMode === 'login' ? 'Need an account?' : 'Already have an account?'}
+          {copy.switchMode}
         </button>
       </article>
     </section>
