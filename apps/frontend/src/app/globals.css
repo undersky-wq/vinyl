@@ -888,6 +888,7 @@ textarea {
 
 .track-row__duration {
   position: static;
+  grid-column: 5;
   min-width: 44px;
   text-align: right;
   font-size: 1rem;
@@ -898,7 +899,7 @@ textarea {
 .track-row__meta-actions {
   display: inline-flex;
   align-items: center;
-  grid-column: auto;
+  grid-column: 4;
   justify-content: space-between;
   gap: 12px;
   padding: 0;
@@ -3891,6 +3892,7 @@ textarea {
 
   .track-row__duration {
     position: static;
+    grid-column: auto;
     min-width: 44px;
     text-align: right;
   }
