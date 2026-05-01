@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { refreshPlayerTrack } from '../lib/api';
 import { useAuth } from './auth-provider';
 
 export type PlayerTrack = {
@@ -140,6 +141,10 @@ function getRandomNextIndex(currentIndex: number, size: number) {
   }
 
   return nextIndex;
+}
+
+function mergeTrackById(tracks: PlayerTrack[], nextTrack: PlayerTrack) {
+  return tracks.map((track) => (track.id === nextTrack.id ? { ...track, ...nextTrack } : track));
 }
 
 async function safelyPlay(audio: HTMLAudioElement) {
@@ -352,6 +357,54 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     currentTrackRef.current = currentTrack;
     sharedCurrentTrack = currentTrack;
   }, [currentTrack]);
+
+  useEffect(() => {
+    if (!currentTrack) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    async function refreshSignedUrls() {
+      try {
+        const refreshedTrack = await refreshPlayerTrack(currentTrack.id);
+        if (isCancelled || !refreshedTrack.audioUrl) {
+          return;
+        }
+
+        const hasChanged =
+          refreshedTrack.audioUrl !== currentTrack.audioUrl ||
+          refreshedTrack.coverUrl !== currentTrack.coverUrl;
+
+        if (!hasChanged) {
+          return;
+        }
+
+        const nextTrack = { ...currentTrack, ...refreshedTrack };
+        const nextQueue = mergeTrackById(queueRef.current, nextTrack);
+        const nextDisplayQueue = mergeTrackById(displayQueueRef.current, nextTrack);
+
+        sharedCurrentTrack = nextTrack;
+        currentTrackRef.current = nextTrack;
+        sharedQueue = nextQueue;
+        queueRef.current = nextQueue;
+        sharedDisplayQueue = nextDisplayQueue;
+        displayQueueRef.current = nextDisplayQueue;
+
+        setCurrentTrack(nextTrack);
+        setQueue(nextQueue);
+        setDisplayQueue(nextDisplayQueue);
+      } catch {
+        // Stored S3 signed URLs can expire; if refresh fails, keep playback state untouched.
+      }
+    }
+
+    void refreshSignedUrls();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentTrack?.id]);
 
   useEffect(() => {
     shuffleEnabledRef.current = isShuffleEnabled;

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SiteLang } from '../lib/language';
 
 type HomeStyleFiltersProps = {
@@ -52,11 +52,26 @@ export function HomeStyleFilters({
   selectedStyles,
 }: HomeStyleFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const popularStyles = styles.slice(0, 4);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 720px)').matches : false,
+  );
+  const popularStyles = styles.slice(0, isMobile ? 4 : 11);
   const selectedHiddenStyles = selectedStyles.filter((style) => !popularStyles.includes(style));
   const collapsedStyles = [...new Set([...popularStyles, ...selectedHiddenStyles])];
   const visibleStyles = isExpanded ? styles : collapsedStyles;
   const canToggle = styles.length > collapsedStyles.length;
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 720px)');
+    const handleChange = () => setIsMobile(media.matches);
+
+    handleChange();
+    media.addEventListener('change', handleChange);
+
+    return () => {
+      media.removeEventListener('change', handleChange);
+    };
+  }, []);
 
   return (
     <section className={`filters filters--home${isExpanded ? ' expanded' : ''}`}>

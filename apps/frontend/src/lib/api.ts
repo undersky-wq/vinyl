@@ -11,6 +11,7 @@ import {
   Track,
   UserProfile,
 } from '../types';
+import type { PlayerTrack } from '../providers/player-provider';
 
 const API_URL =
   typeof window === 'undefined'
@@ -157,6 +158,10 @@ export async function getSearchSuggestions(search: string) {
   params.set('search', search);
 
   return fetchJson<SearchSuggestion[]>(`/releases/suggestions?${params.toString()}`);
+}
+
+export async function refreshPlayerTrack(trackId: string) {
+  return fetchJson<PlayerTrack>(`/tracks/${trackId}/player`);
 }
 
 export async function getPlaylists(cookieHeader?: string) {

@@ -230,6 +230,8 @@ export class PlaylistsService {
             coverStorageUrl?: string | null;
             coverThumbStorageKey?: string | null;
             coverThumbStorageUrl?: string | null;
+            coverMediumStorageKey?: string | null;
+            coverMediumStorageUrl?: string | null;
           };
           audioFiles: Array<{
             storageKey: string;
@@ -264,6 +266,13 @@ export class PlaylistsService {
                       item.track.release.coverThumbStorageKey,
                     )) || item.track.release.coverThumbStorageUrl
                   : item.track.release.coverThumbStorageUrl,
+              coverMediumStorageUrl:
+                item.track.release.coverMediumStorageKey
+                  ? (await this.storageService.getSignedObjectUrl(
+                      this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers',
+                      item.track.release.coverMediumStorageKey,
+                    )) || item.track.release.coverMediumStorageUrl
+                  : item.track.release.coverMediumStorageUrl,
             },
             audioFiles: await Promise.all(
               item.track.audioFiles.map(async (audioFile) => ({

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from './auth/auth.guards';
 import { PrismaService } from './prisma/prisma.service';
@@ -129,6 +129,59 @@ export class AppController {
         ),
       })),
     );
+  }
+
+  @Get('tracks/:id/player')
+  @UseGuards(AuthGuard)
+  async playerTrack(@Param('id') id: string) {
+    const audioBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
+    const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    const track = await this.prisma.track.findUnique({
+      where: { id },
+      include: {
+        audioFiles: true,
+        release: true,
+      },
+    });
+
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    const coverStorageUrl =
+      track.release.coverStorageKey
+        ? (await this.storageService.getSignedObjectUrl(coversBucket, track.release.coverStorageKey)) ||
+          track.release.coverStorageUrl
+        : track.release.coverStorageUrl;
+    const coverThumbStorageUrl =
+      track.release.coverThumbStorageKey
+        ? (await this.storageService.getSignedObjectUrl(coversBucket, track.release.coverThumbStorageKey)) ||
+          track.release.coverThumbStorageUrl
+        : track.release.coverThumbStorageUrl;
+    const coverMediumStorageUrl =
+      track.release.coverMediumStorageKey
+        ? (await this.storageService.getSignedObjectUrl(coversBucket, track.release.coverMediumStorageKey)) ||
+          track.release.coverMediumStorageUrl
+        : track.release.coverMediumStorageUrl;
+    const audioFile = track.audioFiles[0];
+
+    return {
+      id: track.id,
+      title: track.title,
+      artist: track.artists.length ? track.artists.join(', ') : track.release.artist,
+      audioUrl: audioFile
+        ? (await this.storageService.getSignedObjectUrl(audioBucket, audioFile.storageKey)) ||
+          audioFile.storageUrl ||
+          ''
+        : '',
+      coverUrl:
+        coverThumbStorageUrl ||
+        coverMediumStorageUrl ||
+        coverStorageUrl ||
+        track.release.coverImageUrl ||
+        '',
+      waveformData: track.waveformData,
+    };
   }
 
   @Post('favorites')
