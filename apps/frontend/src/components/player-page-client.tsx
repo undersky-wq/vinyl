@@ -146,7 +146,10 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
         <button
           type="button"
           className={`player-page__control${isShuffleEnabled ? ' active' : ''}`}
-          onClick={toggleShuffle}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleShuffle();
+          }}
           aria-label={lang === 'ru' ? 'Перемешивание' : 'Shuffle'}
         >
           <Shuffle size={22} />
@@ -154,19 +157,32 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
         <button
           type="button"
           className="player-page__control"
-          onClick={playPrevious}
+          onClick={(event) => {
+            event.stopPropagation();
+            playPrevious();
+          }}
           disabled={!canPlayPrevious}
           aria-label={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
         >
           <SkipBack size={26} fill="currentColor" />
         </button>
-        <button type="button" className="player-page__play" onClick={togglePlayback}>
+        <button
+          type="button"
+          className="player-page__play"
+          onClick={(event) => {
+            event.stopPropagation();
+            togglePlayback();
+          }}
+        >
           {isPlaying ? <Pause size={34} /> : <Play size={34} fill="currentColor" />}
         </button>
         <button
           type="button"
           className="player-page__control"
-          onClick={playNext}
+          onClick={(event) => {
+            event.stopPropagation();
+            playNext();
+          }}
           disabled={!canPlayNext}
           aria-label={lang === 'ru' ? 'Следующий трек' : 'Next track'}
         >
@@ -175,7 +191,10 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
         <button
           type="button"
           className={`player-page__control${isRepeatEnabled ? ' active' : ''}`}
-          onClick={toggleRepeat}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleRepeat();
+          }}
           aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
         >
           <Repeat2 size={22} />
