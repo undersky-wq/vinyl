@@ -5,7 +5,6 @@ import { Pause, Play } from 'lucide-react';
 import { SiteLang } from '../lib/language';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Release, Track } from '../types';
-import { FavoriteButton } from './track-actions';
 
 type FavoriteTrack = Track & {
   release: Release;
@@ -116,8 +115,6 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
                 <span className="playlist-track__artist">{artist}</span>
                 <span>{track.title}</span>
               </button>
-
-              <FavoriteButton trackId={track.id} lang={lang} alwaysVisible />
 
               <div className="playlist-track__time muted">
                 {formatTrackDuration(track.durationRaw, track.durationSec)}

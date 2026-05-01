@@ -202,6 +202,9 @@ export function PlaylistBrowser({
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { playQueue, togglePlayback } = usePlayerActions();
   const activePlaylist = activePlaylistId ? playlistCache[activePlaylistId] || null : null;
+  const visiblePlaylistSummaries = arePlaylistChipsExpanded
+    ? localSummaries
+    : localSummaries.slice(0, 6);
 
   useEffect(() => {
     setLocalSummaries(playlistSummaries);
@@ -346,8 +349,8 @@ export function PlaylistBrowser({
   return (
     <section className="playlists-page">
       <div className={`playlist-chip-row${arePlaylistChipsExpanded ? ' expanded' : ''}`}>
-        {localSummaries.length ? (
-          localSummaries.map((playlist) => (
+        {visiblePlaylistSummaries.length ? (
+          visiblePlaylistSummaries.map((playlist) => (
             <button
               type="button"
               key={playlist.id}

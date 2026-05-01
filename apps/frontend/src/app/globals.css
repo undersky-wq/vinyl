@@ -858,11 +858,11 @@ textarea {
 .track-row {
   position: relative;
   display: grid;
-  grid-template-columns: 44px 34px minmax(0, 1fr) 52px;
-  gap: 8px 8px;
+  grid-template-columns: 56px 44px minmax(0, 1fr) 52px;
+  gap: 8px 14px;
   align-items: center;
-  padding: 5px 12px 8px 0;
-  border-radius: 8px;
+  padding: 10px 14px;
+  border-radius: 20px;
   background: var(--panel);
   font-size: 1rem;
   font-weight: 700;
@@ -878,7 +878,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
+  min-width: 56px;
 }
 
 .track-row__actions--leading {
@@ -887,7 +887,10 @@ textarea {
 }
 
 .track-row__duration {
-  min-width: 46px;
+  position: absolute;
+  top: 27px;
+  right: 14px;
+  min-width: 44px;
   text-align: right;
   font-size: 1rem;
   font-weight: 400;
@@ -895,13 +898,12 @@ textarea {
 }
 
 .track-row__meta-actions {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: inline-flex;
   align-items: center;
   grid-column: 1 / -1;
-  justify-items: center;
-  gap: 0;
-  padding: 0 6px;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 4px;
 }
 
 .track-row .track-favorite-button,
@@ -920,8 +922,8 @@ textarea {
 
 .track-row__empty-action {
   display: inline-flex;
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
 }
 
 .track-row__position {
@@ -938,18 +940,17 @@ textarea {
 
 .track-row__play-button,
 .track-row .track-upload-button--icon {
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   background: rgba(255, 255, 255, 0.86);
   color: #050505;
-  border-radius: 50%;
 }
 
 .track-row__position-cell {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  min-height: 44px;
+  justify-content: center;
+  min-height: 56px;
 }
 
 .track-row__title-block {
@@ -957,9 +958,9 @@ textarea {
   gap: 4px;
   justify-content: start;
   min-width: 0;
-  min-height: 44px;
+  min-height: 56px;
   align-content: center;
-  padding-right: 6px;
+  padding-right: 58px;
 }
 
 .track-row__artist,
@@ -972,25 +973,25 @@ textarea {
 }
 
 .track-row__artist {
-  color: #8d8d8d;
+  color: var(--muted);
   font-size: 0.9rem;
-  font-weight: 700;
 }
 
 .track-row__title {
-  color: #ffffff;
+  color: var(--text);
   font-size: 1rem;
-  font-weight: 700;
 }
 
 .track-row__meta-edit {
-  display: contents;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
   margin-top: 5px;
   flex: 1;
 }
 
 .track-row__meta-edit--inline {
-  display: contents;
+  gap: 14px;
   margin-top: 0;
 }
 
@@ -1002,14 +1003,6 @@ textarea {
 .track-row__meta-edit--inline .track-meta-pill:last-child {
   min-width: auto;
   text-align: center;
-}
-
-.track-row .track-favorite-button,
-.track-row .track-playlist-menu__trigger,
-.track-row .track-icon-button--danger {
-  justify-self: center;
-  width: 30px;
-  height: 30px;
 }
 
 .track-meta-pill {
@@ -3875,13 +3868,71 @@ textarea {
     grid-template-columns: 44px 32px minmax(0, 1fr) 44px;
     gap: 8px 7px;
     padding: 5px 10px 8px 0;
+    border-radius: 8px;
+  }
+
+  .track-row__actions {
+    min-width: 44px;
+  }
+
+  .track-row__duration {
+    position: static;
+    min-width: 44px;
+    text-align: right;
   }
 
   .track-row__meta-actions {
+    display: grid;
     grid-column: 1 / -1;
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
     justify-items: center;
     padding: 0 4px;
+  }
+
+  .track-row__empty-action {
+    width: 44px;
+    height: 44px;
+  }
+
+  .track-row__play-button,
+  .track-row .track-upload-button--icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+  }
+
+  .track-row__position-cell {
+    justify-content: flex-start;
+    min-height: 44px;
+  }
+
+  .track-row__title-block {
+    min-height: 44px;
+    padding-right: 6px;
+  }
+
+  .track-row__artist {
+    color: #8d8d8d;
+    font-weight: 700;
+  }
+
+  .track-row__title {
+    color: #ffffff;
+    font-weight: 700;
+  }
+
+  .track-row__meta-edit,
+  .track-row__meta-edit--inline {
+    display: contents;
+  }
+
+  .track-row .track-favorite-button,
+  .track-row .track-playlist-menu__trigger,
+  .track-row .track-icon-button--danger {
+    justify-self: center;
+    width: 30px;
+    height: 30px;
   }
 
   .library-toolbar--filters-only {
@@ -4030,8 +4081,8 @@ textarea {
   }
 
   .playlist-chip-row {
-    max-height: 92px;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
   }
 
   .playlist-chip-row.expanded {
@@ -4217,14 +4268,41 @@ textarea {
   }
 
   .favorites-track {
-    grid-template-columns: 48px minmax(0, 1fr) 34px 44px;
+    grid-template-columns: 48px minmax(0, 1fr) 44px;
     gap: 10px;
     min-height: 56px;
     padding: 4px 0;
   }
 
-  .favorites-track .track-favorite-button {
-    opacity: 1;
+  .player-page__collapse {
+    top: 14px;
+    right: 14px;
+    width: 35px;
+    height: 35px;
+  }
+
+  .player-page__collapse svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .player-page__controls {
+    grid-template-columns: repeat(5, minmax(56px, 1fr));
+    gap: 0;
+    width: min(100%, 340px);
+    padding: 0 2px;
+  }
+
+  .player-page__control {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto;
+  }
+
+  .player-page__play {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto;
   }
 
   .cover-overlay {
