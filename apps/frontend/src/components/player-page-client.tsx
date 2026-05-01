@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { ListMusic, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronDown, ListMusic, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { SiteLang } from '../lib/language';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
@@ -22,6 +23,7 @@ function fallbackWaveform(points = 120) {
 }
 
 export function PlayerPageClient({ lang }: { lang: SiteLang }) {
+  const router = useRouter();
   const {
     currentTrack,
     queue,
@@ -69,8 +71,27 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
     }
   }
 
+  function collapsePlayer() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/');
+  }
+
   return (
     <section className="player-page">
+      <button
+        type="button"
+        className="player-page__collapse"
+        onClick={collapsePlayer}
+        aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
+        title={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
+      >
+        <ChevronDown size={24} />
+      </button>
+
       <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} />
       <div className="player-page__meta">
         <p>{currentTrack.artist}</p>

@@ -1125,12 +1125,38 @@ textarea {
 }
 
 .player-page {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 20px;
   min-height: calc(100dvh - 180px);
   align-content: center;
   padding: 24px 0 110px;
+}
+
+.player-page__collapse {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: #242424;
+  color: var(--muted);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  transform: translateX(-50%);
+  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.player-page__collapse:hover {
+  color: #ffffff;
+  background: #303030;
+  transform: translateX(-50%) translateY(2px);
 }
 
 .player-page img {

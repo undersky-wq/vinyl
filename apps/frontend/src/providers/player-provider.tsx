@@ -159,6 +159,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const displayQueueRef = useRef<PlayerTrack[]>(sharedDisplayQueue);
   const currentIndexRef = useRef(sharedCurrentIndex);
   const currentTrackRef = useRef<PlayerTrack | null>(sharedCurrentTrack);
+  const shuffleEnabledRef = useRef(sharedIsShuffleEnabled);
+  const repeatEnabledRef = useRef(sharedIsRepeatEnabled);
   const pendingSeekPercentRef = useRef<number | null>(null);
   const [queue, setQueue] = useState<PlayerTrack[]>(sharedQueue);
   const [displayQueue, setDisplayQueue] = useState<PlayerTrack[]>(sharedDisplayQueue);
@@ -213,11 +215,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         if (typeof stored.isShuffleEnabled === 'boolean') {
           sharedIsShuffleEnabled = stored.isShuffleEnabled;
+          shuffleEnabledRef.current = stored.isShuffleEnabled;
           setIsShuffleEnabled(stored.isShuffleEnabled);
         }
 
         if (typeof stored.isRepeatEnabled === 'boolean') {
           sharedIsRepeatEnabled = stored.isRepeatEnabled;
+          repeatEnabledRef.current = stored.isRepeatEnabled;
           setIsRepeatEnabled(stored.isRepeatEnabled);
         }
       }
@@ -276,10 +280,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       let nextIndex = currentIndexRef.current + 1;
 
-      if (sharedIsShuffleEnabled) {
+      if (shuffleEnabledRef.current) {
         nextIndex = getRandomNextIndex(currentIndexRef.current, queueSize);
       } else if (nextIndex >= queueSize) {
-        if (!sharedIsRepeatEnabled) {
+        if (!repeatEnabledRef.current) {
           setIsPlaying(false);
           setProgress(100);
           return;
@@ -348,6 +352,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     currentTrackRef.current = currentTrack;
     sharedCurrentTrack = currentTrack;
   }, [currentTrack]);
+
+  useEffect(() => {
+    shuffleEnabledRef.current = isShuffleEnabled;
+    sharedIsShuffleEnabled = isShuffleEnabled;
+  }, [isShuffleEnabled]);
+
+  useEffect(() => {
+    repeatEnabledRef.current = isRepeatEnabled;
+    sharedIsRepeatEnabled = isRepeatEnabled;
+  }, [isRepeatEnabled]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !currentTrack) {
@@ -439,10 +453,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     let nextIndex = currentIndexRef.current + 1;
-    if (sharedIsShuffleEnabled) {
+    if (shuffleEnabledRef.current) {
       nextIndex = getRandomNextIndex(currentIndexRef.current, queueSize);
     } else if (nextIndex >= queueSize) {
-      if (!sharedIsRepeatEnabled) {
+      if (!repeatEnabledRef.current) {
         return;
       }
 
@@ -477,10 +491,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     let previousIndex = currentIndexRef.current - 1;
-    if (sharedIsShuffleEnabled) {
+    if (shuffleEnabledRef.current) {
       previousIndex = getRandomNextIndex(currentIndexRef.current, queueSize);
     } else if (previousIndex < 0) {
-      if (!sharedIsRepeatEnabled) {
+      if (!repeatEnabledRef.current) {
         return;
       }
 
@@ -549,13 +563,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleShuffle = () => {
-    const nextValue = !sharedIsShuffleEnabled;
+    const nextValue = !shuffleEnabledRef.current;
+    shuffleEnabledRef.current = nextValue;
     sharedIsShuffleEnabled = nextValue;
     setIsShuffleEnabled(nextValue);
   };
 
   const toggleRepeat = () => {
-    const nextValue = !sharedIsRepeatEnabled;
+    const nextValue = !repeatEnabledRef.current;
+    repeatEnabledRef.current = nextValue;
     sharedIsRepeatEnabled = nextValue;
     setIsRepeatEnabled(nextValue);
   };
