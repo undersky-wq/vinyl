@@ -722,7 +722,7 @@ export function TracklistBrowser({
                             playFromVisibleFeed(track.id);
                           }}
                         >
-                          <Image src={track.coverUrl} alt="" width={38} height={38} />
+                          <Image src={track.coverUrl} alt="" width={44} height={44} />
                           <span className="library-track__thumb-play">
                             {isCurrentTrack && isPlaying ? (
                               <Pause size={21} />
