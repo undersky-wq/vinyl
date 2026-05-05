@@ -189,13 +189,21 @@ function ReleaseWaveform({
 }) {
   const { currentTrack } = usePlayerTransport();
   const { playQueueAtPercent, seekToPercent, getAudioElement } = usePlayerActions();
-  const sourceTrack = tracks.find((track) => track.waveformData.length) || tracks[0];
+  const currentReleaseTrack = tracks.find((track) => track.id === currentTrack?.id);
+  const sourceTrack =
+    currentReleaseTrack ||
+    tracks.find((track) => track.audioUrl && track.waveformData.length) ||
+    tracks.find((track) => track.audioUrl) ||
+    tracks.find((track) => track.waveformData.length) ||
+    tracks[0];
   const peaks = (sourceTrack?.waveformData.length
     ? sourceTrack.waveformData
     : buildFallbackWaveform(`${sourceTrack?.artist || ''}-${sourceTrack?.title || ''}`)).slice(0, 180);
   const [progressPercent, setProgressPercent] = useState(0);
-  const currentTrackIndex = tracks.findIndex((track) => track.id === currentTrack?.id);
-  const isCurrentReleasePlaying = currentTrackIndex >= 0;
+  const currentTrackIndex = currentReleaseTrack
+    ? tracks.findIndex((track) => track.id === currentReleaseTrack.id)
+    : -1;
+  const isCurrentReleasePlaying = Boolean(currentReleaseTrack);
 
   useEffect(() => {
     const audio = getAudioElement();
@@ -223,7 +231,7 @@ function ReleaseWaveform({
       audio.removeEventListener('loadedmetadata', syncProgress);
       audio.removeEventListener('seeked', syncProgress);
     };
-  }, [currentTrackIndex, getAudioElement, isCurrentReleasePlaying]);
+  }, [currentTrack?.id, currentTrackIndex, getAudioElement, isCurrentReleasePlaying]);
 
   function handleWaveSeek(event: React.MouseEvent<HTMLButtonElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
