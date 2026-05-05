@@ -850,6 +850,86 @@ textarea {
   color: var(--text);
 }
 
+.release-style-editor {
+  align-items: center;
+}
+
+.release-style-editor.is-saving {
+  opacity: 0.68;
+  pointer-events: none;
+}
+
+.tag-pill--editable {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.tag-pill--editable:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.release-style-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 190px;
+  padding: 4px 5px 4px 12px;
+  border-radius: 999px;
+  background: var(--panel-strong);
+}
+
+.release-style-input {
+  min-width: 0;
+  width: 140px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+}
+
+.release-style-input::placeholder {
+  color: var(--muted);
+}
+
+.release-style-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.release-style-add:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.release-style-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .tracklist {
   display: grid;
   gap: 10px;
@@ -4171,10 +4251,10 @@ textarea {
   }
 
   .library-track {
-    grid-template-columns: 58px minmax(0, 1fr) 30px 30px 44px;
+    grid-template-columns: 58px minmax(0, 1fr) 28px 28px 42px;
     min-height: 32px;
     padding: 4px 0;
-    column-gap: 10px;
+    column-gap: 6px;
   }
 
   .library-track__thumb,
@@ -4189,9 +4269,15 @@ textarea {
 
   .library-track .track-playlist-menu__trigger,
   .library-track__favorite {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     opacity: 1;
+  }
+
+  .library-track__favorite,
+  .library-track .track-playlist-menu,
+  .library-track__time {
+    justify-self: center;
   }
 
   .library-track__index {

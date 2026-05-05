@@ -397,6 +397,23 @@ export async function uploadReleaseCover(releaseId: string, file: File) {
   return parseJsonResponse<Release>(response);
 }
 
+export async function updateReleaseStyles(releaseId: string, styles: string[]) {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/styles`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ styles }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Release styles update failed'));
+  }
+
+  return parseJsonResponse<Release>(response);
+}
+
 export async function updateTrackMetadata(trackId: string, input: { bpm?: number | null; key?: string | null }) {
   const response = await fetch(`${API_URL}/releases/tracks/${trackId}/metadata`, {
     method: 'PATCH',

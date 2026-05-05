@@ -583,6 +583,26 @@ export class ReleasesService {
     return this.findOne(id, true);
   }
 
+  async updateReleaseStyles(id: string, styles: string[]) {
+    const normalizedStyles = [
+      ...new Map(
+        styles
+          .map((style) => style.trim())
+          .filter(Boolean)
+          .map((style) => [style.toLocaleLowerCase(), style] as const),
+      ).values(),
+    ];
+
+    await this.prisma.release.update({
+      where: { id },
+      data: {
+        styles: normalizedStyles,
+      },
+    });
+
+    return this.findOne(id, true);
+  }
+
   async updateTrackMetadata(trackId: string, dto: UpdateTrackMetadataDto) {
     const key = dto.key?.trim() || null;
 

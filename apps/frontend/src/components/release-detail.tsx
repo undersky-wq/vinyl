@@ -1,9 +1,9 @@
 'use client';
 
-import { ImagePlus, Play, Trash2, X } from 'lucide-react';
+import { ImagePlus, Play, Plus, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { deleteRelease, deleteTrackAudio, updateTrackMetadata, uploadReleaseCover } from '../lib/api';
+import { deleteRelease, deleteTrackAudio, updateReleaseStyles, updateTrackMetadata, uploadReleaseCover } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayer } from '../providers/player-provider';
@@ -275,6 +275,9 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   const [isDeletingRelease, setIsDeletingRelease] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [uploadedCoverUrl, setUploadedCoverUrl] = useState<string | null>(null);
+  const [styleTags, setStyleTags] = useState(() => [...release.styles]);
+  const [styleDraft, setStyleDraft] = useState('');
+  const [isSavingStyles, setIsSavingStyles] = useState(false);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [trackMetaById, setTrackMetaById] = useState(() =>
     Object.fromEntries(
@@ -370,7 +373,42 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
     .filter((track): track is ReleasePlayerTrack => Boolean(track));
 
   const meta = [release.year, release.country].filter(Boolean).join(' • ');
-  const tags = [...release.styles];
+  const isAdmin = user?.role === 'ADMIN';
+
+  useEffect(() => {
+    setStyleTags([...release.styles]);
+  }, [release.styles]);
+
+  async function saveReleaseStyles(nextStyles: string[]) {
+    setStyleTags(nextStyles);
+    setIsSavingStyles(true);
+    try {
+      const updatedRelease = await updateReleaseStyles(release.id, nextStyles);
+      setStyleTags(updatedRelease.styles);
+      router.refresh();
+    } finally {
+      setIsSavingStyles(false);
+    }
+  }
+
+  async function handleAddStyle() {
+    const nextStyle = styleDraft.trim();
+    if (!nextStyle) {
+      return;
+    }
+
+    const hasStyle = styleTags.some((style) => style.toLocaleLowerCase() === nextStyle.toLocaleLowerCase());
+    setStyleDraft('');
+    if (hasStyle) {
+      return;
+    }
+
+    await saveReleaseStyles([...styleTags, nextStyle]);
+  }
+
+  async function handleRemoveStyle(styleToRemove: string) {
+    await saveReleaseStyles(styleTags.filter((style) => style !== styleToRemove));
+  }
 
   async function handleDeleteRelease() {
     const confirmed = window.confirm(
@@ -525,13 +563,52 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
             ) : null}
           </div>
           {meta ? <p className="muted release-heading__meta">{meta}</p> : null}
-          {tags.length ? (
-            <div className="tag-list">
-              {tags.map((tag) => (
-                <span className="tag-pill" key={tag}>
-                  {tag}
-                </span>
-              ))}
+          {styleTags.length || isAdmin ? (
+            <div className={`tag-list release-style-editor${isSavingStyles ? ' is-saving' : ''}`}>
+              {styleTags.map((tag) =>
+                isAdmin ? (
+                  <button
+                    type="button"
+                    className="tag-pill tag-pill--editable"
+                    key={tag}
+                    disabled={isSavingStyles}
+                    onClick={() => void handleRemoveStyle(tag)}
+                    aria-label={lang === 'ru' ? `Убрать стиль ${tag}` : `Remove style ${tag}`}
+                  >
+                    <span>{tag}</span>
+                    <X size={13} />
+                  </button>
+                ) : (
+                  <span className="tag-pill" key={tag}>
+                    {tag}
+                  </span>
+                ),
+              )}
+              {isAdmin ? (
+                <form
+                  className="release-style-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleAddStyle();
+                  }}
+                >
+                  <input
+                    className="release-style-input"
+                    value={styleDraft}
+                    disabled={isSavingStyles}
+                    placeholder={lang === 'ru' ? 'Добавить стиль' : 'Add style'}
+                    onChange={(event) => setStyleDraft(event.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    className="release-style-add"
+                    disabled={isSavingStyles || !styleDraft.trim()}
+                    aria-label={lang === 'ru' ? 'Добавить стиль' : 'Add style'}
+                  >
+                    <Plus size={15} />
+                  </button>
+                </form>
+              ) : null}
             </div>
           ) : null}
         </div>

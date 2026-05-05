@@ -20,6 +20,7 @@ import { AdminGuard } from '../auth/auth.guards';
 import { AuthService } from '../auth/auth.service';
 import { CreateManualReleaseDto } from './dto/create-manual-release.dto';
 import { QueryReleasesDto } from './dto/query-releases.dto';
+import { UpdateReleaseStylesDto } from './dto/update-release-styles.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
 import { ReleasesService } from './releases.service';
 
@@ -101,6 +102,15 @@ export class ReleasesController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.releasesService.uploadCover(id, file);
+  }
+
+  @Patch(':id/styles')
+  @UseGuards(AdminGuard)
+  async updateReleaseStyles(
+    @Param('id') id: string,
+    @Body() dto: UpdateReleaseStylesDto,
+  ) {
+    return this.releasesService.updateReleaseStyles(id, dto.styles);
   }
 
   @Patch('tracks/:trackId/metadata')
