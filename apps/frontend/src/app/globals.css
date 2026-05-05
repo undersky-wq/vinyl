@@ -4515,3 +4515,39 @@ textarea {
     opacity: 1;
   }
 }
+
+@media (min-width: 641px) {
+  .track-row {
+    grid-template-columns: 56px 44px minmax(180px, 1fr) max-content max-content;
+    grid-auto-flow: column;
+  }
+
+  .track-row__actions,
+  .track-row__position-cell,
+  .track-row__title-block,
+  .track-row__meta-actions,
+  .track-row__duration {
+    grid-row: 1;
+  }
+
+  .track-row__actions {
+    grid-column: 1;
+  }
+
+  .track-row__position-cell {
+    grid-column: 2;
+  }
+
+  .track-row__title-block {
+    grid-column: 3;
+    overflow: hidden;
+  }
+
+  .track-row__meta-actions {
+    grid-column: 4;
+  }
+
+  .track-row__duration {
+    grid-column: 5;
+  }
+}

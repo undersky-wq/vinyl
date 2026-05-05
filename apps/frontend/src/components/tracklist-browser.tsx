@@ -37,6 +37,57 @@ type FeedTrack = PlayerTrack & {
 };
 
 type FilterKey = 'style' | 'artist' | 'key' | null;
+type LibraryViewState = {
+  releases: Release[];
+  hasMore: boolean;
+  styleValue: string;
+  artist: string;
+  keyValue: string;
+  scrollY: number;
+};
+
+const LIBRARY_VIEW_STATE_KEY = 'vinyl-library-view-state';
+
+function readLibraryViewState() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawState = window.sessionStorage.getItem(LIBRARY_VIEW_STATE_KEY);
+    if (!rawState) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawState) as Partial<LibraryViewState>;
+    if (!Array.isArray(parsed.releases)) {
+      return null;
+    }
+
+    return {
+      releases: parsed.releases,
+      hasMore: Boolean(parsed.hasMore),
+      styleValue: parsed.styleValue || '',
+      artist: parsed.artist || '',
+      keyValue: parsed.keyValue || '',
+      scrollY: typeof parsed.scrollY === 'number' ? parsed.scrollY : 0,
+    } satisfies LibraryViewState;
+  } catch {
+    return null;
+  }
+}
+
+function writeLibraryViewState(state: LibraryViewState) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(LIBRARY_VIEW_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // If storage is full or blocked, Library still works normally.
+  }
+}
 
 function buildFeed(releases: Release[]): FeedTrack[] {
   return releases.flatMap((release) =>
@@ -225,19 +276,20 @@ export function TracklistBrowser({
   initialHasMore = false,
   pageSize = 10,
 }: TracklistBrowserProps) {
+  const restoredViewStateRef = useRef<LibraryViewState | null>(readLibraryViewState());
   const { requireAuth } = useAuth();
   const { favoriteTrackIds, toggleFavorite } = useFavorites();
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { playQueue, togglePlayback } = usePlayerActions();
-  const [styleValue, setStyleValue] = useState('');
-  const [artist, setArtist] = useState('');
-  const [keyValue, setKeyValue] = useState('');
+  const [styleValue, setStyleValue] = useState(() => restoredViewStateRef.current?.styleValue || '');
+  const [artist, setArtist] = useState(() => restoredViewStateRef.current?.artist || '');
+  const [keyValue, setKeyValue] = useState(() => restoredViewStateRef.current?.keyValue || '');
   const [localPlaylists, setLocalPlaylists] = useState(() => sortPlaylists(playlists));
   const [openFilter, setOpenFilter] = useState<FilterKey>(null);
   const [playlistName, setPlaylistName] = useState('');
   const [status, setStatus] = useState('');
-  const [loadedReleases, setLoadedReleases] = useState(releases);
-  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [loadedReleases, setLoadedReleases] = useState(() => restoredViewStateRef.current?.releases || releases);
+  const [hasMore, setHasMore] = useState(() => restoredViewStateRef.current?.hasMore ?? initialHasMore);
   const [isFeedLoading, setIsFeedLoading] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -263,11 +315,70 @@ export function TracklistBrowser({
   }, [playlists]);
 
   useEffect(() => {
+    if (restoredViewStateRef.current) {
+      return;
+    }
+
     setLoadedReleases(releases);
     setHasMore(initialHasMore);
     setIsFeedLoading(false);
     requestRef.current = false;
   }, [initialHasMore, releases]);
+
+  useEffect(() => {
+    const restoredState = restoredViewStateRef.current;
+    if (!restoredState) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      window.scrollTo({ top: restoredState.scrollY, behavior: 'auto' });
+      restoredViewStateRef.current = null;
+    }, 80);
+
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    writeLibraryViewState({
+      releases: loadedReleases,
+      hasMore,
+      styleValue,
+      artist,
+      keyValue,
+      scrollY: typeof window === 'undefined' ? 0 : window.scrollY,
+    });
+  }, [artist, hasMore, keyValue, loadedReleases, styleValue]);
+
+  useEffect(() => {
+    let frame = 0;
+
+    function persistScrollPosition() {
+      if (frame) {
+        return;
+      }
+
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        writeLibraryViewState({
+          releases: loadedReleases,
+          hasMore,
+          styleValue,
+          artist,
+          keyValue,
+          scrollY: window.scrollY,
+        });
+      });
+    }
+
+    window.addEventListener('scroll', persistScrollPosition, { passive: true });
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+      window.removeEventListener('scroll', persistScrollPosition);
+    };
+  }, [artist, hasMore, keyValue, loadedReleases, styleValue]);
 
   const loadLibraryFeed = useCallback(async (nextOffset: number, mode: 'replace' | 'append') => {
     if (requestRef.current) {

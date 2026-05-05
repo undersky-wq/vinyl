@@ -705,7 +705,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const metadataKey = `${currentTrack.id}:${currentTrack.title}:${currentTrack.artist}:${currentTrack.coverUrl}`;
+    const metadataKey = `${currentTrack.id}:${currentTrack.title}:${currentTrack.artist}`;
     if (mediaMetadataKeyRef.current === metadataKey) {
       return;
     }

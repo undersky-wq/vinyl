@@ -1,7 +1,9 @@
 'use client';
 
 import { ChangeEvent, CSSProperties, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Upload } from 'lucide-react';
 import {
   AudioBackfillStatus,
   getAudioWaveformBackfillStatus,
@@ -255,6 +257,13 @@ export function ProfileScreen({
         <div className="profile-actions">
           {activeUser.role === 'ADMIN' ? (
             <>
+              <Link href="/upload" className="profile-action-button">
+                <Upload size={16} />
+                <span className="profile-action-button__label">
+                  {lang === 'ru' ? 'Загрузить' : 'Upload'}
+                </span>
+              </Link>
+
               <button
                 type="button"
                 className={`profile-action-button${isSyncingDiscogs ? ' is-loading' : ''}`}

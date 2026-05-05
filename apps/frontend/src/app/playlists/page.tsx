@@ -26,7 +26,7 @@ export default async function PlaylistsPage({
 
   return (
     <main className="page-shell">
-      <Topbar lang={lang} active="playlists" hideSearch />
+      <Topbar lang={lang} active="playlists" />
       <PlaylistBrowser
         lang={lang}
         playlistSummaries={playlistSummaries}

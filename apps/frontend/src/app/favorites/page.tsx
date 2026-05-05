@@ -13,7 +13,7 @@ export default async function FavoritesPage() {
 
   return (
     <main className="page-shell">
-      <Topbar lang={lang} hideSearch />
+      <Topbar lang={lang} active="favorites" hideSearch />
       <FavoritesBrowser lang={lang} tracks={tracks} isLoggedIn={Boolean(currentUser)} />
     </main>
   );

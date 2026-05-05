@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { House, Library, ListMusic, Search, Upload, UserRound } from 'lucide-react';
+import { Heart, House, Library, ListMusic, Search, UserRound } from 'lucide-react';
 import { getSearchSuggestions } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
@@ -13,7 +13,7 @@ import { LanguageSwitcher } from './language-switcher';
 type TopbarProps = {
   lang: SiteLang;
   search?: string;
-  active?: 'home' | 'library' | 'playlists' | 'upload' | 'profile';
+  active?: 'home' | 'library' | 'playlists' | 'favorites' | 'upload' | 'profile';
   hideSearch?: boolean;
 };
 
@@ -109,52 +109,56 @@ export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps
           <ListMusic size={19} />
           <span>{lang === 'ru' ? 'Плейлисты' : 'Playlists'}</span>
         </Link>
+        <Link href="/favorites" className={getNavClass(active === 'favorites')}>
+          <Heart size={19} />
+          <span>{lang === 'ru' ? 'Избранное' : 'Favorites'}</span>
+        </Link>
       </nav>
 
       {hideSearch ? (
         <div className="topbar__spacer" aria-hidden="true" />
       ) : (
-      <form className="topbar__search" onSubmit={handleSubmit} ref={searchRef}>
-        <Search size={18} className="topbar__search-icon" />
-        <input
-          className="search-input"
-          name="search"
-          value={searchValue}
-          placeholder={lang === 'ru' ? 'Поиск треков...' : 'Search tracks...'}
-          onChange={(event) => setSearchValue(event.target.value)}
-          onFocus={() => setIsSuggestionsOpen(suggestions.length > 0)}
-        />
-        {isSuggestionsOpen && suggestions.length ? (
-          <div className="search-suggestions">
-            {suggestions.map((suggestion) => (
-              <button
-                type="button"
-                className="search-suggestion"
-                key={suggestion.id}
-                onClick={() => applySuggestion(suggestion)}
-              >
-                <span>
-                  <strong>{suggestion.label}</strong>
-                  <small>{suggestion.meta}</small>
-                </span>
-                <em>
-                  {suggestion.type === 'artist'
-                    ? lang === 'ru'
-                      ? 'артист'
-                      : 'artist'
-                    : suggestion.type === 'release'
+        <form className="topbar__search" onSubmit={handleSubmit} ref={searchRef}>
+          <Search size={18} className="topbar__search-icon" />
+          <input
+            className="search-input"
+            name="search"
+            value={searchValue}
+            placeholder={lang === 'ru' ? 'Поиск треков...' : 'Search tracks...'}
+            onChange={(event) => setSearchValue(event.target.value)}
+            onFocus={() => setIsSuggestionsOpen(suggestions.length > 0)}
+          />
+          {isSuggestionsOpen && suggestions.length ? (
+            <div className="search-suggestions">
+              {suggestions.map((suggestion) => (
+                <button
+                  type="button"
+                  className="search-suggestion"
+                  key={suggestion.id}
+                  onClick={() => applySuggestion(suggestion)}
+                >
+                  <span>
+                    <strong>{suggestion.label}</strong>
+                    <small>{suggestion.meta}</small>
+                  </span>
+                  <em>
+                    {suggestion.type === 'artist'
                       ? lang === 'ru'
-                        ? 'релиз'
-                        : 'release'
-                      : lang === 'ru'
-                        ? 'трек'
-                        : 'track'}
-                </em>
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </form>
+                        ? 'артист'
+                        : 'artist'
+                      : suggestion.type === 'release'
+                        ? lang === 'ru'
+                          ? 'релиз'
+                          : 'release'
+                        : lang === 'ru'
+                          ? 'трек'
+                          : 'track'}
+                  </em>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </form>
       )}
 
       <Link
@@ -178,11 +182,6 @@ export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps
       </Link>
 
       <LanguageSwitcher lang={lang} />
-
-      <Link href={user?.role === 'ADMIN' ? '/upload' : '/profile'} className={getNavClass(active === 'upload')}>
-        <Upload size={19} />
-        <span>{lang === 'ru' ? 'Загрузить' : 'Upload'}</span>
-      </Link>
     </div>
   );
 }
