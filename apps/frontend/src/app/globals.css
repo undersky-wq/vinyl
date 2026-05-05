@@ -858,7 +858,7 @@ textarea {
 .track-row {
   position: relative;
   display: grid;
-  grid-template-columns: 56px 44px minmax(0, 1fr) auto 52px;
+  grid-template-columns: 56px 44px minmax(0, 1fr) max-content 52px;
   gap: 8px 12px;
   align-items: center;
   padding: 10px 14px;
@@ -900,9 +900,10 @@ textarea {
   display: inline-flex;
   align-items: center;
   grid-column: 4;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   padding: 0;
+  white-space: nowrap;
 }
 
 .track-row .track-favorite-button,
@@ -1160,11 +1161,81 @@ textarea {
   transform: translateY(2px);
 }
 
-.player-page img {
+.player-page__cover-frame > img {
   width: min(72vw, 420px);
   height: min(72vw, 420px);
   border-radius: 24px;
   object-fit: cover;
+}
+
+.player-page__cover-frame {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 24px;
+  will-change: transform, opacity;
+}
+
+.player-page__cover-frame.slide-next {
+  animation: player-cover-next 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.player-page__cover-frame.slide-previous {
+  animation: player-cover-previous 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.player-page__meta.slide-next,
+.player-page__timeline.slide-next {
+  animation: player-content-next 0.3s ease;
+}
+
+.player-page__meta.slide-previous,
+.player-page__timeline.slide-previous {
+  animation: player-content-previous 0.3s ease;
+}
+
+@keyframes player-cover-next {
+  from {
+    opacity: 0;
+    transform: translateX(42px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes player-cover-previous {
+  from {
+    opacity: 0;
+    transform: translateX(-42px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes player-content-next {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes player-content-previous {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .player-page__meta {
@@ -2942,6 +3013,9 @@ textarea {
 }
 
 .library-track__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
   padding: 0;
   border: none;
   background: transparent;
@@ -2951,7 +3025,31 @@ textarea {
   text-align: left;
   cursor: pointer;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-track__artist {
+  min-width: 0;
+  overflow: hidden;
+  color: #8d8d8d;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-track__artist::after {
+  content: ' - ';
+  color: #ffffff;
+}
+
+.library-track__title {
+  min-width: 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 0.95rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4099,7 +4197,13 @@ textarea {
   }
 
   .library-track__name {
+    display: flex;
     width: 100%;
+    font-size: 0.8rem;
+  }
+
+  .library-track__artist,
+  .library-track__title {
     font-size: 0.8rem;
   }
 
@@ -4187,6 +4291,11 @@ textarea {
     box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
     cursor: pointer;
     transform: translateX(-50%);
+  }
+
+  .mini-player.opening-full-player {
+    animation: mini-player-open-full 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    pointer-events: none;
   }
 
   .mini-player__track {
@@ -4339,6 +4448,54 @@ textarea {
     width: 64px;
     height: 64px;
     margin: 0 auto;
+  }
+
+  .player-page.opening {
+    animation: player-page-open 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    transform-origin: 50% 100%;
+  }
+
+  .player-page.closing {
+    animation: player-page-close 0.22s ease-in both;
+    transform-origin: 50% 100%;
+    pointer-events: none;
+  }
+
+  @keyframes mini-player-open-full {
+    from {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-34px) scale(1.08);
+    }
+  }
+
+  @keyframes player-page-open {
+    from {
+      opacity: 0;
+      transform: translateY(26px) scale(0.94);
+      filter: blur(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+  }
+
+  @keyframes player-page-close {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(34px) scale(0.92);
+      filter: blur(8px);
+    }
   }
 
   .cover-overlay {

@@ -147,6 +147,29 @@ function mergeTrackById(tracks: PlayerTrack[], nextTrack: PlayerTrack) {
   return tracks.map((track) => (track.id === nextTrack.id ? { ...track, ...nextTrack } : track));
 }
 
+function updateMediaSessionPosition(audio: HTMLAudioElement | null) {
+  if (
+    typeof navigator === 'undefined' ||
+    !('mediaSession' in navigator) ||
+    !('setPositionState' in navigator.mediaSession) ||
+    !audio ||
+    !Number.isFinite(audio.duration) ||
+    audio.duration <= 0
+  ) {
+    return;
+  }
+
+  try {
+    navigator.mediaSession.setPositionState({
+      duration: audio.duration,
+      playbackRate: audio.playbackRate || 1,
+      position: Math.min(audio.currentTime || 0, audio.duration),
+    });
+  } catch {
+    // Position state is optional and stricter on some mobile browsers.
+  }
+}
+
 async function safelyPlay(audio: HTMLAudioElement) {
   try {
     await audio.play();
@@ -167,6 +190,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const shuffleEnabledRef = useRef(sharedIsShuffleEnabled);
   const repeatEnabledRef = useRef(sharedIsRepeatEnabled);
   const pendingSeekPercentRef = useRef<number | null>(null);
+  const mediaMetadataKeyRef = useRef('');
+  const mediaPlayRef = useRef<() => void>(() => {});
+  const mediaPauseRef = useRef<() => void>(() => {});
+  const mediaPreviousRef = useRef<() => void>(() => {});
+  const mediaNextRef = useRef<() => void>(() => {});
+  const mediaSeekRef = useRef<(seekTime: number) => void>(() => {});
   const [queue, setQueue] = useState<PlayerTrack[]>(sharedQueue);
   const [displayQueue, setDisplayQueue] = useState<PlayerTrack[]>(sharedDisplayQueue);
   const [currentIndex, setCurrentIndex] = useState(sharedCurrentIndex);
@@ -603,6 +632,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
     setCurrentTime(nextTime);
     setProgress(normalizedPercent);
+    updateMediaSessionPosition(audio);
   };
 
   const setVolume = (value: number) => {
@@ -637,18 +667,56 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     queue.length > 1 &&
     (isShuffleEnabled || isRepeatEnabled || currentIndex < queue.length - 1);
 
+  mediaPlayRef.current = () => {
+    const audio = audioRef.current;
+    if (audio) {
+      void safelyPlay(audio);
+    }
+  };
+  mediaPauseRef.current = () => {
+    audioRef.current?.pause();
+  };
+  mediaPreviousRef.current = playPrevious;
+  mediaNextRef.current = playNext;
+  mediaSeekRef.current = (seekTime: number) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(seekTime)) {
+      return;
+    }
+
+    const nextTime = Number.isFinite(audio.duration)
+      ? Math.max(0, Math.min(seekTime, audio.duration))
+      : Math.max(0, seekTime);
+
+    if (typeof audio.fastSeek === 'function') {
+      audio.fastSeek(nextTime);
+    } else {
+      audio.currentTime = nextTime;
+    }
+    setCurrentTime(nextTime);
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      setProgress((nextTime / audio.duration) * 100);
+    }
+    updateMediaSessionPosition(audio);
+  };
+
   useEffect(() => {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !currentTrack) {
       return;
     }
 
+    const metadataKey = `${currentTrack.id}:${currentTrack.title}:${currentTrack.artist}:${currentTrack.coverUrl}`;
+    if (mediaMetadataKeyRef.current === metadataKey) {
+      return;
+    }
+
     const artwork = currentTrack.coverUrl
       ? [
-          { src: currentTrack.coverUrl, sizes: '96x96', type: 'image/png' },
-          { src: currentTrack.coverUrl, sizes: '128x128', type: 'image/png' },
-          { src: currentTrack.coverUrl, sizes: '192x192', type: 'image/png' },
-          { src: currentTrack.coverUrl, sizes: '256x256', type: 'image/png' },
-          { src: currentTrack.coverUrl, sizes: '512x512', type: 'image/png' },
+          { src: currentTrack.coverUrl, sizes: '96x96' },
+          { src: currentTrack.coverUrl, sizes: '128x128' },
+          { src: currentTrack.coverUrl, sizes: '192x192' },
+          { src: currentTrack.coverUrl, sizes: '256x256' },
+          { src: currentTrack.coverUrl, sizes: '512x512' },
         ]
       : [];
 
@@ -658,6 +726,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       album: 'Vinyl Collection',
       artwork,
     });
+    mediaMetadataKeyRef.current = metadataKey;
   }, [currentTrack]);
 
   useEffect(() => {
@@ -674,26 +743,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      navigator.mediaSession.setActionHandler('play', () => {
-        const audio = audioRef.current;
-        if (audio) {
-          void safelyPlay(audio);
-        }
-      });
-      navigator.mediaSession.setActionHandler('pause', () => audioRef.current?.pause());
-      navigator.mediaSession.setActionHandler('previoustrack', playPrevious);
-      navigator.mediaSession.setActionHandler('nexttrack', playNext);
+      navigator.mediaSession.setActionHandler('play', () => mediaPlayRef.current());
+      navigator.mediaSession.setActionHandler('pause', () => mediaPauseRef.current());
+      navigator.mediaSession.setActionHandler('previoustrack', () => mediaPreviousRef.current());
+      navigator.mediaSession.setActionHandler('nexttrack', () => mediaNextRef.current());
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        const audio = audioRef.current;
-        if (!audio || typeof details.seekTime !== 'number') {
+        if (typeof details.seekTime !== 'number') {
           return;
         }
 
-        if (typeof audio.fastSeek === 'function') {
-          audio.fastSeek(details.seekTime);
-        } else {
-          audio.currentTime = details.seekTime;
-        }
+        mediaSeekRef.current(details.seekTime);
       });
     } catch {
       // Some browsers expose Media Session partially.
@@ -710,28 +769,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // Ignore partial implementations during cleanup.
       }
     };
-  }, [playNext, playPrevious]);
+  }, []);
 
   useEffect(() => {
-    if (
-      typeof navigator === 'undefined' ||
-      !('mediaSession' in navigator) ||
-      !('setPositionState' in navigator.mediaSession) ||
-      !Number.isFinite(duration) ||
-      duration <= 0
-    ) {
-      return;
-    }
-
-    try {
-      navigator.mediaSession.setPositionState({
-        duration,
-        playbackRate: 1,
-        position: Math.min(currentTime, duration),
-      });
-    } catch {
-      // Position state is optional and stricter on some mobile browsers.
-    }
+    updateMediaSessionPosition(audioRef.current);
   }, [currentTime, duration]);
 
   const transportValue = {

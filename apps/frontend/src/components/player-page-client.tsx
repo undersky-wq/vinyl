@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { ChevronDown, ListMusic, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SiteLang } from '../lib/language';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
 import { FavoriteButton } from './track-actions';
@@ -22,7 +22,15 @@ function fallbackWaveform(points = 120) {
   return Array.from({ length: points }, (_, index) => 0.25 + ((index * 37) % 70) / 100);
 }
 
-export function PlayerPageClient({ lang }: { lang: SiteLang }) {
+function getSafeReturnPath(value: string) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return '';
+  }
+
+  return value;
+}
+
+export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?: string }) {
   const router = useRouter();
   const {
     currentTrack,
@@ -39,7 +47,24 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
     usePlayerActions();
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [pageTransition, setPageTransition] = useState<'opening' | 'closing' | ''>('');
+  const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
   const lastHapticStepRef = useRef(-1);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (window.sessionStorage.getItem('vinyl-player-transition') !== 'opening') {
+      return;
+    }
+
+    setPageTransition('opening');
+    window.sessionStorage.removeItem('vinyl-player-transition');
+    const timeout = window.setTimeout(() => setPageTransition(''), 420);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   if (!currentTrack) {
     return (
@@ -72,16 +97,42 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
   }
 
   function collapsePlayer() {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
+    const navigateBack = () => {
+      const safeReturnTo = getSafeReturnPath(returnTo || '');
+      if (safeReturnTo) {
+        router.replace(safeReturnTo);
+        return;
+      }
+
+      if (typeof window !== 'undefined' && window.history.length > 1) {
+        router.back();
+        return;
+      }
+
+      router.push('/');
+    };
+
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches) {
+      setPageTransition('closing');
+      window.setTimeout(navigateBack, 210);
       return;
     }
 
-    router.push('/');
+    navigateBack();
+  }
+
+  function handlePreviousTrack() {
+    setTrackDirection('previous');
+    playPrevious();
+  }
+
+  function handleNextTrack() {
+    setTrackDirection('next');
+    playNext();
   }
 
   return (
-    <section className="player-page">
+    <section className={`player-page${pageTransition ? ` ${pageTransition}` : ''}`}>
       <button
         type="button"
         className="player-page__collapse"
@@ -92,13 +143,15 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
         <ChevronDown size={24} />
       </button>
 
-      <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} />
-      <div className="player-page__meta">
+      <div className={`player-page__cover-frame slide-${trackDirection}`} key={`cover-${currentTrack.id}`}>
+        <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} />
+      </div>
+      <div className={`player-page__meta slide-${trackDirection}`} key={`meta-${currentTrack.id}`}>
         <p>{currentTrack.artist}</p>
         <h1>{currentTrack.title}</h1>
       </div>
 
-      <div className="player-page__timeline">
+      <div className={`player-page__timeline slide-${trackDirection}`} key={`timeline-${currentTrack.id}`}>
         <span>{formatTime(currentTime)}</span>
         <button
           type="button"
@@ -159,7 +212,7 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
           className="player-page__control player-page__control--previous"
           onClick={(event) => {
             event.stopPropagation();
-            playPrevious();
+            handlePreviousTrack();
           }}
           disabled={!canPlayPrevious}
           aria-label={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
@@ -181,7 +234,7 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
           className="player-page__control player-page__control--next"
           onClick={(event) => {
             event.stopPropagation();
-            playNext();
+            handleNextTrack();
           }}
           disabled={!canPlayNext}
           aria-label={lang === 'ru' ? 'Следующий трек' : 'Next track'}
@@ -229,6 +282,8 @@ export function PlayerPageClient({ lang }: { lang: SiteLang }) {
                       key={track.id}
                       onClick={() => {
                         if (queueIndex >= 0) {
+                          const activeIndex = queue.findIndex((item) => item.id === currentTrack.id);
+                          setTrackDirection(queueIndex >= activeIndex ? 'next' : 'previous');
                           playQueue(queue, queueIndex, visibleQueue);
                         }
                         setIsQueueOpen(false);

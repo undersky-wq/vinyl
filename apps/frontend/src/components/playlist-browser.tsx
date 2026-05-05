@@ -206,6 +206,18 @@ export function PlaylistBrowser({
     ? localSummaries
     : localSummaries.slice(0, 6);
 
+  function selectPlaylist(playlistId: string) {
+    setActivePlaylistId(playlistId);
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    params.set('playlist', playlistId);
+    window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+  }
+
   useEffect(() => {
     setLocalSummaries(playlistSummaries);
     setActivePlaylistId(initialPlaylistId || initialPlaylist?.id || playlistSummaries[0]?.id || '');
@@ -355,7 +367,7 @@ export function PlaylistBrowser({
               type="button"
               key={playlist.id}
               className={`playlist-chip${playlist.id === activePlaylist?.id ? ' active' : ''}`}
-              onClick={() => setActivePlaylistId(playlist.id)}
+              onClick={() => selectPlaylist(playlist.id)}
             >
               <span>{playlist.name}</span>
               <small>{playlist._count.items}</small>

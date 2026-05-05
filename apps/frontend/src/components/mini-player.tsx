@@ -65,6 +65,26 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const displayTime =
     dragProgress !== null && duration > 0 ? (duration * dragProgress) / 100 : currentTime;
 
+  function openFullPlayer() {
+    if (typeof window === 'undefined') {
+      router.push('/player');
+      return;
+    }
+
+    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const playerUrl = `/player?from=${encodeURIComponent(returnTo)}`;
+
+    if (window.matchMedia('(max-width: 640px)').matches) {
+      const miniPlayer = document.querySelector('.mini-player');
+      miniPlayer?.classList.add('opening-full-player');
+      window.sessionStorage.setItem('vinyl-player-transition', 'opening');
+      window.setTimeout(() => router.push(playerUrl), 170);
+      return;
+    }
+
+    router.push(playerUrl);
+  }
+
   if (!currentTrack) {
     return null;
   }
@@ -74,11 +94,11 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       className="mini-player"
       role="button"
       tabIndex={0}
-      onClick={() => router.push('/player')}
+      onClick={openFullPlayer}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          router.push('/player');
+          openFullPlayer();
         }
       }}
     >
