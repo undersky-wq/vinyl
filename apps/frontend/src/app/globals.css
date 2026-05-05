@@ -1493,7 +1493,11 @@ textarea {
 }
 
 .favorites-track {
-  grid-template-columns: 44px minmax(0, 1fr) 34px 48px;
+  grid-template-columns: 44px 42px minmax(0, 1fr) auto auto;
+}
+
+.favorites-wave {
+  margin-top: -4px;
 }
 
 .progress {

@@ -111,7 +111,7 @@ export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps
         </Link>
         <Link href="/favorites" className={getNavClass(active === 'favorites')}>
           <Heart size={19} />
-          <span>{lang === 'ru' ? 'Избранное' : 'Favorites'}</span>
+          <span>{lang === 'ru' ? 'Избранное' : 'Favourites'}</span>
         </Link>
       </nav>
 

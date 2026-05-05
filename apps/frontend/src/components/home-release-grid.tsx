@@ -13,6 +13,15 @@ type HomeReleaseGridProps = {
   pageSize?: number;
 };
 
+type HomeViewState = {
+  queryString: string;
+  releases: HomeRelease[];
+  hasMore: boolean;
+  scrollY: number;
+};
+
+const HOME_VIEW_STATE_KEY = 'vinyl-home-view-state';
+
 function uniqueByReleaseId(releases: HomeRelease[]) {
   const seen = new Set<string>();
 
@@ -26,24 +35,119 @@ function uniqueByReleaseId(releases: HomeRelease[]) {
   });
 }
 
+function readHomeViewState(queryString: string) {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawState = window.sessionStorage.getItem(HOME_VIEW_STATE_KEY);
+    if (!rawState) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawState) as Partial<HomeViewState>;
+    if (parsed.queryString !== queryString || !Array.isArray(parsed.releases)) {
+      return null;
+    }
+
+    return {
+      queryString,
+      releases: uniqueByReleaseId(parsed.releases),
+      hasMore: Boolean(parsed.hasMore),
+      scrollY: typeof parsed.scrollY === 'number' ? parsed.scrollY : 0,
+    } satisfies HomeViewState;
+  } catch {
+    return null;
+  }
+}
+
+function writeHomeViewState(state: HomeViewState) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(HOME_VIEW_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // If storage is blocked or full, home pagination still works normally.
+  }
+}
+
 export function HomeReleaseGrid({
   initialReleases,
   queryString,
   lang,
   pageSize = 24,
 }: HomeReleaseGridProps) {
-  const [releases, setReleases] = useState(() => uniqueByReleaseId(initialReleases));
+  const restoredViewStateRef = useRef<HomeViewState | null>(readHomeViewState(queryString));
+  const [releases, setReleases] = useState(() => restoredViewStateRef.current?.releases || uniqueByReleaseId(initialReleases));
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(initialReleases.length === pageSize);
+  const [hasMore, setHasMore] = useState(() => restoredViewStateRef.current?.hasMore ?? initialReleases.length === pageSize);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(false);
 
   useEffect(() => {
+    if (restoredViewStateRef.current) {
+      return;
+    }
+
     setReleases(uniqueByReleaseId(initialReleases));
     setHasMore(initialReleases.length === pageSize);
     setIsLoading(false);
     requestRef.current = false;
   }, [initialReleases, pageSize]);
+
+  useEffect(() => {
+    const restoredState = restoredViewStateRef.current;
+    if (!restoredState) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      window.scrollTo({ top: restoredState.scrollY, behavior: 'auto' });
+      restoredViewStateRef.current = null;
+    }, 80);
+
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    writeHomeViewState({
+      queryString,
+      releases,
+      hasMore,
+      scrollY: typeof window === 'undefined' ? 0 : window.scrollY,
+    });
+  }, [hasMore, queryString, releases]);
+
+  useEffect(() => {
+    let frame = 0;
+
+    function persistScrollPosition() {
+      if (frame) {
+        return;
+      }
+
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        writeHomeViewState({
+          queryString,
+          releases,
+          hasMore,
+          scrollY: window.scrollY,
+        });
+      });
+    }
+
+    window.addEventListener('scroll', persistScrollPosition, { passive: true });
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+      window.removeEventListener('scroll', persistScrollPosition);
+    };
+  }, [hasMore, queryString, releases]);
 
   const loadMore = useCallback(async () => {
     if (requestRef.current || isLoading || !hasMore) {

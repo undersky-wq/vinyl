@@ -170,6 +170,57 @@ function updateMediaSessionPosition(audio: HTMLAudioElement | null) {
   }
 }
 
+function getMediaMetadataKey(track: PlayerTrack) {
+  return `${track.id}:${track.title}:${track.artist}`;
+}
+
+function getMediaArtwork(coverUrl: string) {
+  return [
+    { src: coverUrl, sizes: '96x96' },
+    { src: coverUrl, sizes: '128x128' },
+    { src: coverUrl, sizes: '192x192' },
+    { src: coverUrl, sizes: '256x256' },
+    { src: coverUrl, sizes: '512x512' },
+  ];
+}
+
+function waitForArtwork(coverUrl: string, timeoutMs = 1400) {
+  if (typeof window === 'undefined' || !coverUrl) {
+    return Promise.resolve(false);
+  }
+
+  return new Promise<boolean>((resolve) => {
+    const image = new Image();
+    let settled = false;
+
+    const finish = (isReady: boolean) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      window.clearTimeout(timeoutId);
+      resolve(isReady);
+    };
+
+    const timeoutId = window.setTimeout(() => finish(false), timeoutMs);
+
+    image.onload = () => {
+      if ('decode' in image) {
+        image
+          .decode()
+          .then(() => finish(true))
+          .catch(() => finish(true));
+        return;
+      }
+
+      finish(true);
+    };
+    image.onerror = () => finish(false);
+    image.src = coverUrl;
+  });
+}
+
 async function safelyPlay(audio: HTMLAudioElement) {
   try {
     await audio.play();
@@ -191,6 +242,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const repeatEnabledRef = useRef(sharedIsRepeatEnabled);
   const pendingSeekPercentRef = useRef<number | null>(null);
   const mediaMetadataKeyRef = useRef('');
+  const mediaMetadataTimerRef = useRef<number | null>(null);
   const mediaPlayRef = useRef<() => void>(() => {});
   const mediaPauseRef = useRef<() => void>(() => {});
   const mediaPreviousRef = useRef<() => void>(() => {});
@@ -705,28 +757,59 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const metadataKey = `${currentTrack.id}:${currentTrack.title}:${currentTrack.artist}`;
+    const metadataKey = getMediaMetadataKey(currentTrack);
     if (mediaMetadataKeyRef.current === metadataKey) {
       return;
     }
 
-    const artwork = currentTrack.coverUrl
-      ? [
-          { src: currentTrack.coverUrl, sizes: '96x96' },
-          { src: currentTrack.coverUrl, sizes: '128x128' },
-          { src: currentTrack.coverUrl, sizes: '192x192' },
-          { src: currentTrack.coverUrl, sizes: '256x256' },
-          { src: currentTrack.coverUrl, sizes: '512x512' },
-        ]
-      : [];
+    if (mediaMetadataTimerRef.current) {
+      window.clearTimeout(mediaMetadataTimerRef.current);
+    }
 
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentTrack.title,
-      artist: currentTrack.artist,
-      album: 'Vinyl Collection',
-      artwork,
-    });
-    mediaMetadataKeyRef.current = metadataKey;
+    const trackForMetadata = currentTrack;
+    const waitMs = trackForMetadata.coverUrl ? 80 : 1200;
+    let isCancelled = false;
+
+    mediaMetadataTimerRef.current = window.setTimeout(() => {
+      void (async () => {
+        const latestTrack = currentTrackRef.current;
+        if (
+          isCancelled ||
+          !latestTrack ||
+          latestTrack.id !== trackForMetadata.id ||
+          mediaMetadataKeyRef.current === metadataKey
+        ) {
+          return;
+        }
+
+        const coverUrl = latestTrack.coverUrl || trackForMetadata.coverUrl;
+        const isArtworkReady = coverUrl ? await waitForArtwork(coverUrl) : false;
+
+        if (
+          isCancelled ||
+          currentTrackRef.current?.id !== trackForMetadata.id ||
+          mediaMetadataKeyRef.current === metadataKey
+        ) {
+          return;
+        }
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: latestTrack.title,
+          artist: latestTrack.artist,
+          album: 'Vinyl Collection',
+          artwork: coverUrl && isArtworkReady ? getMediaArtwork(coverUrl) : [],
+        });
+        mediaMetadataKeyRef.current = metadataKey;
+      })();
+    }, waitMs);
+
+    return () => {
+      isCancelled = true;
+      if (mediaMetadataTimerRef.current) {
+        window.clearTimeout(mediaMetadataTimerRef.current);
+        mediaMetadataTimerRef.current = null;
+      }
+    };
   }, [currentTrack]);
 
   useEffect(() => {
