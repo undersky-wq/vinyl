@@ -248,6 +248,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const mediaPreviousRef = useRef<() => void>(() => {});
   const mediaNextRef = useRef<() => void>(() => {});
   const mediaSeekRef = useRef<(seekTime: number) => void>(() => {});
+  const mediaSeekBackwardRef = useRef<() => void>(() => {});
+  const mediaSeekForwardRef = useRef<() => void>(() => {});
   const [queue, setQueue] = useState<PlayerTrack[]>(sharedQueue);
   const [displayQueue, setDisplayQueue] = useState<PlayerTrack[]>(sharedDisplayQueue);
   const [currentIndex, setCurrentIndex] = useState(sharedCurrentIndex);
@@ -730,6 +732,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   };
   mediaPreviousRef.current = playPrevious;
   mediaNextRef.current = playNext;
+  mediaSeekBackwardRef.current = playPrevious;
+  mediaSeekForwardRef.current = playNext;
   mediaSeekRef.current = (seekTime: number) => {
     const audio = audioRef.current;
     if (!audio || !Number.isFinite(seekTime)) {
@@ -830,6 +834,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       navigator.mediaSession.setActionHandler('pause', () => mediaPauseRef.current());
       navigator.mediaSession.setActionHandler('previoustrack', () => mediaPreviousRef.current());
       navigator.mediaSession.setActionHandler('nexttrack', () => mediaNextRef.current());
+      navigator.mediaSession.setActionHandler('seekbackward', () => mediaSeekBackwardRef.current());
+      navigator.mediaSession.setActionHandler('seekforward', () => mediaSeekForwardRef.current());
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (typeof details.seekTime !== 'number') {
           return;
@@ -847,6 +853,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         navigator.mediaSession.setActionHandler('pause', null);
         navigator.mediaSession.setActionHandler('previoustrack', null);
         navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('seekbackward', null);
+        navigator.mediaSession.setActionHandler('seekforward', null);
         navigator.mediaSession.setActionHandler('seekto', null);
       } catch {
         // Ignore partial implementations during cleanup.
