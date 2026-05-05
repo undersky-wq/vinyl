@@ -4251,7 +4251,7 @@ textarea {
   }
 
   .library-track {
-    grid-template-columns: 58px minmax(0, 1fr) 28px 28px 42px;
+    grid-template-columns: 58px minmax(0, 1fr) 28px 28px max-content;
     min-height: 32px;
     padding: 4px 0;
     column-gap: 6px;
@@ -4275,9 +4275,12 @@ textarea {
   }
 
   .library-track__favorite,
-  .library-track .track-playlist-menu,
-  .library-track__time {
+  .library-track .track-playlist-menu {
     justify-self: center;
+  }
+
+  .library-track__time {
+    justify-self: start;
   }
 
   .library-track__index {
