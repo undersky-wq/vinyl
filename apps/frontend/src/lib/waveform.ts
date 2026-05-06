@@ -6,6 +6,7 @@ type ResponsiveWaveformOptions = {
   minBars?: number;
   maxBars?: number;
   pixelsPerBar?: number;
+  adaptiveBelowPx?: number;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -52,6 +53,7 @@ export function useResponsiveWaveform(
     minBars = 56,
     maxBars = 180,
     pixelsPerBar = 4,
+    adaptiveBelowPx = 641,
   }: ResponsiveWaveformOptions = {},
 ) {
   const ref = useRef<HTMLButtonElement | null>(null);
@@ -59,15 +61,22 @@ export function useResponsiveWaveform(
 
   useEffect(() => {
     const element = ref.current;
-    if (!element || typeof ResizeObserver === 'undefined') {
+    if (!element) {
       return;
     }
 
     const updateBarCount = (width: number) => {
-      setBarCount(clamp(Math.floor(width / pixelsPerBar), minBars, maxBars));
+      const shouldAdapt =
+        typeof window === 'undefined' || window.matchMedia(`(max-width: ${adaptiveBelowPx - 1}px)`).matches;
+
+      setBarCount(shouldAdapt ? clamp(Math.floor(width / pixelsPerBar), minBars, maxBars) : maxBars);
     };
 
     updateBarCount(element.getBoundingClientRect().width);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
 
     const observer = new ResizeObserver(([entry]) => {
       updateBarCount(entry.contentRect.width);
@@ -75,7 +84,7 @@ export function useResponsiveWaveform(
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, [maxBars, minBars, pixelsPerBar]);
+  }, [adaptiveBelowPx, maxBars, minBars, pixelsPerBar]);
 
   const peaks = useMemo(() => resampleWaveform(sourcePeaks, barCount), [barCount, sourcePeaks]);
 

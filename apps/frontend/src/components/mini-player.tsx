@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
+  ChevronDown,
   ListMusic,
   Pause,
   Play,
@@ -146,7 +147,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   return (
     <>
     <div
-      className="mini-player"
+      className={`mini-player${isFullPlayerOpen ? ' mini-player--hidden' : ''}`}
       role="button"
       tabIndex={0}
       onClick={openFullPlayer}
@@ -348,11 +349,11 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <section className="player-page mobile-player-overlay__panel opening">
           <button
             type="button"
-            className="player-page__collapse"
+            className="player-page__collapse mobile-player-overlay__collapse"
             onClick={() => setIsFullPlayerOpen(false)}
             aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
           >
-            <span aria-hidden="true">⌄</span>
+            <ChevronDown size={19} />
           </button>
 
           <div className={`player-page__cover-frame slide-${trackDirection}`} key={`mobile-cover-${currentTrack.id}`}>

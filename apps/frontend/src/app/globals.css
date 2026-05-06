@@ -4394,6 +4394,11 @@ textarea {
     pointer-events: none;
   }
 
+  .mini-player--hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .mobile-player-overlay {
     position: fixed;
     inset: 0;
@@ -4410,6 +4415,20 @@ textarea {
 
   .mobile-player-overlay .player-page__waveform {
     height: 72px;
+  }
+
+  .mobile-player-overlay__collapse {
+    top: 14px;
+    right: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    border-radius: 999px;
+    color: #ffffff;
+    background: var(--player-accent);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
   }
 
   .mini-player__track {
