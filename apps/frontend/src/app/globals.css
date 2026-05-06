@@ -1071,6 +1071,21 @@ textarea {
   font-size: 1rem;
 }
 
+.track-row.active .track-row__artist,
+.track-row.active .track-row__title,
+.playlist-track.active .playlist-track__artist,
+.playlist-track.active .playlist-track__title,
+.library-track.active .library-track__artist,
+.library-track.active .library-track__title {
+  color: var(--player-accent);
+}
+
+.track-row.active .track-row__artist::after,
+.playlist-track.active .playlist-track__artist::after,
+.library-track.active .library-track__artist::after {
+  color: var(--player-accent);
+}
+
 .track-row__meta-edit {
   display: inline-flex;
   align-items: center;
@@ -2710,6 +2725,10 @@ textarea {
 .library-filter__trigger.active svg {
   color: var(--text);
   transform: rotate(180deg);
+}
+
+.library-filter__trigger.selected {
+  color: var(--player-accent);
 }
 
 .library-filter__menu {

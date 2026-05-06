@@ -620,9 +620,10 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
             release.tracks.map((track) => {
               const audioFile = track.audioFiles?.[0] || null;
               const trackMeta = trackMetaById[track.id] || { bpm: track.bpm, key: track.key };
+              const isCurrentTrack = currentTrack?.id === track.id;
 
               return (
-              <div className="track-row" key={track.id}>
+              <div className={`track-row${isCurrentTrack ? ' active' : ''}`} key={track.id}>
                 <div className="track-row__actions track-row__actions--leading">
                   {audioFile ? (
                     <button

@@ -136,11 +136,14 @@ export class PlaylistsService {
 
     const alreadyExists = playlist.items.some((item) => item.trackId === trackId);
     if (!alreadyExists) {
+      const nextSortOrder =
+        playlist.items.reduce((maxSortOrder, item) => Math.max(maxSortOrder, item.sortOrder), -1) + 1;
+
       await this.prisma.playlistItem.create({
         data: {
           playlistId,
           trackId,
-          sortOrder: playlist.items.length,
+          sortOrder: nextSortOrder,
         },
       });
     }
