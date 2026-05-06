@@ -3301,9 +3301,17 @@ textarea {
 
 .track-playlist-menu.open,
 .library-track .track-playlist-menu.open,
+.favorites-track .track-playlist-menu.open,
 .playlist-track .track-playlist-menu.open,
 .track-row .track-playlist-menu.open {
   z-index: 5000;
+}
+
+.favorites-track:has(.track-playlist-menu.open),
+.playlist-track:has(.track-playlist-menu.open) {
+  position: relative;
+  z-index: 4999;
+  overflow: visible;
 }
 
 .track-playlist-menu__trigger {
@@ -4560,25 +4568,25 @@ textarea {
   }
 
   .player-page__controls {
-    grid-template-columns: 64px 54px 68px 54px 64px;
-    gap: 2px;
-    width: min(100%, 314px);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    width: min(calc(100vw - 28px), 620px);
     padding: 0;
   }
 
   .player-page__control {
-    width: 54px;
+    width: 100%;
     height: 56px;
     margin: 0 auto;
   }
 
   .player-page__control--shuffle,
   .player-page__control--repeat {
-    width: 64px;
+    width: 100%;
   }
 
   .player-page__play {
-    width: 64px;
+    width: 100%;
     height: 64px;
     margin: 0 auto;
   }
