@@ -68,6 +68,8 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const [overlayDragProgress, setOverlayDragProgress] = useState<number | null>(null);
   const [isOverlayQueueOpen, setIsOverlayQueueOpen] = useState(false);
   const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
+  const [overlayShuffleActive, setOverlayShuffleActive] = useState(isShuffleEnabled);
+  const [overlayRepeatActive, setOverlayRepeatActive] = useState(isRepeatEnabled);
   const lastHapticStepRef = useRef(-1);
 
   const volumeLabel = lang === 'ru' ? 'Громкость' : 'Volume';
@@ -94,6 +96,14 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       document.body.style.overflow = previousOverflow;
     };
   }, [isFullPlayerOpen]);
+
+  useEffect(() => {
+    setOverlayShuffleActive(isShuffleEnabled);
+  }, [isShuffleEnabled]);
+
+  useEffect(() => {
+    setOverlayRepeatActive(isRepeatEnabled);
+  }, [isRepeatEnabled]);
 
   function openFullPlayer() {
     if (typeof window === 'undefined') {
@@ -138,6 +148,20 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   function handleNextTrack() {
     setTrackDirection('next');
     playNext();
+  }
+
+  function handleOverlayShuffle(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setOverlayShuffleActive((current) => !current);
+    toggleShuffle();
+  }
+
+  function handleOverlayRepeat(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setOverlayRepeatActive((current) => !current);
+    toggleRepeat();
   }
 
   if (!currentTrack) {
@@ -412,8 +436,8 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
           <div className="player-page__controls">
             <button
               type="button"
-              className={`player-page__control player-page__control--shuffle${isShuffleEnabled ? ' active' : ''}`}
-              onClick={toggleShuffle}
+              className={`player-page__control player-page__control--shuffle${overlayShuffleActive ? ' active' : ''}`}
+              onClick={handleOverlayShuffle}
               aria-label={lang === 'ru' ? 'Перемешивание' : 'Shuffle'}
             >
               <Shuffle size={22} />
@@ -441,8 +465,8 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             </button>
             <button
               type="button"
-              className={`player-page__control player-page__control--repeat${isRepeatEnabled ? ' active' : ''}`}
-              onClick={toggleRepeat}
+              className={`player-page__control player-page__control--repeat${overlayRepeatActive ? ' active' : ''}`}
+              onClick={handleOverlayRepeat}
               aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
             >
               <Repeat2 size={22} />
