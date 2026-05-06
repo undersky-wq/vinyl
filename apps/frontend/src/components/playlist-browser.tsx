@@ -5,6 +5,7 @@ import { Pause, Play } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getPlaylist, reorderPlaylist } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Playlist, PlaylistSummary } from '../types';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
@@ -70,19 +71,6 @@ function getKeyColor(key?: string | null) {
   return KEY_COLORS[key.trim()] || null;
 }
 
-function buildFallbackWaveform(seed: string, points = 180) {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
-  }
-
-  return Array.from({ length: points }, (_, index) => {
-    hash = (hash * 1664525 + 1013904223 + index) >>> 0;
-    const value = 0.18 + ((hash % 1000) / 1000) * 0.82;
-    return Number(value.toFixed(3));
-  });
-}
-
 function PlaylistWaveform({
   tracks,
 }: {
@@ -100,9 +88,14 @@ function PlaylistWaveform({
   const { currentTrack } = usePlayerTransport();
   const { playQueueAtPercent, seekToPercent, getAudioElement } = usePlayerActions();
   const sourceTrack = tracks.find((track) => track.id === currentTrack?.id) || tracks.find((track) => track.waveformData.length) || tracks[0];
-  const peaks = (sourceTrack?.waveformData.length
+  const sourcePeaks = sourceTrack?.waveformData.length
     ? sourceTrack.waveformData
-    : buildFallbackWaveform(`${sourceTrack?.artist || ''}-${sourceTrack?.title || ''}`)).slice(0, 180);
+    : buildFallbackWaveform(`${sourceTrack?.artist || ''}-${sourceTrack?.title || ''}`);
+  const { ref: waveformRef, peaks } = useResponsiveWaveform(sourcePeaks, {
+    minBars: 72,
+    maxBars: 180,
+    pixelsPerBar: 5,
+  });
   const [progressPercent, setProgressPercent] = useState(0);
   const currentTrackIndex = tracks.findIndex((track) => track.id === currentTrack?.id);
   const isCurrentPlaylistPlaying = currentTrackIndex >= 0;
@@ -161,6 +154,7 @@ function PlaylistWaveform({
     <div className="playlist-wave">
       <button
         type="button"
+        ref={waveformRef}
         className="library-wave__bars is-decoded playlist-wave__bars"
         onClick={handleWaveSeek}
         aria-label="Seek playlist waveform"

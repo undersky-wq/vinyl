@@ -1425,8 +1425,7 @@ textarea {
 }
 
 .player-page__waveform {
-  display: grid;
-  grid-template-columns: repeat(160, minmax(1px, 1fr));
+  display: flex;
   align-items: center;
   gap: 1px;
   width: 100%;
@@ -1440,6 +1439,7 @@ textarea {
 }
 
 .player-page__waveform span {
+  flex: 1 1 0;
   min-width: 1px;
   background: rgba(255, 255, 255, 0.38);
   transition: background 0.18s ease;
@@ -2885,8 +2885,7 @@ textarea {
 
 .library-wave__bars {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(180, minmax(1px, 1fr));
+  display: flex;
   align-items: center;
   gap: 1px;
   width: 100%;
@@ -2919,7 +2918,7 @@ textarea {
 .library-wave__bar {
   position: relative;
   z-index: 1;
-  width: 100%;
+  flex: 1 1 0;
   min-width: 1px;
   border-radius: 0;
   background: rgba(255, 255, 255, 0.42);
@@ -4393,6 +4392,24 @@ textarea {
   .mini-player.opening-full-player {
     animation: mini-player-open-full 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
     pointer-events: none;
+  }
+
+  .mobile-player-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: grid;
+    background: #101010;
+    overflow: hidden;
+  }
+
+  .mobile-player-overlay__panel {
+    min-height: 100dvh;
+    padding-bottom: 22px;
+  }
+
+  .mobile-player-overlay .player-page__waveform {
+    height: 72px;
   }
 
   .mini-player__track {

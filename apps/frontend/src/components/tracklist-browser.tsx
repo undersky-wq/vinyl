@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPlaylist, getLibraryReleasesFeed } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { useAuth } from '../providers/auth-provider';
 import { useFavorites } from '../providers/favorites-provider';
 import { PlayerTrack, usePlayerActions, usePlayerTransport } from '../providers/player-provider';
@@ -167,19 +168,6 @@ function formatTrackDuration(durationRaw?: string | null, durationSec?: number |
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function buildFallbackWaveform(seed: string, points = 120) {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
-  }
-
-  return Array.from({ length: points }, (_, index) => {
-    hash = (hash * 1664525 + 1013904223 + index) >>> 0;
-    const value = 0.22 + ((hash % 1000) / 1000) * 0.78;
-    return Number(value.toFixed(3));
-  });
-}
-
 function ReleaseWaveform({
   tracks,
   queueTracks,
@@ -196,9 +184,14 @@ function ReleaseWaveform({
     tracks.find((track) => track.audioUrl) ||
     tracks.find((track) => track.waveformData.length) ||
     tracks[0];
-  const peaks = (sourceTrack?.waveformData.length
+  const sourcePeaks = sourceTrack?.waveformData.length
     ? sourceTrack.waveformData
-    : buildFallbackWaveform(`${sourceTrack?.artist || ''}-${sourceTrack?.title || ''}`)).slice(0, 180);
+    : buildFallbackWaveform(`${sourceTrack?.artist || ''}-${sourceTrack?.title || ''}`);
+  const { ref: waveformRef, peaks } = useResponsiveWaveform(sourcePeaks, {
+    minBars: 72,
+    maxBars: 180,
+    pixelsPerBar: 5,
+  });
   const [progressPercent, setProgressPercent] = useState(0);
   const currentTrackIndex = currentReleaseTrack
     ? tracks.findIndex((track) => track.id === currentReleaseTrack.id)
@@ -258,6 +251,7 @@ function ReleaseWaveform({
   return (
     <button
       type="button"
+      ref={waveformRef}
       className="library-wave__bars is-decoded"
       onClick={handleWaveSeek}
       aria-label="Seek waveform"

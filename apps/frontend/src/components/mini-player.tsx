@@ -13,8 +13,9 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SiteLang } from '../lib/language';
+import { useResponsiveWaveform } from '../lib/waveform';
 import { usePlayer } from '../providers/player-provider';
 import { FavoriteButton } from './track-actions';
 
@@ -30,6 +31,10 @@ function formatTime(value: number) {
   const minutes = Math.floor(value / 60);
   const seconds = Math.floor(value % 60);
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function fallbackWaveform(points = 90) {
+  return Array.from({ length: points }, (_, index) => 0.25 + ((index * 37) % 70) / 100);
 }
 
 export function MiniPlayer({ lang }: MiniPlayerProps) {
@@ -58,12 +63,36 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   } = usePlayer();
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
+  const [overlayDragProgress, setOverlayDragProgress] = useState<number | null>(null);
+  const [isOverlayQueueOpen, setIsOverlayQueueOpen] = useState(false);
+  const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
+  const lastHapticStepRef = useRef(-1);
 
   const volumeLabel = lang === 'ru' ? 'Громкость' : 'Volume';
   const displayProgress = dragProgress ?? progress;
+  const overlayProgress = overlayDragProgress ?? progress;
   const visibleQueue = displayQueue.length ? displayQueue : queue;
   const displayTime =
     dragProgress !== null && duration > 0 ? (duration * dragProgress) / 100 : currentTime;
+  const overlaySourcePeaks = currentTrack?.waveformData?.length ? currentTrack.waveformData : fallbackWaveform();
+  const { ref: overlayWaveformRef, peaks: overlayPeaks } = useResponsiveWaveform(overlaySourcePeaks, {
+    minBars: 48,
+    maxBars: 90,
+    pixelsPerBar: 5,
+  });
+
+  useEffect(() => {
+    if (!isFullPlayerOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullPlayerOpen]);
 
   function openFullPlayer() {
     if (typeof window === 'undefined') {
@@ -75,14 +104,39 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     const playerUrl = `/player?from=${encodeURIComponent(returnTo)}`;
 
     if (window.matchMedia('(max-width: 640px)').matches) {
-      const miniPlayer = document.querySelector('.mini-player');
-      miniPlayer?.classList.add('opening-full-player');
-      window.sessionStorage.setItem('vinyl-player-transition', 'opening');
-      window.setTimeout(() => router.push(playerUrl), 170);
+      setIsFullPlayerOpen(true);
       return;
     }
 
     router.push(playerUrl);
+  }
+
+  function getPointerProgress(event: React.PointerEvent<HTMLButtonElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const nextProgress = ((event.clientX - rect.left) / rect.width) * 100;
+    return Math.max(0, Math.min(nextProgress, 100));
+  }
+
+  function vibrateOnStep(nextProgress: number) {
+    const step = Math.round(nextProgress / 5);
+    if (step === lastHapticStepRef.current) {
+      return;
+    }
+
+    lastHapticStepRef.current = step;
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(4);
+    }
+  }
+
+  function handlePreviousTrack() {
+    setTrackDirection('previous');
+    playPrevious();
+  }
+
+  function handleNextTrack() {
+    setTrackDirection('next');
+    playNext();
   }
 
   if (!currentTrack) {
@@ -90,6 +144,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   }
 
   return (
+    <>
     <div
       className="mini-player"
       role="button"
@@ -288,5 +343,160 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         </button>
       </div>
     </div>
+    {isFullPlayerOpen ? (
+      <div className="mobile-player-overlay" role="dialog" aria-modal="true">
+        <section className="player-page mobile-player-overlay__panel opening">
+          <button
+            type="button"
+            className="player-page__collapse"
+            onClick={() => setIsFullPlayerOpen(false)}
+            aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
+          >
+            <span aria-hidden="true">⌄</span>
+          </button>
+
+          <div className={`player-page__cover-frame slide-${trackDirection}`} key={`mobile-cover-${currentTrack.id}`}>
+            <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} />
+          </div>
+          <div className={`player-page__meta slide-${trackDirection}`} key={`mobile-meta-${currentTrack.id}`}>
+            <p>{currentTrack.artist}</p>
+            <h1>{currentTrack.title}</h1>
+          </div>
+
+          <div className={`player-page__timeline slide-${trackDirection}`} key={`mobile-timeline-${currentTrack.id}`}>
+            <span>{formatTime(currentTime)}</span>
+            <button
+              type="button"
+              ref={overlayWaveformRef}
+              className={`player-page__waveform${overlayDragProgress !== null ? ' dragging' : ''}`}
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId);
+                const nextProgress = getPointerProgress(event);
+                setOverlayDragProgress(nextProgress);
+                vibrateOnStep(nextProgress);
+              }}
+              onPointerMove={(event) => {
+                if (overlayDragProgress === null) {
+                  return;
+                }
+
+                const nextProgress = getPointerProgress(event);
+                setOverlayDragProgress(nextProgress);
+                vibrateOnStep(nextProgress);
+              }}
+              onPointerUp={(event) => {
+                const nextProgress = getPointerProgress(event);
+                seekToPercent(nextProgress);
+                setOverlayDragProgress(null);
+                lastHapticStepRef.current = -1;
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }}
+              onPointerCancel={() => {
+                setOverlayDragProgress(null);
+                lastHapticStepRef.current = -1;
+              }}
+              aria-label={lang === 'ru' ? 'Перемотка трека' : 'Seek track'}
+            >
+              {overlayPeaks.map((peak, index) => (
+                <span
+                  className={(index / Math.max(overlayPeaks.length - 1, 1)) * 100 <= overlayProgress ? 'active' : ''}
+                  key={`mobile-${currentTrack.id}-${index}`}
+                  style={{ height: `${Math.max(10, Math.round(peak * 100))}%` }}
+                />
+              ))}
+            </button>
+            <span>{formatTime(duration)}</span>
+          </div>
+
+          <div className="player-page__controls">
+            <button
+              type="button"
+              className={`player-page__control player-page__control--shuffle${isShuffleEnabled ? ' active' : ''}`}
+              onClick={toggleShuffle}
+              aria-label={lang === 'ru' ? 'Перемешивание' : 'Shuffle'}
+            >
+              <Shuffle size={22} />
+            </button>
+            <button
+              type="button"
+              className="player-page__control player-page__control--previous"
+              onClick={handlePreviousTrack}
+              disabled={!canPlayPrevious}
+              aria-label={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
+            >
+              <SkipBack size={26} fill="currentColor" />
+            </button>
+            <button type="button" className="player-page__play" onClick={togglePlayback}>
+              {isPlaying ? <Pause size={34} /> : <Play size={34} fill="currentColor" />}
+            </button>
+            <button
+              type="button"
+              className="player-page__control player-page__control--next"
+              onClick={handleNextTrack}
+              disabled={!canPlayNext}
+              aria-label={lang === 'ru' ? 'Следующий трек' : 'Next track'}
+            >
+              <SkipForward size={26} fill="currentColor" />
+            </button>
+            <button
+              type="button"
+              className={`player-page__control player-page__control--repeat${isRepeatEnabled ? ' active' : ''}`}
+              onClick={toggleRepeat}
+              aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
+            >
+              <Repeat2 size={22} />
+            </button>
+          </div>
+
+          <div className="player-page__secondary-actions">
+            <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
+            <div className="player-queue-menu player-page__queue">
+              <button
+                type="button"
+                className={`track-playlist-menu__trigger player-queue-menu__trigger${isOverlayQueueOpen ? ' active' : ''}`}
+                aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
+                onClick={() => setIsOverlayQueueOpen((current) => !current)}
+              >
+                <ListMusic size={18} />
+              </button>
+              {isOverlayQueueOpen ? (
+                <div className="player-queue-menu__popup">
+                  <div className="player-queue-menu__title">{lang === 'ru' ? 'Сейчас играет' : 'Now playing'}</div>
+                  <div className="player-queue-menu__list">
+                    {visibleQueue.map((track) => {
+                      const queueIndex = queue.findIndex((item) => item.id === track.id);
+                      const isActive = track.id === currentTrack.id;
+
+                      return (
+                        <button
+                          type="button"
+                          className={`player-queue-menu__item${isActive ? ' active' : ''}`}
+                          key={track.id}
+                          onClick={() => {
+                            if (queueIndex >= 0) {
+                              const activeIndex = queue.findIndex((item) => item.id === currentTrack.id);
+                              setTrackDirection(queueIndex >= activeIndex ? 'next' : 'previous');
+                              playQueue(queue, queueIndex, visibleQueue);
+                            }
+                            setIsOverlayQueueOpen(false);
+                          }}
+                        >
+                          <Image src={track.coverUrl} alt="" width={34} height={34} />
+                          <span>
+                            <strong>{track.title}</strong>
+                            <em>{track.artist}</em>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      </div>
+    ) : null}
+    </>
   );
 }
