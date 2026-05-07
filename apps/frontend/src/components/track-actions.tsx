@@ -60,6 +60,7 @@ export function TrackPlaylistMenu({
   const [playlistName, setPlaylistName] = useState('');
   const [pendingActionKey, setPendingActionKey] = useState<string | null>(null);
   const [status, setStatus] = useState('');
+  const [autoAlign, setAutoAlign] = useState<'down' | 'up'>(align);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const { requireAuth, user } = useAuth();
   const isInPlaylist = playlists.some((playlist) =>
@@ -95,15 +96,36 @@ export function TrackPlaylistMenu({
       return;
     }
 
+    function updatePopupDirection() {
+      if (!menuRef.current) {
+        return;
+      }
+
+      const triggerRect = menuRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      const preferredPopupHeight = 340;
+      const bottomSpace = viewportHeight - triggerRect.bottom;
+      const topSpace = triggerRect.top;
+
+      setAutoAlign(bottomSpace < preferredPopupHeight && topSpace > bottomSpace ? 'up' : align);
+    }
+
     function handlePointerDown(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
 
+    updatePopupDirection();
+    window.addEventListener('resize', updatePopupDirection);
+    window.addEventListener('scroll', updatePopupDirection, { passive: true });
     document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [isOpen]);
+    return () => {
+      window.removeEventListener('resize', updatePopupDirection);
+      window.removeEventListener('scroll', updatePopupDirection);
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [align, isOpen]);
 
   async function handleCreatePlaylist() {
     if (!requireAuth()) {
@@ -171,7 +193,7 @@ export function TrackPlaylistMenu({
   return (
     <div
       className={`track-playlist-menu${isOpen ? ' open' : ''}${
-        align === 'up' ? ' track-playlist-menu--up' : ''
+        autoAlign === 'up' ? ' track-playlist-menu--up' : ''
       }${
         className ? ` ${className}` : ''
       }`}
@@ -188,6 +210,9 @@ export function TrackPlaylistMenu({
             return;
           }
           setStatus('');
+          if (!isOpen) {
+            setAutoAlign(align);
+          }
           setIsOpen((current) => !current);
         }}
       >

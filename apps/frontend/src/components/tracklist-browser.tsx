@@ -1,6 +1,5 @@
 ﻿'use client';
 
-import Image from 'next/image';
 import { Check, ChevronDown, Heart, ListMusic, Pause, Play, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -749,7 +748,7 @@ export function TracklistBrowser({
                     className="cover-link"
                     aria-label={`${release.artist} - ${release.title}`}
                   >
-                    <Image
+                    <img
                       src={
                         release.coverThumbStorageUrl ||
                         release.coverMediumStorageUrl ||
@@ -760,6 +759,8 @@ export function TracklistBrowser({
                       alt={release.title}
                       width={180}
                       height={180}
+                      loading="lazy"
+                      decoding="async"
                     />
                   </Link>
                 </div>
@@ -811,7 +812,7 @@ export function TracklistBrowser({
                             playFromVisibleFeed(track.id);
                           }}
                         >
-                          <Image src={track.coverUrl} alt="" width={44} height={44} />
+                          <img src={track.coverUrl} alt="" width={44} height={44} loading="lazy" decoding="async" />
                           <span className="library-track__thumb-play">
                             {isCurrentTrack && isPlaying ? (
                               <Pause size={21} />
