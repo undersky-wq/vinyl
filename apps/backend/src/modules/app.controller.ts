@@ -1,6 +1,6 @@
 import { Body, Controller, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuthGuard } from './auth/auth.guards';
+import { AdminGuard, AuthGuard } from './auth/auth.guards';
 import { PrismaService } from './prisma/prisma.service';
 import { StorageService } from './storage/storage.service';
 
@@ -22,8 +22,10 @@ export class AppController {
   }
 
   @Get('users')
+  @UseGuards(AdminGuard)
   async users() {
-    return this.prisma.user.findMany({
+    const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    const users = await this.prisma.user.findMany({
       orderBy: {
         createdAt: 'asc',
       },
@@ -33,6 +35,7 @@ export class AppController {
         displayName: true,
         discogsUsername: true,
         role: true,
+        avatarStorageKey: true,
         avatarStorageUrl: true,
         createdAt: true,
         _count: {
@@ -40,10 +43,22 @@ export class AppController {
             collectionItems: true,
             playlists: true,
             audioFiles: true,
+            favoriteTracks: true,
           },
         },
       },
     });
+
+    return Promise.all(
+      users.map(async (user) => ({
+        ...user,
+        avatarStorageUrl:
+          user.avatarStorageKey
+            ? (await this.storageService.getSignedObjectUrl(coversBucket, user.avatarStorageKey)) ||
+              user.avatarStorageUrl
+            : user.avatarStorageUrl,
+      })),
+    );
   }
 
   @Get('favorites')

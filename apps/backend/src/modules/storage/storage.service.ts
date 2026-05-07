@@ -8,6 +8,7 @@ import sanitizeFilename from 'sanitize-filename';
 export class StorageService {
   private readonly client: S3Client | null;
   private readonly endpoint: string | null;
+  private readonly signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
   constructor(private readonly configService: ConfigService) {
     const endpoint = this.normalizeEndpoint(this.configService.get<string>('SELECTEL_S3_ENDPOINT'));
@@ -102,7 +103,15 @@ export class StorageService {
       return null;
     }
 
-    return getSignedUrl(
+    const cacheKey = `${bucket}:${key}:${expiresIn}`;
+    const now = Date.now();
+    const cachedUrl = this.signedUrlCache.get(cacheKey);
+
+    if (cachedUrl && cachedUrl.expiresAt > now + 60_000) {
+      return cachedUrl.url;
+    }
+
+    const url = await getSignedUrl(
       this.client,
       new GetObjectCommand({
         Bucket: bucket,
@@ -110,6 +119,13 @@ export class StorageService {
       }),
       { expiresIn },
     );
+
+    this.signedUrlCache.set(cacheKey, {
+      url,
+      expiresAt: now + expiresIn * 1000,
+    });
+
+    return url;
   }
 
   buildObjectUrl(bucket: string, key: string) {

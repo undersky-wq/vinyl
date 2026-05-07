@@ -53,6 +53,7 @@ type LibraryViewState = {
 
 const LIBRARY_VIEW_STATE_KEY = 'vinyl-library-view-state';
 const LIBRARY_PAGE_SIZE_OPTIONS = [20, 40, 60];
+const LIBRARY_VISIBLE_RELEASE_BATCH = 12;
 
 function readLibraryViewState() {
   if (typeof window === 'undefined') {
@@ -307,7 +308,9 @@ export function TracklistBrowser({
     () => restoredViewStateRef.current?.pageSize ?? pageSize,
   );
   const [isFeedLoading, setIsFeedLoading] = useState(false);
+  const [visibleReleaseCount, setVisibleReleaseCount] = useState(LIBRARY_VISIBLE_RELEASE_BATCH);
   const filterRef = useRef<HTMLDivElement | null>(null);
+  const feedLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(false);
   const didMountRef = useRef(false);
 
@@ -339,6 +342,7 @@ export function TracklistBrowser({
     setTotalReleases(initialTotal);
     setCurrentPage(1);
     setSelectedPageSize(pageSize);
+    setVisibleReleaseCount(LIBRARY_VISIBLE_RELEASE_BATCH);
     setIsFeedLoading(false);
     requestRef.current = false;
   }, [initialHasMore, initialTotal, pageSize, releases]);
@@ -433,6 +437,7 @@ export function TracklistBrowser({
       setTotalReleases(result.total);
       setCurrentPage(safePage);
       setSelectedPageSize(nextPageSize);
+      setVisibleReleaseCount(LIBRARY_VISIBLE_RELEASE_BATCH);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
       setStatus(lang === 'ru' ? 'Не удалось загрузить ленту.' : 'Failed to load feed.');
@@ -480,7 +485,15 @@ export function TracklistBrowser({
   });
   const playableFilteredFeed = filteredFeed.filter((track) => Boolean(track.audioUrl));
   const totalPages = Math.max(1, Math.ceil(totalReleases / selectedPageSize));
-  const visiblePageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+  const visiblePageWindowSize = 5;
+  const firstVisiblePage = Math.min(
+    Math.max(1, currentPage - Math.floor(visiblePageWindowSize / 2)),
+    Math.max(1, totalPages - visiblePageWindowSize + 1),
+  );
+  const visiblePageNumbers = Array.from(
+    { length: Math.min(visiblePageWindowSize, totalPages) },
+    (_, index) => firstVisiblePage + index,
+  );
 
   const groupedFeed = filteredFeed.reduce<Array<{ release: Release; tracks: FeedTrack[] }>>((acc, track) => {
     const current = acc[acc.length - 1];
@@ -497,6 +510,37 @@ export function TracklistBrowser({
     acc.push({ release, tracks: [track] });
     return acc;
   }, []);
+  const visibleGroupedFeed = groupedFeed.slice(0, visibleReleaseCount);
+  const hasHiddenGroupedFeed = visibleReleaseCount < groupedFeed.length;
+
+  useEffect(() => {
+    setVisibleReleaseCount(LIBRARY_VISIBLE_RELEASE_BATCH);
+  }, [artist, currentPage, keyValue, selectedPageSize, styleValue]);
+
+  useEffect(() => {
+    const target = feedLoadMoreRef.current;
+    if (!target || !hasHiddenGroupedFeed) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) {
+          return;
+        }
+
+        setVisibleReleaseCount((current) =>
+          Math.min(groupedFeed.length, current + LIBRARY_VISIBLE_RELEASE_BATCH),
+        );
+      },
+      {
+        rootMargin: '700px 0px',
+      },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [groupedFeed.length, hasHiddenGroupedFeed]);
 
   function playFromVisibleFeed(trackId: string) {
     const startIndex = playableFilteredFeed.findIndex((track) => track.id === trackId);
@@ -546,6 +590,16 @@ export function TracklistBrowser({
         </div>
 
         <div className="library-pagination__pages" aria-label={lang === 'ru' ? 'Страницы' : 'Pages'}>
+          <button
+            type="button"
+            className="library-pagination__arrow"
+            aria-label={lang === 'ru' ? 'Предыдущая страница' : 'Previous page'}
+            onClick={() => void loadLibraryFeed(Math.max(1, currentPage - 1))}
+            disabled={isFeedLoading || currentPage <= 1}
+          >
+            {'<'}
+          </button>
+
           {visiblePageNumbers.map((page) => (
             <button
               type="button"
@@ -557,6 +611,16 @@ export function TracklistBrowser({
               {page}
             </button>
           ))}
+
+          <button
+            type="button"
+            className="library-pagination__arrow"
+            aria-label={lang === 'ru' ? 'Следующая страница' : 'Next page'}
+            onClick={() => void loadLibraryFeed(Math.min(totalPages, currentPage + 1))}
+            disabled={isFeedLoading || currentPage >= totalPages}
+          >
+            {'>'}
+          </button>
         </div>
       </div>
     );
@@ -676,7 +740,7 @@ export function TracklistBrowser({
         {renderPagination('top')}
 
         <div className="library-feed">
-          {groupedFeed.map(({ release, tracks }) => (
+          {visibleGroupedFeed.map(({ release, tracks }) => (
             <article className="library-release" key={release.id}>
               <div className="library-release__cover">
                 <div className="cover-frame library-release__cover-frame">
@@ -820,6 +884,12 @@ export function TracklistBrowser({
               </div>
             </article>
           ))}
+
+          {hasHiddenGroupedFeed ? (
+            <div className="library-feed__sentinel" ref={feedLoadMoreRef}>
+              {lang === 'ru' ? 'Подгружаем обложки...' : 'Loading covers...'}
+            </div>
+          ) : null}
         </div>
 
         {renderPagination('bottom')}

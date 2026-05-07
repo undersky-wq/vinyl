@@ -105,12 +105,14 @@ export type UserProfile = {
   displayName: string;
   discogsUsername: string | null;
   role: 'USER' | 'ADMIN';
+  avatarStorageKey?: string | null;
   avatarStorageUrl?: string | null;
   createdAt: string;
   _count: {
     collectionItems: number;
     playlists: number;
     audioFiles: number;
+    favoriteTracks: number;
   };
 };
 

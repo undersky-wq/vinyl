@@ -182,8 +182,10 @@ export async function getPlaylist(playlistId: string, cookieHeader?: string) {
   });
 }
 
-export async function getUsers() {
-  return fetchJson<UserProfile[]>('/users');
+export async function getUsers(cookieHeader?: string) {
+  return fetchJson<UserProfile[]>('/users', {
+    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+  });
 }
 
 export async function getCurrentUser(cookieHeader?: string) {

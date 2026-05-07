@@ -14,7 +14,19 @@ import {
 } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
-import { AuthUser } from '../types';
+import { AuthUser, UserProfile } from '../types';
+
+function getUserInitial(user: UserProfile) {
+  return (user.displayName || user.email || '?').slice(0, 1).toUpperCase();
+}
+
+function formatUserDate(value: string, lang: SiteLang) {
+  return new Intl.DateTimeFormat(lang === 'ru' ? 'ru-RU' : 'en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value));
+}
 
 export function ProfileScreen({
   lang,
@@ -22,16 +34,19 @@ export function ProfileScreen({
   releasesCount,
   tracksCount,
   playlistsCount,
+  users,
 }: {
   lang: SiteLang;
   user: AuthUser;
   releasesCount: number;
   tracksCount: number;
   playlistsCount: number;
+  users?: UserProfile[];
 }) {
   const router = useRouter();
   const { setUser, user: authUser } = useAuth();
   const activeUser = authUser ?? user;
+  const registeredUsers = users ?? [];
   const [status, setStatus] = useState('');
   const [isSyncingDiscogs, setIsSyncingDiscogs] = useState(false);
   const [discogsProgress, setDiscogsProgress] = useState(0);
@@ -308,6 +323,62 @@ export function ProfileScreen({
 
         {status ? <p className="muted">{status}</p> : null}
       </article>
+
+      {activeUser.role === 'ADMIN' ? (
+        <article className="release-panel profile-panel profile-users-panel">
+          <div className="profile-users-header">
+            <div>
+              <p className="muted">{lang === 'ru' ? 'Пользователи' : 'Users'}</p>
+              <h2>{lang === 'ru' ? 'Зарегистрированные аккаунты' : 'Registered accounts'}</h2>
+            </div>
+            <strong>{registeredUsers.length}</strong>
+          </div>
+
+          <div className="profile-users-list">
+            {registeredUsers.map((item) => (
+              <div className="profile-user-row" key={item.id}>
+                <div className="profile-user-avatar">
+                  {item.avatarStorageUrl ? (
+                    <img src={item.avatarStorageUrl} alt={item.displayName} />
+                  ) : (
+                    <span>{getUserInitial(item)}</span>
+                  )}
+                </div>
+
+                <div className="profile-user-main">
+                  <div className="profile-user-name">
+                    <strong>{item.displayName}</strong>
+                    <span>{item.role}</span>
+                  </div>
+                  <p className="muted">{item.email || 'No email'}</p>
+                  <p className="profile-user-date">
+                    {lang === 'ru' ? 'Регистрация' : 'Joined'} {formatUserDate(item.createdAt, lang)}
+                  </p>
+                </div>
+
+                <div className="profile-user-stats">
+                  <span>
+                    <b>{item._count.playlists}</b>
+                    <em>{lang === 'ru' ? 'плейлисты' : 'playlists'}</em>
+                  </span>
+                  <span>
+                    <b>{item._count.favoriteTracks}</b>
+                    <em>{lang === 'ru' ? 'избранное' : 'favourites'}</em>
+                  </span>
+                  <span>
+                    <b>{item._count.audioFiles}</b>
+                    <em>MP3</em>
+                  </span>
+                  <span>
+                    <b>{item._count.collectionItems}</b>
+                    <em>{lang === 'ru' ? 'коллекция' : 'collection'}</em>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+      ) : null}
     </section>
   );
 }
