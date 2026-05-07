@@ -227,6 +227,28 @@ export async function postDiscogsSync() {
   return parseJsonResponse(response);
 }
 
+export async function postDiscogsCoverBackfill() {
+  const response = await fetch(`${API_URL}/discogs/backfill-covers`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to backfill covers');
+  }
+
+  return parseJsonResponse<{
+    scanned: number;
+    uploaded: number;
+    failed: number;
+    failures: Array<{ discogsReleaseId: number; title: string }>;
+  }>(response);
+}
+
 export async function postAudioWaveformBackfill() {
   const response = await fetch(`${API_URL}/audio/backfill-durations`, {
     method: 'POST',

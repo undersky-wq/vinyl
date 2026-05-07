@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import { ImageType, Prisma, User } from '@prisma/client';
 import sanitizeFilename from 'sanitize-filename';
+import sharp from 'sharp';
 import { AudioService } from '../audio/audio.service';
 import { DiscogsService } from '../discogs/discogs.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -769,12 +770,41 @@ export class ReleasesService {
       sanitizeFilename(file.originalname).replace(/\s+/g, '-').toLowerCase() ||
       `front.${this.getImageExtension(file)}`;
     const storageKey = `covers/manual/${release.id}/${safeName}`;
-    const url = await this.storageService.uploadObject({
-      bucket: coversBucket,
-      key: storageKey,
-      body: file.buffer,
-      contentType: file.mimetype,
-    });
+    const thumbStorageKey = `covers/manual/${release.id}/thumb.webp`;
+    const mediumStorageKey = `covers/manual/${release.id}/medium.webp`;
+    const [thumbBuffer, mediumBuffer] = await Promise.all([
+      sharp(file.buffer)
+        .rotate()
+        .resize(320, 320, { fit: 'cover' })
+        .webp({ quality: 78 })
+        .toBuffer(),
+      sharp(file.buffer)
+        .rotate()
+        .resize(900, 900, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 84 })
+        .toBuffer(),
+    ]);
+    const [url, thumbUrl, mediumUrl] = await Promise.all([
+      this.storageService.uploadObject({
+        bucket: coversBucket,
+        key: storageKey,
+        body: file.buffer,
+        contentType: file.mimetype,
+      }),
+      this.storageService.uploadObject({
+        bucket: coversBucket,
+        key: thumbStorageKey,
+        body: thumbBuffer,
+        contentType: 'image/webp',
+      }),
+      this.storageService.uploadObject({
+        bucket: coversBucket,
+        key: mediumStorageKey,
+        body: mediumBuffer,
+        contentType: 'image/webp',
+      }),
+    ]);
+    const nextKeys = new Set([storageKey, thumbStorageKey, mediumStorageKey]);
     const previousKeys = [
       release.coverStorageKey,
       release.coverThumbStorageKey,
@@ -782,7 +812,7 @@ export class ReleasesService {
       ...release.images
         .filter((image) => image.type === ImageType.COVER)
         .map((image) => image.storageKey),
-    ].filter((key): key is string => Boolean(key) && key !== storageKey);
+    ].filter((key): key is string => typeof key === 'string' && key.length > 0 && !nextKeys.has(key));
 
     await Promise.all([...new Set(previousKeys)].map((key) => this.deleteStorageObject(coversBucket, key)));
 
@@ -793,10 +823,10 @@ export class ReleasesService {
       data: {
         coverStorageKey: storageKey,
         coverStorageUrl: url,
-        coverThumbStorageKey: null,
-        coverThumbStorageUrl: null,
-        coverMediumStorageKey: null,
-        coverMediumStorageUrl: null,
+        coverThumbStorageKey: thumbStorageKey,
+        coverThumbStorageUrl: thumbUrl,
+        coverMediumStorageKey: mediumStorageKey,
+        coverMediumStorageUrl: mediumUrl,
         coverImageUrl: url,
         images: {
           deleteMany: {
