@@ -20,6 +20,7 @@ type TracklistBrowserProps = {
   initialFavoriteTrackIds?: string[];
   initialOptions?: LibraryFeedOptions;
   initialHasMore?: boolean;
+  initialTotal?: number;
   pageSize?: number;
 };
 
@@ -41,6 +42,9 @@ type FilterKey = 'style' | 'artist' | 'key' | null;
 type LibraryViewState = {
   releases: Release[];
   hasMore: boolean;
+  total: number;
+  currentPage: number;
+  pageSize: number;
   styleValue: string;
   artist: string;
   keyValue: string;
@@ -48,6 +52,7 @@ type LibraryViewState = {
 };
 
 const LIBRARY_VIEW_STATE_KEY = 'vinyl-library-view-state';
+const LIBRARY_PAGE_SIZE_OPTIONS = [20, 40, 60];
 
 function readLibraryViewState() {
   if (typeof window === 'undefined') {
@@ -68,6 +73,9 @@ function readLibraryViewState() {
     return {
       releases: parsed.releases,
       hasMore: Boolean(parsed.hasMore),
+      total: typeof parsed.total === 'number' ? parsed.total : parsed.releases.length,
+      currentPage: typeof parsed.currentPage === 'number' ? parsed.currentPage : 1,
+      pageSize: typeof parsed.pageSize === 'number' ? parsed.pageSize : 40,
       styleValue: parsed.styleValue || '',
       artist: parsed.artist || '',
       keyValue: parsed.keyValue || '',
@@ -276,6 +284,7 @@ export function TracklistBrowser({
   initialFavoriteTrackIds = [],
   initialOptions,
   initialHasMore = false,
+  initialTotal = releases.length,
   pageSize = 10,
 }: TracklistBrowserProps) {
   const restoredViewStateRef = useRef<LibraryViewState | null>(readLibraryViewState());
@@ -292,9 +301,13 @@ export function TracklistBrowser({
   const [status, setStatus] = useState('');
   const [loadedReleases, setLoadedReleases] = useState(() => restoredViewStateRef.current?.releases || releases);
   const [hasMore, setHasMore] = useState(() => restoredViewStateRef.current?.hasMore ?? initialHasMore);
+  const [totalReleases, setTotalReleases] = useState(() => restoredViewStateRef.current?.total ?? initialTotal);
+  const [currentPage, setCurrentPage] = useState(() => restoredViewStateRef.current?.currentPage ?? 1);
+  const [selectedPageSize, setSelectedPageSize] = useState(
+    () => restoredViewStateRef.current?.pageSize ?? pageSize,
+  );
   const [isFeedLoading, setIsFeedLoading] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(false);
   const didMountRef = useRef(false);
 
@@ -323,9 +336,12 @@ export function TracklistBrowser({
 
     setLoadedReleases(releases);
     setHasMore(initialHasMore);
+    setTotalReleases(initialTotal);
+    setCurrentPage(1);
+    setSelectedPageSize(pageSize);
     setIsFeedLoading(false);
     requestRef.current = false;
-  }, [initialHasMore, releases]);
+  }, [initialHasMore, initialTotal, pageSize, releases]);
 
   useEffect(() => {
     const restoredState = restoredViewStateRef.current;
@@ -345,12 +361,15 @@ export function TracklistBrowser({
     writeLibraryViewState({
       releases: loadedReleases,
       hasMore,
+      total: totalReleases,
+      currentPage,
+      pageSize: selectedPageSize,
       styleValue,
       artist,
       keyValue,
       scrollY: typeof window === 'undefined' ? 0 : window.scrollY,
     });
-  }, [artist, hasMore, keyValue, loadedReleases, styleValue]);
+  }, [artist, currentPage, hasMore, keyValue, loadedReleases, selectedPageSize, styleValue, totalReleases]);
 
   useEffect(() => {
     let frame = 0;
@@ -365,6 +384,9 @@ export function TracklistBrowser({
         writeLibraryViewState({
           releases: loadedReleases,
           hasMore,
+          total: totalReleases,
+          currentPage,
+          pageSize: selectedPageSize,
           styleValue,
           artist,
           keyValue,
@@ -380,9 +402,9 @@ export function TracklistBrowser({
       }
       window.removeEventListener('scroll', persistScrollPosition);
     };
-  }, [artist, hasMore, keyValue, loadedReleases, styleValue]);
+  }, [artist, currentPage, hasMore, keyValue, loadedReleases, selectedPageSize, styleValue, totalReleases]);
 
-  const loadLibraryFeed = useCallback(async (nextOffset: number, mode: 'replace' | 'append') => {
+  const loadLibraryFeed = useCallback(async (page: number, nextPageSize = selectedPageSize) => {
     if (requestRef.current) {
       return;
     }
@@ -391,8 +413,9 @@ export function TracklistBrowser({
     setIsFeedLoading(true);
 
     const params = new URLSearchParams();
-    params.set('limit', String(pageSize));
-    params.set('offset', String(nextOffset));
+    const safePage = Math.max(1, page);
+    params.set('limit', String(nextPageSize));
+    params.set('offset', String((safePage - 1) * nextPageSize));
     if (styleValue) {
       params.set('style', styleValue);
     }
@@ -405,22 +428,19 @@ export function TracklistBrowser({
 
     try {
       const result = await getLibraryReleasesFeed(params);
-      setLoadedReleases((current) => {
-        if (mode === 'replace') {
-          return result.releases;
-        }
-
-        const existingIds = new Set(current.map((release) => release.id));
-        return [...current, ...result.releases.filter((release) => !existingIds.has(release.id))];
-      });
+      setLoadedReleases(result.releases);
       setHasMore(result.hasMore);
+      setTotalReleases(result.total);
+      setCurrentPage(safePage);
+      setSelectedPageSize(nextPageSize);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
       setStatus(lang === 'ru' ? 'Не удалось загрузить ленту.' : 'Failed to load feed.');
     } finally {
       requestRef.current = false;
       setIsFeedLoading(false);
     }
-  }, [artist, keyValue, lang, pageSize, styleValue]);
+  }, [artist, keyValue, lang, selectedPageSize, styleValue]);
 
   useEffect(() => {
     if (!didMountRef.current) {
@@ -428,16 +448,16 @@ export function TracklistBrowser({
       return;
     }
 
-    void loadLibraryFeed(0, 'replace');
+    void loadLibraryFeed(1);
   }, [artist, keyValue, loadLibraryFeed, styleValue]);
 
   useEffect(() => {
-    if (loadedReleases.length > 0 || isFeedLoading || !hasMore) {
+    if (loadedReleases.length > 0 || isFeedLoading || totalReleases <= 0) {
       return;
     }
 
-    void loadLibraryFeed(0, 'replace');
-  }, [hasMore, isFeedLoading, loadLibraryFeed, loadedReleases.length]);
+    void loadLibraryFeed(1);
+  }, [isFeedLoading, loadLibraryFeed, loadedReleases.length, totalReleases]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -452,56 +472,6 @@ export function TracklistBrowser({
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, []);
 
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) {
-          return;
-        }
-
-        void loadLibraryFeed(loadedReleases.length, 'append');
-      },
-      {
-        rootMargin: '360px 0px',
-      },
-    );
-
-    observer.observe(sentinel);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [hasMore, loadLibraryFeed, loadedReleases.length]);
-
-  useEffect(() => {
-    if (!hasMore) {
-      return;
-    }
-
-    function handleScroll() {
-      const scrollBottom = window.innerHeight + window.scrollY;
-      const threshold = document.documentElement.scrollHeight - 560;
-      if (scrollBottom >= threshold) {
-        void loadLibraryFeed(loadedReleases.length, 'append');
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll);
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
-    };
-  }, [hasMore, loadLibraryFeed, loadedReleases.length]);
-
   const filteredFeed = feed.filter((track) => {
     const matchesStyle = !styleValue || track.styles.includes(styleValue);
     const matchesArtist = !artist || track.artist === artist;
@@ -509,6 +479,8 @@ export function TracklistBrowser({
     return matchesStyle && matchesArtist && matchesKey;
   });
   const playableFilteredFeed = filteredFeed.filter((track) => Boolean(track.audioUrl));
+  const totalPages = Math.max(1, Math.ceil(totalReleases / selectedPageSize));
+  const visiblePageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
 
   const groupedFeed = filteredFeed.reduce<Array<{ release: Release; tracks: FeedTrack[] }>>((acc, track) => {
     const current = acc[acc.length - 1];
@@ -539,6 +511,55 @@ export function TracklistBrowser({
     }
 
     playQueue(playableFilteredFeed, startIndex, releaseQueue);
+  }
+
+  function handlePageSizeChange(nextPageSize: number) {
+    if (nextPageSize === selectedPageSize) {
+      return;
+    }
+
+    void loadLibraryFeed(1, nextPageSize);
+  }
+
+  function renderPagination(position: 'top' | 'bottom') {
+    if (totalReleases <= 0) {
+      return null;
+    }
+
+    return (
+      <div className={`library-pagination library-pagination--${position}`}>
+        <div className="library-pagination__size">
+          <span>{lang === 'ru' ? 'На страницу' : 'Per page'}</span>
+          <div className="library-pagination__size-buttons">
+            {LIBRARY_PAGE_SIZE_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option}
+                className={option === selectedPageSize ? 'active' : ''}
+                onClick={() => handlePageSizeChange(option)}
+                disabled={isFeedLoading}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="library-pagination__pages" aria-label={lang === 'ru' ? 'Страницы' : 'Pages'}>
+          {visiblePageNumbers.map((page) => (
+            <button
+              type="button"
+              key={`${position}-${page}`}
+              className={page === currentPage ? 'active' : ''}
+              onClick={() => void loadLibraryFeed(page)}
+              disabled={isFeedLoading || page === currentPage}
+            >
+              {page}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   async function handleCreatePlaylist() {
@@ -651,6 +672,8 @@ export function TracklistBrowser({
         <div className="library-heading">
           <h2>{lang === 'ru' ? 'Лента релизов' : 'Release feed'}</h2>
         </div>
+
+        {renderPagination('top')}
 
         <div className="library-feed">
           {groupedFeed.map(({ release, tracks }) => (
@@ -799,11 +822,11 @@ export function TracklistBrowser({
           ))}
         </div>
 
-        <div ref={sentinelRef} className="home-grid-sentinel" aria-hidden="true" />
+        {renderPagination('bottom')}
 
         {isFeedLoading ? (
           <p className="home-grid-status muted">
-            {lang === 'ru' ? 'Загружаем следующие релизы...' : 'Loading more releases...'}
+            {lang === 'ru' ? 'Загружаем релизы...' : 'Loading releases...'}
           </p>
         ) : null}
       </section>

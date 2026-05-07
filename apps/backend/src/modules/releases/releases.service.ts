@@ -352,7 +352,7 @@ export class ReleasesService {
 
   async findLibraryFeed(query: QueryReleasesDto) {
     const userId = query.userId || 'default-user';
-    const take = query.limit ? Math.min(Math.max(Number(query.limit), 1), 24) : 12;
+    const take = query.limit ? Math.min(Math.max(Number(query.limit), 1), 60) : 40;
     const skip = query.offset ? Math.max(Number(query.offset), 0) : 0;
     const styles = this.splitList(query.style);
     const artist = query.artist?.trim();

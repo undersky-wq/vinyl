@@ -2791,6 +2791,60 @@ textarea {
   font-size: 2rem;
 }
 
+.library-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0 10px;
+}
+
+.library-pagination--bottom {
+  padding: 6px 0 0;
+}
+
+.library-pagination__size,
+.library-pagination__pages,
+.library-pagination__size-buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.library-pagination__size {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.library-pagination button {
+  min-width: 38px;
+  height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: #1c1c1c;
+  color: #8d8d8d;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.library-pagination button:hover:not(:disabled),
+.library-pagination button.active {
+  color: var(--player-accent);
+  transform: translateY(-1px);
+}
+
+.library-pagination button:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
 .track-feed,
 .library-feed {
   display: grid;

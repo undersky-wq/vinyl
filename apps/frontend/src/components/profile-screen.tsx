@@ -8,7 +8,6 @@ import {
   AudioBackfillStatus,
   getAudioWaveformBackfillStatus,
   logoutUser,
-  postDiscogsCoverBackfill,
   postDiscogsSync,
   startAudioWaveformBackfill,
   uploadAvatar,
@@ -36,7 +35,6 @@ export function ProfileScreen({
   const [status, setStatus] = useState('');
   const [isSyncingDiscogs, setIsSyncingDiscogs] = useState(false);
   const [discogsProgress, setDiscogsProgress] = useState(0);
-  const [isBackfillingCovers, setIsBackfillingCovers] = useState(false);
   const [isBackfillingWaveform, setIsBackfillingWaveform] = useState(false);
   const [waveformProgress, setWaveformProgress] = useState(0);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(
@@ -212,29 +210,6 @@ export function ProfileScreen({
     }
   }
 
-  async function handleCoverBackfill() {
-    if (isBackfillingCovers) {
-      return;
-    }
-
-    setIsBackfillingCovers(true);
-    setStatus(lang === 'ru' ? 'Запускаю пересчёт обложек...' : 'Starting cover backfill...');
-
-    try {
-      const result = await postDiscogsCoverBackfill();
-      setStatus(
-        lang === 'ru'
-          ? `Обложки: проверено ${result.scanned}, загружено ${result.uploaded}, ошибок ${result.failed}.`
-          : `Covers: scanned ${result.scanned}, uploaded ${result.uploaded}, failed ${result.failed}.`,
-      );
-      router.refresh();
-    } catch {
-      setStatus(lang === 'ru' ? 'Ошибка пересчёта обложек.' : 'Cover backfill failed.');
-    } finally {
-      setIsBackfillingCovers(false);
-    }
-  }
-
   async function handleLogout() {
     await logoutUser();
     setUser(null);
@@ -323,23 +298,6 @@ export function ProfileScreen({
                 </span>
               </button>
 
-              <button
-                type="button"
-                className={`profile-action-button${isBackfillingCovers ? ' is-loading' : ''}`}
-                onClick={handleCoverBackfill}
-                disabled={isBackfillingCovers}
-                style={{ ['--profile-progress' as string]: isBackfillingCovers ? '92%' : '0%' } as CSSProperties}
-              >
-                <span className="profile-action-button__label">
-                  {isBackfillingCovers
-                    ? lang === 'ru'
-                      ? 'Обложки загружаются'
-                      : 'Backfilling covers'
-                    : lang === 'ru'
-                      ? 'Пересчитать обложки'
-                      : 'Backfill covers'}
-                </span>
-              </button>
             </>
           ) : null}
 

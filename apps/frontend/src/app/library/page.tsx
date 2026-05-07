@@ -4,7 +4,7 @@ import { TracklistBrowser } from '../../components/tracklist-browser';
 import { getCurrentUser, getFavorites, getLibraryReleasesFeed, getPlaylistSummaries } from '../../lib/api';
 import { normalizeSiteLang } from '../../lib/language';
 
-const LIBRARY_PAGE_SIZE = 10;
+const LIBRARY_PAGE_SIZE = 40;
 
 export default async function LibraryPage() {
   const cookieStore = await cookies();
@@ -34,6 +34,7 @@ export default async function LibraryPage() {
         initialFavoriteTrackIds={favorites}
         initialOptions={libraryFeed.options}
         initialHasMore={libraryFeed.hasMore}
+        initialTotal={libraryFeed.total}
         pageSize={LIBRARY_PAGE_SIZE}
       />
     </main>

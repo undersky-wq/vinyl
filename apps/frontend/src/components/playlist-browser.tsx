@@ -1,14 +1,12 @@
 'use client';
 
-import Image from 'next/image';
-import { Pause, Play } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getPlaylist, reorderPlaylist } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Playlist, PlaylistSummary } from '../types';
-import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
+import { PlaylistTrackRow } from './playlist-track-row';
 
 type PlaylistBrowserProps = {
   lang: SiteLang;
@@ -29,46 +27,6 @@ function formatTrackDuration(durationRaw?: string | null, durationSec?: number |
   const minutes = Math.floor(durationSec / 60);
   const seconds = durationSec % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-const KEY_COLORS: Record<string, string> = {
-  C: '#d67adf',
-  Am: '#dfb2e5',
-  G: '#8a7aa3',
-  Em: '#b7afc5',
-  D: '#6f93c7',
-  Bm: '#b6c8df',
-  A: '#55b8e9',
-  'F#m': '#9ad9ea',
-  Gbm: '#9ad9ea',
-  E: '#49d2d5',
-  'C#m': '#86dddd',
-  Dbm: '#86dddd',
-  B: '#50c989',
-  'G#m': '#97d8c0',
-  Abm: '#97d8c0',
-  'F#': '#73e86e',
-  'D#m': '#9def98',
-  Ebm: '#9def98',
-  'C#': '#aee650',
-  'A#m': '#cceb9b',
-  Bbm: '#cceb9b',
-  'G#': '#ffe75a',
-  Fm: '#fff0a1',
-  'D#': '#ffb85b',
-  Cm: '#ffd8a1',
-  'A#': '#e9484e',
-  Gm: '#ef9295',
-  F: '#f544a1',
-  Dm: '#f28bc4',
-};
-
-function getKeyColor(key?: string | null) {
-  if (!key) {
-    return null;
-  }
-
-  return KEY_COLORS[key.trim()] || null;
 }
 
 function PlaylistWaveform({
@@ -403,10 +361,20 @@ export function PlaylistBrowser({
             const isCurrentTrack = currentTrack?.id === track.id;
 
             return (
-              <div
-                className={`playlist-track${isCurrentTrack ? ' active' : ''}${
-                  draggedTrackId === track.id ? ' dragging' : ''
-                }`}
+              <PlaylistTrackRow
+                lang={lang}
+                trackId={track.id}
+                title={track.title}
+                artist={track.artist}
+                coverUrl={track.coverUrl}
+                indexLabel={index + 1}
+                durationRaw={track.durationRaw}
+                durationSec={track.durationSec}
+                bpm={track.bpm}
+                keyValue={track.keyValue}
+                isCurrentTrack={isCurrentTrack}
+                isPlaying={isPlaying}
+                isDragging={draggedTrackId === track.id}
                 draggable
                 key={track.id}
                 onDragStart={(event) => {
@@ -431,51 +399,15 @@ export function PlaylistBrowser({
                   setDraggedTrackId(null);
                   void saveTrackOrder();
                 }}
-              >
-                <button
-                  type="button"
-                  className="playlist-track__cover"
-                  onClick={() => {
-                    if (isCurrentTrack) {
-                      togglePlayback();
-                      return;
-                    }
+                onPlay={() => {
+                  if (isCurrentTrack) {
+                    togglePlayback();
+                    return;
+                  }
 
-                    playFromPlaylist(track.id);
-                  }}
-                  aria-label={isCurrentTrack && isPlaying ? 'Pause' : 'Play'}
-                >
-                  <Image src={track.coverUrl} alt="" width={44} height={44} />
-                  <span className="playlist-track__play">
-                    {isCurrentTrack && isPlaying ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}
-                  </span>
-                </button>
-
-                <div className="playlist-track__number">{index + 1}</div>
-
-                <button type="button" className="playlist-track__title" onClick={() => playFromPlaylist(track.id)}>
-                  <span className="playlist-track__artist">{track.artist}</span>
-                  <span>{track.title}</span>
-                </button>
-
-                <div className="playlist-track__actions">
-                  {track.bpm ? <span className="playlist-track__bpm">{track.bpm} BPM</span> : null}
-                  {track.keyValue ? (
-                    <span
-                      className="playlist-track__key"
-                      style={{ color: getKeyColor(track.keyValue) || undefined }}
-                    >
-                      {track.keyValue}
-                    </span>
-                  ) : null}
-                  <FavoriteButton trackId={track.id} lang={lang} />
-                  <TrackPlaylistMenu trackId={track.id} lang={lang} />
-                </div>
-
-                <div className="playlist-track__time muted">
-                  {formatTrackDuration(track.durationRaw, track.durationSec)}
-                </div>
-              </div>
+                  playFromPlaylist(track.id);
+                }}
+              />
             );
           })}
 
