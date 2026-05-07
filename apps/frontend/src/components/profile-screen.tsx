@@ -213,8 +213,12 @@ export function ProfileScreen({
   }
 
   async function handleCoverBackfill() {
+    if (isBackfillingCovers) {
+      return;
+    }
+
     setIsBackfillingCovers(true);
-    setStatus('');
+    setStatus(lang === 'ru' ? 'Запускаю пересчёт обложек...' : 'Starting cover backfill...');
 
     try {
       const result = await postDiscogsCoverBackfill();

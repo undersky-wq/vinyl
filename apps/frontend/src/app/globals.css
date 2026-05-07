@@ -2461,6 +2461,7 @@ textarea {
 
 .profile-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 22px;
 }
@@ -2470,7 +2471,9 @@ textarea {
   overflow: hidden;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  min-height: 44px;
   padding: 12px 16px;
   border: none;
   border-radius: 999px;
@@ -2479,6 +2482,7 @@ textarea {
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
+  touch-action: manipulation;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -2489,6 +2493,7 @@ textarea {
   width: var(--profile-progress, 0%);
   background: rgba(255, 255, 255, 0.12);
   opacity: 0;
+  pointer-events: none;
   transition: width 0.45s ease, opacity 0.2s ease;
 }
 
