@@ -7,6 +7,9 @@
     "dev:down": "docker compose down",
     "install:backend": "npm.cmd install --prefix apps/backend",
     "install:frontend": "npm.cmd install --prefix apps/frontend",
+    "install:mobile": "npm.cmd install --prefix apps/mobile",
+    "mobile": "npm.cmd --prefix apps/mobile run start",
+    "mobile:android": "npm.cmd --prefix apps/mobile run android",
     "prisma:generate": "npm.cmd --prefix apps/backend run prisma:generate",
     "prisma:migrate": "npm.cmd --prefix apps/backend run prisma:migrate"
   }

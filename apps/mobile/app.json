@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Vinyl Collection",
+    "slug": "vinyl-collection",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "ru.mityadima.vinyl",
+      "adaptiveIcon": {
+        "backgroundColor": "#111111"
+      }
+    },
+    "extra": {
+      "apiUrl": "https://mityadima.ru/api"
+    }
+  }
+}

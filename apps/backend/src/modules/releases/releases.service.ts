@@ -601,7 +601,27 @@ export class ReleasesService {
       },
     });
 
-    return this.findOne(id, true);
+    const updatedRelease = await this.prisma.release.findUnique({
+      where: { id },
+      include: {
+        images: true,
+        tracks: {
+          include: {
+            audioFiles: true,
+            storeLinks: true,
+          },
+          orderBy: {
+            position: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!updatedRelease) {
+      throw new NotFoundException('Release not found');
+    }
+
+    return this.signReleaseUrls(updatedRelease, true);
   }
 
   async updateTrackMetadata(trackId: string, dto: UpdateTrackMetadataDto) {

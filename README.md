@@ -16,6 +16,7 @@
 apps/
   backend/      # NestJS API + Prisma + Discogs + S3
   frontend/     # Next.js UI + mini-player + waveform
+  mobile/       # Expo React Native APK MVP
 infra/
   nginx/
 docker-compose.yml
@@ -42,6 +43,13 @@ docker compose up --build
 ```bash
 npm install --prefix apps/backend
 npm install --prefix apps/frontend
+npm install --prefix apps/mobile
+```
+
+Мобильный MVP:
+
+```bash
+npm run mobile
 ```
 
 ## MVP-возможности

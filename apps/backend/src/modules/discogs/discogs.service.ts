@@ -174,8 +174,17 @@ export class DiscogsService {
     }
 
     const release = await this.upsertReleaseFromDiscogs(source);
-    await this.syncReleaseTracks(release.id, source.tracklist || []);
-    return release;
+    const hydratedRelease = existing.styles.length
+      ? await this.prisma.release.update({
+          where: { id: release.id },
+          data: {
+            styles: existing.styles,
+          },
+        })
+      : release;
+
+    await this.syncReleaseTracks(hydratedRelease.id, source.tracklist || []);
+    return hydratedRelease;
   }
 
   async upsertReleaseFromDiscogs(release: DiscogsRelease) {

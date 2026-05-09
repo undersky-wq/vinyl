@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
+import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 
 @Injectable()
 export class PlaylistsService {
@@ -147,6 +148,32 @@ export class PlaylistsService {
         },
       });
     }
+
+    return this.findOne(playlistId);
+  }
+
+  async update(userId: string, playlistId: string, dto: UpdatePlaylistDto) {
+    const playlist = await this.prisma.playlist.findUnique({
+      where: { id: playlistId },
+      select: {
+        userId: true,
+      },
+    });
+
+    if (!playlist || playlist.userId !== userId) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    const nextName = dto.name?.trim();
+    const nextDescription = dto.description?.trim();
+
+    await this.prisma.playlist.update({
+      where: { id: playlistId },
+      data: {
+        ...(nextName ? { name: nextName } : {}),
+        ...(dto.description !== undefined ? { description: nextDescription || null } : {}),
+      },
+    });
 
     return this.findOne(playlistId);
   }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { getPlaylist, reorderPlaylist } from '../lib/api';
+import { getPlaylist, reorderPlaylist, updatePlaylist } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
@@ -151,6 +151,8 @@ export function PlaylistBrowser({
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [isReorderDirty, setIsReorderDirty] = useState(false);
   const [isPlaylistLoading, setIsPlaylistLoading] = useState(false);
+  const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
+  const [editingPlaylistName, setEditingPlaylistName] = useState('');
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { playQueue, togglePlayback } = usePlayerActions();
   const activePlaylist = activePlaylistId ? playlistCache[activePlaylistId] || null : null;
@@ -310,20 +312,83 @@ export function PlaylistBrowser({
     }
   }
 
+  async function savePlaylistName() {
+    if (!editingPlaylistId || !editingPlaylistName.trim()) {
+      setEditingPlaylistId(null);
+      return;
+    }
+
+    const nextName = editingPlaylistName.trim();
+
+    try {
+      const updatedPlaylist = await updatePlaylist(editingPlaylistId, { name: nextName });
+      setPlaylistCache((current) => ({
+        ...current,
+        [updatedPlaylist.id]: updatedPlaylist,
+      }));
+      setLocalSummaries((current) =>
+        current.map((summary) =>
+          summary.id === updatedPlaylist.id
+            ? {
+                ...summary,
+                name: updatedPlaylist.name,
+              }
+            : summary,
+        ),
+      );
+    } finally {
+      setEditingPlaylistId(null);
+      setEditingPlaylistName('');
+    }
+  }
+
+  function startRenamePlaylist(playlist: PlaylistSummary | Playlist) {
+    setEditingPlaylistId(playlist.id);
+    setEditingPlaylistName(playlist.name);
+  }
+
   return (
     <section className="playlists-page">
       <div className={`playlist-chip-row${arePlaylistChipsExpanded ? ' expanded' : ''}`}>
         {visiblePlaylistSummaries.length ? (
           visiblePlaylistSummaries.map((playlist) => (
-            <button
-              type="button"
+            <div
               key={playlist.id}
-              className={`playlist-chip${playlist.id === activePlaylist?.id ? ' active' : ''}`}
-              onClick={() => selectPlaylist(playlist.id)}
+              className={`playlist-chip playlist-chip--editable${playlist.id === activePlaylist?.id ? ' active' : ''}`}
             >
-              <span>{playlist.name}</span>
-              <small>{playlist._count.items}</small>
-            </button>
+              {editingPlaylistId === playlist.id ? (
+                <input
+                  autoFocus
+                  className="playlist-chip__input"
+                  value={editingPlaylistName}
+                  onChange={(event) => setEditingPlaylistName(event.target.value)}
+                  onBlur={() => void savePlaylistName()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void savePlaylistName();
+                    }
+                    if (event.key === 'Escape') {
+                      setEditingPlaylistId(null);
+                      setEditingPlaylistName('');
+                    }
+                  }}
+                />
+              ) : (
+                <button type="button" className="playlist-chip__select" onClick={() => selectPlaylist(playlist.id)}>
+                  <span>{playlist.name}</span>
+                  <small>{playlist._count.items}</small>
+                </button>
+              )}
+              <button
+                type="button"
+                className="playlist-chip__rename"
+                onClick={() => startRenamePlaylist(playlist)}
+                aria-label={lang === 'ru' ? 'Переименовать плейлист' : 'Rename playlist'}
+              >
+                ✎
+              </button>
+            </div>
           ))
         ) : (
           <p className="muted">
@@ -349,10 +414,37 @@ export function PlaylistBrowser({
 
         {activePlaylist ? (
           <div className="playlist-feed__header">
-            <h1>{activePlaylist.name}</h1>
+            {editingPlaylistId === activePlaylist.id ? (
+              <input
+                autoFocus
+                className="playlist-title-input"
+                value={editingPlaylistName}
+                onChange={(event) => setEditingPlaylistName(event.target.value)}
+                onBlur={() => void savePlaylistName()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void savePlaylistName();
+                  }
+                  if (event.key === 'Escape') {
+                    setEditingPlaylistId(null);
+                    setEditingPlaylistName('');
+                  }
+                }}
+              />
+            ) : (
+              <h1>{activePlaylist.name}</h1>
+            )}
             <span className="muted">
               {lang === 'ru' ? `${tracks.length} треков` : `${tracks.length} tracks`}
             </span>
+            <button
+              type="button"
+              className="playlist-title-rename"
+              onClick={() => startRenamePlaylist(activePlaylist)}
+            >
+              {lang === 'ru' ? 'Переименовать' : 'Rename'}
+            </button>
           </div>
         ) : null}
 

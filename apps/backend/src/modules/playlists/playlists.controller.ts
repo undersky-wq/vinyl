@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guards';
 import { AddPlaylistItemDto } from './dto/add-playlist-item.dto';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { ReorderPlaylistDto } from './dto/reorder-playlist.dto';
+import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { PlaylistsService } from './playlists.service';
 
 @Controller('playlists')
@@ -36,6 +37,12 @@ export class PlaylistsController {
   @UseGuards(AuthGuard)
   addItem(@Req() request: any, @Param('id') id: string, @Body() dto: AddPlaylistItemDto) {
     return this.playlistsService.addItem(request.user.id, id, dto.trackId);
+  }
+
+  @Patch(':id')
+  @UseGuards(AuthGuard)
+  update(@Req() request: any, @Param('id') id: string, @Body() dto: UpdatePlaylistDto) {
+    return this.playlistsService.update(request.user.id, id, dto);
   }
 
   @Delete(':id/items/:trackId')

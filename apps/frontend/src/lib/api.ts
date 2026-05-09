@@ -320,6 +320,23 @@ export async function removeTrackFromPlaylist(playlistId: string, trackId: strin
   return parseJsonResponse<Playlist>(response);
 }
 
+export async function updatePlaylist(playlistId: string, input: { name?: string; description?: string }) {
+  const response = await fetch(`${API_URL}/playlists/${playlistId}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to update playlist');
+  }
+
+  return parseJsonResponse<Playlist>(response);
+}
+
 export async function reorderPlaylist(playlistId: string, trackIds: string[]) {
   const response = await fetch(`${API_URL}/playlists/${playlistId}/reorder`, {
     method: 'PUT',

@@ -1233,7 +1233,7 @@ textarea {
 
 .player-page__collapse {
   position: absolute;
-  top: 18px;
+  top: max(10px, env(safe-area-inset-top));
   right: 18px;
   z-index: 3;
   display: grid;
@@ -2063,6 +2063,50 @@ textarea {
   transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
+.playlist-chip--editable {
+  padding: 4px 6px 4px 13px;
+  cursor: default;
+}
+
+.playlist-chip__select {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.playlist-chip__rename {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #8d8d8d;
+  cursor: pointer;
+}
+
+.playlist-chip__rename:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.playlist-chip__input,
+.playlist-title-input {
+  min-width: 160px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #ffffff;
+  font: inherit;
+}
+
 .playlist-chip:hover,
 .playlist-chip.active {
   background: #2f2f2f;
@@ -2114,6 +2158,29 @@ textarea {
   margin: 0;
   font-size: clamp(1.6rem, 3vw, 2.6rem);
   line-height: 1;
+}
+
+.playlist-title-input {
+  min-width: min(360px, 70vw);
+  font-size: clamp(1.6rem, 3vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.playlist-title-rename {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #1b1b1b;
+  color: #8d8d8d;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.playlist-title-rename:hover {
+  color: #ffffff;
+  background: #2f2f2f;
 }
 
 .playlist-tracklist {
@@ -4667,7 +4734,7 @@ textarea {
   }
 
   .mobile-player-overlay__collapse {
-    top: 14px;
+    top: max(8px, env(safe-area-inset-top));
     right: 14px;
     display: inline-flex;
     align-items: center;
@@ -4797,10 +4864,10 @@ textarea {
   }
 
   .player-page__collapse {
-    top: 14px;
+    top: max(8px, env(safe-area-inset-top));
     right: 14px;
-    width: 35px;
-    height: 35px;
+    width: 36px;
+    height: 36px;
   }
 
   .player-page__collapse svg {
