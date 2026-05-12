@@ -137,7 +137,7 @@ model AudioFile {
   sizeBytes       Int
   storageKey      String   @unique
   storageUrl      String?
-  normalizedStorageKey String? @unique
+  normalizedStorageKey String?
   normalizedStorageUrl String?
   normalizedMimeType   String?
   normalizedSizeBytes  Int?

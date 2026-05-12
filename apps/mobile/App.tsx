@@ -150,10 +150,16 @@ export default function App() {
   }
 
   async function playTrack(track: PlayerTrack, nextQueue?: PlayerTrack[]) {
-    desiredPlayingRef.current = true;
-    await prepareQueue(nextQueue?.length ? nextQueue : [track], track.id);
-    await TrackPlayer.play();
-    setIsPlaying(true);
+    try {
+      desiredPlayingRef.current = true;
+      await prepareQueue(nextQueue?.length ? nextQueue : [track], track.id);
+      await TrackPlayer.play();
+      setIsPlaying(true);
+    } catch (error) {
+      desiredPlayingRef.current = false;
+      setIsPlaying(false);
+      console.warn('Failed to start playback', error);
+    }
   }
 
   async function setTrackForPlayback(track: PlayerTrack) {
@@ -188,10 +194,16 @@ export default function App() {
 
     await ensureTrackPlayerReady();
 
-    if (next) {
-      await TrackPlayer.play();
-    } else {
-      await TrackPlayer.pause();
+    try {
+      if (next) {
+        await TrackPlayer.play();
+      } else {
+        await TrackPlayer.pause();
+      }
+    } catch (error) {
+      desiredPlayingRef.current = !next;
+      setIsPlaying(!next);
+      console.warn('Failed to toggle playback', error);
     }
   }
 
