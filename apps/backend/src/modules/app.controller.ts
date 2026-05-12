@@ -138,7 +138,11 @@ export class AppController {
           item.track.audioFiles.map(async (audioFile) => ({
             ...audioFile,
             storageUrl:
-              (await this.storageService.getSignedObjectUrl(audioBucket, audioFile.storageKey)) ||
+              (await this.storageService.getSignedObjectUrl(
+                audioBucket,
+                audioFile.normalizedStorageKey || audioFile.storageKey,
+              )) ||
+              audioFile.normalizedStorageUrl ||
               audioFile.storageUrl,
           })),
         ),
@@ -185,7 +189,11 @@ export class AppController {
       title: track.title,
       artist: track.artists.length ? track.artists.join(', ') : track.release.artist,
       audioUrl: audioFile
-        ? (await this.storageService.getSignedObjectUrl(audioBucket, audioFile.storageKey)) ||
+        ? (await this.storageService.getSignedObjectUrl(
+            audioBucket,
+            audioFile.normalizedStorageKey || audioFile.storageKey,
+          )) ||
+          audioFile.normalizedStorageUrl ||
           audioFile.storageUrl ||
           ''
         : '',

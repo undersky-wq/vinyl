@@ -18,7 +18,7 @@ const PAGE_SIZE = 32;
 export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScreenProps) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [stylesList, setStylesList] = useState<Array<{ name: string; count: number }>>([]);
-  const [selectedStyle, setSelectedStyle] = useState('');
+  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [hasAudioOnly, setHasAudioOnly] = useState(false);
   const [query, setQuery] = useState('');
   const [isStylesExpanded, setIsStylesExpanded] = useState(false);
@@ -34,7 +34,7 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
 
     try {
       const [nextReleases, nextStyles] = await Promise.all([
-        getHomeReleases(PAGE_SIZE, 0, { style: selectedStyle, hasAudio: hasAudioOnly }),
+        getHomeReleases(PAGE_SIZE, 0, { styles: selectedStyles, hasAudio: hasAudioOnly }),
         getReleaseStyles(),
       ]);
       setReleases(nextReleases);
@@ -56,7 +56,7 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
 
     try {
       const nextReleases = await getHomeReleases(PAGE_SIZE, releases.length, {
-        style: selectedStyle,
+        styles: selectedStyles,
         hasAudio: hasAudioOnly,
       });
       setReleases((current) => {
@@ -75,12 +75,13 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
 
   useEffect(() => {
     void load();
-  }, [hasAudioOnly, selectedStyle]);
+  }, [hasAudioOnly, selectedStyles.join('|')]);
 
   const visibleStyles = isStylesExpanded ? stylesList : stylesList.slice(0, 4);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const filteredReleases = releases.filter((release) => {
-    const matchesStyle = !selectedStyle || release.styles.includes(selectedStyle);
+    const matchesStyle =
+      selectedStyles.length === 0 || selectedStyles.some((style) => release.styles.includes(style));
     const matchesAudio = !hasAudioOnly || release.tracks.some((track) => track.audioFiles.some((file) => file.storageUrl));
     const matchesSearch =
       !normalizedQuery ||
@@ -142,13 +143,13 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
           <View style={styles.scrollingHeader}>
             <View style={[styles.chips, isStylesExpanded && styles.chipsExpanded]}>
               <Pressable
-                style={[styles.chip, !selectedStyle && !hasAudioOnly && styles.chipActive]}
+                style={[styles.chip, selectedStyles.length === 0 && !hasAudioOnly && styles.chipActive]}
                 onPress={() => {
-                  setSelectedStyle('');
+                  setSelectedStyles([]);
                   setHasAudioOnly(false);
                 }}
               >
-                <Text style={[styles.chipText, !selectedStyle && !hasAudioOnly && styles.chipTextActive]}>
+                <Text style={[styles.chipText, selectedStyles.length === 0 && !hasAudioOnly && styles.chipTextActive]}>
                   {lang === 'ru' ? 'Все' : 'All'}
                 </Text>
               </Pressable>
@@ -163,13 +164,19 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
               </Pressable>
 
               {visibleStyles.map((item) => {
-                const active = selectedStyle === item.name;
+                const active = selectedStyles.includes(item.name);
 
                 return (
                   <Pressable
                     key={item.name}
                     style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => setSelectedStyle((current) => (current === item.name ? '' : item.name))}
+                    onPress={() =>
+                      setSelectedStyles((current) =>
+                        current.includes(item.name)
+                          ? current.filter((style) => style !== item.name)
+                          : [...current, item.name],
+                      )
+                    }
                   >
                     <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.name}</Text>
                   </Pressable>

@@ -5,18 +5,30 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "assetBundlePatterns": ["**/*"],
+    "newArchEnabled": false,
+    "icon": "./assets/icon.png",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false
     },
     "android": {
       "package": "ru.mityadima.vinyl",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"
-      }
+      },
+      "permissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "extra": {
-      "apiUrl": "https://mityadima.ru/api"
-    }
+      "apiUrl": "https://mityadima.ru/api",
+      "eas": {
+        "projectId": "11c890d3-7d49-4cf6-bfaa-2f458eb6d231"
+      }
+    },
+    "plugins": []
   }
 }

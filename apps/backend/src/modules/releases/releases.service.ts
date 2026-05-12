@@ -553,7 +553,11 @@ export class ReleasesService {
       ...release.images.map((image) => image.storageKey),
     ].filter((key): key is string => Boolean(key));
     const audioKeys = release.tracks.flatMap((track) =>
-      track.audioFiles.map((audioFile) => audioFile.storageKey),
+      track.audioFiles.flatMap((audioFile) =>
+        [audioFile.storageKey, audioFile.normalizedStorageKey].filter(
+          (key): key is string => Boolean(key),
+        ),
+      ),
     );
 
     await Promise.all([
@@ -874,7 +878,14 @@ export class ReleasesService {
         storageKey: string;
         url: string;
       }>;
-      tracks: Array<{ audioFiles: Array<{ storageKey: string; storageUrl: string | null }> }>;
+      tracks: Array<{
+        audioFiles: Array<{
+          storageKey: string;
+          storageUrl: string | null;
+          normalizedStorageKey?: string | null;
+          normalizedStorageUrl?: string | null;
+        }>;
+      }>;
     },
   >(
     release: T,
@@ -920,7 +931,11 @@ export class ReleasesService {
                 track.audioFiles.map(async (audioFile) => ({
                   ...audioFile,
                   storageUrl:
-                    (await this.storageService.getSignedObjectUrl(audioBucket, audioFile.storageKey)) ||
+                    (await this.storageService.getSignedObjectUrl(
+                      audioBucket,
+                      audioFile.normalizedStorageKey || audioFile.storageKey,
+                    )) ||
+                    audioFile.normalizedStorageUrl ||
                     audioFile.storageUrl,
                 })),
               )

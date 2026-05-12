@@ -6,9 +6,12 @@ import { useRouter } from 'next/navigation';
 import { Upload } from 'lucide-react';
 import {
   AudioBackfillStatus,
+  AudioNormalizeStatus,
+  getAudioNormalizeBackfillStatus,
   getAudioWaveformBackfillStatus,
   logoutUser,
   postDiscogsSync,
+  startAudioNormalizeBackfill,
   startAudioWaveformBackfill,
   uploadAvatar,
 } from '../lib/api';
@@ -52,11 +55,14 @@ export function ProfileScreen({
   const [discogsProgress, setDiscogsProgress] = useState(0);
   const [isBackfillingWaveform, setIsBackfillingWaveform] = useState(false);
   const [waveformProgress, setWaveformProgress] = useState(0);
+  const [isNormalizingAudio, setIsNormalizingAudio] = useState(false);
+  const [normalizeProgress, setNormalizeProgress] = useState(0);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(
     activeUser.avatarStorageUrl || null,
   );
   const discogsProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const waveformProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const normalizeProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (avatarPreviewUrl?.startsWith('blob:')) {
@@ -77,10 +83,24 @@ export function ProfileScreen({
       if (waveformProgressTimerRef.current) {
         clearInterval(waveformProgressTimerRef.current);
       }
+      if (normalizeProgressTimerRef.current) {
+        clearInterval(normalizeProgressTimerRef.current);
+      }
     };
   }, [avatarPreviewUrl]);
 
   function getWaveformBackfillPercent(backfillStatus: AudioBackfillStatus) {
+    if (backfillStatus.total <= 0) {
+      return backfillStatus.status === 'running' ? 1 : 0;
+    }
+
+    return Math.min(
+      100,
+      Math.round((backfillStatus.processed / backfillStatus.total) * 100),
+    );
+  }
+
+  function getNormalizeBackfillPercent(backfillStatus: AudioNormalizeStatus) {
     if (backfillStatus.total <= 0) {
       return backfillStatus.status === 'running' ? 1 : 0;
     }
@@ -98,6 +118,13 @@ export function ProfileScreen({
     }
   }
 
+  function clearNormalizeProgressTimer() {
+    if (normalizeProgressTimerRef.current) {
+      clearInterval(normalizeProgressTimerRef.current);
+      normalizeProgressTimerRef.current = null;
+    }
+  }
+
   function finishWaveformBackfill(backfillStatus: AudioBackfillStatus) {
     clearWaveformProgressTimer();
     setWaveformProgress(getWaveformBackfillPercent(backfillStatus));
@@ -106,6 +133,18 @@ export function ProfileScreen({
       lang === 'ru'
         ? `Waveform обновлена: ${backfillStatus.waveformUpdated}, обработано: ${backfillStatus.processed}.`
         : `Waveform updated: ${backfillStatus.waveformUpdated}, processed: ${backfillStatus.processed}.`,
+    );
+    router.refresh();
+  }
+
+  function finishNormalizeBackfill(backfillStatus: AudioNormalizeStatus) {
+    clearNormalizeProgressTimer();
+    setNormalizeProgress(getNormalizeBackfillPercent(backfillStatus));
+    setIsNormalizingAudio(false);
+    setStatus(
+      lang === 'ru'
+        ? `MP3 подготовлены: ${backfillStatus.normalized}, обработано: ${backfillStatus.processed}.`
+        : `MP3 prepared: ${backfillStatus.normalized}, processed: ${backfillStatus.processed}.`,
     );
     router.refresh();
   }
@@ -225,6 +264,51 @@ export function ProfileScreen({
     }
   }
 
+  async function handleNormalizeBackfill() {
+    clearNormalizeProgressTimer();
+    setIsNormalizingAudio(true);
+    setNormalizeProgress(0);
+
+    try {
+      const initialStatus = await startAudioNormalizeBackfill();
+      setNormalizeProgress(getNormalizeBackfillPercent(initialStatus));
+
+      if (initialStatus.status === 'completed') {
+        finishNormalizeBackfill(initialStatus);
+        return;
+      }
+
+      if (initialStatus.status === 'failed') {
+        throw new Error(initialStatus.error || 'Audio normalization failed');
+      }
+
+      const pollStatus = async () => {
+        const nextStatus = await getAudioNormalizeBackfillStatus();
+        setNormalizeProgress(getNormalizeBackfillPercent(nextStatus));
+
+        if (nextStatus.status === 'completed') {
+          finishNormalizeBackfill(nextStatus);
+        }
+
+        if (nextStatus.status === 'failed') {
+          clearNormalizeProgressTimer();
+          setIsNormalizingAudio(false);
+          setStatus(lang === 'ru' ? 'Ошибка подготовки MP3.' : 'MP3 preparation failed.');
+        }
+      };
+
+      normalizeProgressTimerRef.current = setInterval(() => {
+        void pollStatus();
+      }, 1000);
+      await pollStatus();
+    } catch {
+      clearNormalizeProgressTimer();
+      setIsNormalizingAudio(false);
+      setNormalizeProgress(0);
+      setStatus(lang === 'ru' ? 'Ошибка подготовки MP3.' : 'MP3 preparation failed.');
+    }
+  }
+
   async function handleLogout() {
     await logoutUser();
     setUser(null);
@@ -310,6 +394,22 @@ export function ProfileScreen({
                     : lang === 'ru'
                       ? 'Пересчитать waveform'
                       : 'Backfill waveform'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className={`profile-action-button${isNormalizingAudio ? ' is-loading' : ''}`}
+                onClick={handleNormalizeBackfill}
+                disabled={isNormalizingAudio}
+                style={{ ['--profile-progress' as string]: `${normalizeProgress}%` } as CSSProperties}
+              >
+                <span className="profile-action-button__label">
+                  {isNormalizingAudio
+                    ? `MP3 ${normalizeProgress}%`
+                    : lang === 'ru'
+                      ? 'Подготовить MP3'
+                      : 'Prepare MP3'}
                 </span>
               </button>
 

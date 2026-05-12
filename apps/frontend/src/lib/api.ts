@@ -36,6 +36,17 @@ export type AudioBackfillStatus = {
   error?: string;
 };
 
+export type AudioNormalizeStatus = {
+  id: string | null;
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  total: number;
+  processed: number;
+  normalized: number;
+  skipped: number;
+  failed: number;
+  error?: string;
+};
+
 async function parseJsonResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
   if (!text.trim()) {
@@ -271,6 +282,27 @@ export async function startAudioWaveformBackfill() {
 
 export async function getAudioWaveformBackfillStatus() {
   return fetchJson<AudioBackfillStatus>('/audio/backfill-durations/status');
+}
+
+export async function startAudioNormalizeBackfill() {
+  const response = await fetch(`${API_URL}/audio/normalize/start`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to start audio normalization');
+  }
+
+  return parseJsonResponse<AudioNormalizeStatus>(response);
+}
+
+export async function getAudioNormalizeBackfillStatus() {
+  return fetchJson<AudioNormalizeStatus>('/audio/normalize/status');
 }
 
 export async function createPlaylist(input: { name: string; description?: string; trackIds?: string[] }) {

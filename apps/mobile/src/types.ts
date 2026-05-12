@@ -66,6 +66,7 @@ export type PlayerTrack = {
   coverUrl: string;
   durationRaw?: string | null;
   durationSec?: number | null;
+  waveformData?: number[] | null;
 };
 
 export type TabKey = 'home' | 'library' | 'playlists' | 'favorites' | 'profile';

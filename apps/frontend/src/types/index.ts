@@ -1,6 +1,7 @@
 export type AudioFile = {
   id: string;
   storageUrl: string | null;
+  normalizedStorageUrl?: string | null;
 };
 
 export type Track = {

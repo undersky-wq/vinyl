@@ -52,6 +52,7 @@ function buildPlayableTracks(release: Release) {
         coverUrl: getCoverUrl(release),
         durationRaw: track.durationRaw,
         durationSec: track.durationSec,
+        waveformData: track.waveformData,
       },
     });
   }

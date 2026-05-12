@@ -43,7 +43,7 @@ export function getCoverUrl(release: Release) {
 export async function getHomeReleases(
   limit = 24,
   offset = 0,
-  filters: { style?: string; hasAudio?: boolean } = {},
+  filters: { style?: string; styles?: string[]; hasAudio?: boolean } = {},
 ) {
   const params = new URLSearchParams({
     summary: 'true',
@@ -51,8 +51,10 @@ export async function getHomeReleases(
     offset: String(offset),
   });
 
-  if (filters.style) {
-    params.set('style', filters.style);
+  const styles = filters.styles?.length ? filters.styles : filters.style ? [filters.style] : [];
+
+  if (styles.length) {
+    params.set('style', styles.join(','));
   }
 
   if (filters.hasAudio) {
@@ -201,6 +203,21 @@ export async function login(email: string, password: string) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function register(input: {
+  email: string;
+  password: string;
+  displayName: string;
+  inviteCode: string;
+}) {
+  return fetchJson<AuthUser>('/auth/register', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
   });
 }
 

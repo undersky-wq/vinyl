@@ -31,6 +31,7 @@ function toPlayerTrack(item: Playlist['items'][number]): PlayerTrack | null {
     coverUrl: getCoverUrl(item.track.release),
     durationRaw: item.track.durationRaw,
     durationSec: item.track.durationSec,
+    waveformData: item.track.waveformData,
   };
 }
 

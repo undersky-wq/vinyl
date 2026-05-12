@@ -64,4 +64,16 @@ export class AudioController {
   backfillDurationsStatus() {
     return this.audioService.getBackfillDurationsStatus();
   }
+
+  @Post('normalize/start')
+  @UseGuards(AdminGuard)
+  startNormalizeAudio() {
+    return this.audioService.startNormalizeAudio();
+  }
+
+  @Get('normalize/status')
+  @UseGuards(AdminGuard)
+  normalizeAudioStatus() {
+    return this.audioService.getNormalizeAudioStatus();
+  }
 }

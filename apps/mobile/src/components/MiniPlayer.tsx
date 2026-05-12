@@ -14,7 +14,7 @@ type MiniPlayerProps = {
   onToggle: () => void;
   onFavorite: () => void;
   onOpen: () => void;
-  onSeek: (ratio: number) => void;
+  onSeek: (ratio: number, resumeAfterSeek?: boolean) => void;
 };
 
 function formatMs(value: number) {
@@ -104,7 +104,7 @@ export function MiniPlayer({
       <Pressable
         style={styles.progressTrack}
         onLayout={(event) => setProgressWidth(event.nativeEvent.layout.width)}
-        onPress={(event) => onSeek(event.nativeEvent.locationX / progressWidth)}
+        onPress={(event) => onSeek(event.nativeEvent.locationX / progressWidth, isPlaying)}
       >
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </Pressable>

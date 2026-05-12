@@ -33,6 +33,7 @@ function toPlayerTrack(track: FavoriteTrack): PlayerTrack | null {
     coverUrl: getCoverUrl(track.release),
     durationRaw: track.durationRaw,
     durationSec: track.durationSec,
+    waveformData: track.waveformData,
   };
 }
 

@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Heart, House, Library, ListMusic } from 'lucide-react-native';
+import TrackPlayer, {
+  AppKilledPlaybackBehavior,
+  Capability,
+  Event,
+  State,
+  type Track as TrackPlayerTrack,
+} from 'react-native-track-player';
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { FullPlayer } from './src/components/FullPlayer';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -11,6 +17,7 @@ import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReleaseDetailScreen } from './src/screens/ReleaseDetailScreen';
 import { getCurrentUser, getFavorites, toggleFavoriteTrack } from './src/lib/api';
+import { getLockScreenArtworkUrl } from './src/lib/artwork-cache';
 import { resolveOfflineTrack } from './src/lib/offline-audio';
 import { colors, radius, spacing } from './src/theme';
 import { AuthUser, PlayerTrack, Release, TabKey } from './src/types';
@@ -35,18 +42,157 @@ export default function App() {
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
   const [activeRelease, setActiveRelease] = useState<Release | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const currentTrackRef = useRef<PlayerTrack | null>(null);
+  const queueRef = useRef<PlayerTrack[]>([]);
+  const queueSignatureRef = useRef('');
+  const lastTrackIdRef = useRef<string | null>(null);
+  const desiredPlayingRef = useRef(false);
+  const isSeekingRef = useRef(false);
+  const pendingSeekMsRef = useRef<number | null>(null);
+  const pendingSeekStartedAtRef = useRef(0);
+  const seekRequestIdRef = useRef(0);
+  const seekResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTrackPlayerReadyRef = useRef(false);
+
+  async function ensureTrackPlayerReady() {
+    if (isTrackPlayerReadyRef.current) {
+      return;
+    }
+
+    try {
+      await TrackPlayer.setupPlayer({
+        autoHandleInterruptions: true,
+        minBuffer: 8,
+        maxBuffer: 30,
+        playBuffer: 0.8,
+        maxCacheSize: 1024 * 64,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('already been initialized')) {
+        throw error;
+      }
+    }
+
+    await TrackPlayer.updateOptions({
+      android: {
+        appKilledPlaybackBehavior: AppKilledPlaybackBehavior.PausePlayback,
+      },
+      capabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.Skip,
+        Capability.SkipToPrevious,
+        Capability.SkipToNext,
+        Capability.SeekTo,
+      ],
+      compactCapabilities: [
+        Capability.SkipToPrevious,
+        Capability.Play,
+        Capability.SkipToNext,
+      ],
+      notificationCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.Skip,
+        Capability.SkipToPrevious,
+        Capability.SkipToNext,
+        Capability.SeekTo,
+      ],
+      progressUpdateEventInterval: 0.25,
+      color: 0xb578ff,
+    });
+
+    isTrackPlayerReadyRef.current = true;
+  }
+
+  function toTrackPlayerTrack(track: PlayerTrack): TrackPlayerTrack {
+    return {
+      id: track.id,
+      url: track.localAudioUrl || track.audioUrl,
+      title: track.title,
+      artist: track.artist,
+      album: 'Vinyl Collection',
+      artwork: track.coverUrl || undefined,
+      duration: track.durationSec || undefined,
+      contentType: 'audio/mpeg',
+    };
+  }
+
+  async function prepareQueue(nextQueue: PlayerTrack[], startTrackId: string) {
+    await ensureTrackPlayerReady();
+
+    const preparedQueue = await Promise.all(nextQueue.map(resolveOfflineTrack));
+    const startIndex = Math.max(0, preparedQueue.findIndex((item) => item.id === startTrackId));
+    const queueSignature = preparedQueue
+      .map((item) => `${item.id}:${item.localAudioUrl || item.audioUrl}`)
+      .join('|');
+
+    queueRef.current = preparedQueue;
+    setQueue(preparedQueue);
+    setCurrentTrack(preparedQueue[startIndex] || null);
+    currentTrackRef.current = preparedQueue[startIndex] || null;
+    lastTrackIdRef.current = preparedQueue[startIndex]?.id || null;
+    setPositionMs(0);
+    setDurationMs(preparedQueue[startIndex]?.durationSec ? preparedQueue[startIndex].durationSec * 1000 : 0);
+
+    const currentNativeQueue = await TrackPlayer.getQueue();
+    if (queueSignatureRef.current === queueSignature && currentNativeQueue.length === preparedQueue.length) {
+      await TrackPlayer.skip(startIndex);
+      return;
+    }
+
+    const trackPlayerQueue = preparedQueue.map(toTrackPlayerTrack);
+    queueSignatureRef.current = queueSignature;
+    await TrackPlayer.reset();
+    await TrackPlayer.add(trackPlayerQueue);
+    await TrackPlayer.skip(startIndex);
+  }
 
   async function playTrack(track: PlayerTrack, nextQueue?: PlayerTrack[]) {
-    const preparedTrack = await resolveOfflineTrack(track);
-    setCurrentTrack(preparedTrack);
-    setQueue(nextQueue?.length ? nextQueue : [track]);
+    desiredPlayingRef.current = true;
+    await prepareQueue(nextQueue?.length ? nextQueue : [track], track.id);
+    await TrackPlayer.play();
     setIsPlaying(true);
   }
 
   async function setTrackForPlayback(track: PlayerTrack) {
-    setCurrentTrack(await resolveOfflineTrack(track));
+    desiredPlayingRef.current = true;
+    const existingIndex = queueRef.current.findIndex((item) => item.id === track.id);
+
+    if (existingIndex >= 0) {
+      await TrackPlayer.skip(existingIndex);
+      const nextTrack = queueRef.current[existingIndex];
+      setCurrentTrack(nextTrack);
+      currentTrackRef.current = nextTrack;
+      lastTrackIdRef.current = nextTrack.id;
+      setPositionMs(0);
+      setDurationMs(nextTrack.durationSec ? nextTrack.durationSec * 1000 : 0);
+    } else {
+      await prepareQueue([track], track.id);
+    }
+
+    await TrackPlayer.play();
     setIsPlaying(true);
+  }
+
+  async function togglePlayback() {
+    const next = !desiredPlayingRef.current;
+
+    desiredPlayingRef.current = next;
+    setIsPlaying(next);
+
+    if (!currentTrackRef.current) {
+      return;
+    }
+
+    await ensureTrackPlayerReady();
+
+    if (next) {
+      await TrackPlayer.play();
+    } else {
+      await TrackPlayer.pause();
+    }
   }
 
   function playByOffset(offset: 1 | -1) {
@@ -74,22 +220,115 @@ export default function App() {
     void setTrackForPlayback(queue[nextIndex]);
   }
 
-  async function seekToRatio(ratio: number) {
-    const sound = soundRef.current;
-    if (!sound || durationMs <= 0) {
+  async function seekToRatio(ratio: number, resumeAfterSeek = isPlaying) {
+    if (durationMs <= 0) {
       return;
     }
 
-    await sound.setPositionAsync(Math.max(0, Math.min(durationMs, Math.round(durationMs * ratio))));
+    const safeRatio = Math.max(0, Math.min(1, ratio));
+    isSeekingRef.current = true;
+    desiredPlayingRef.current = resumeAfterSeek;
+    const nextPositionMs = Math.round(durationMs * safeRatio);
+    const seekRequestId = seekRequestIdRef.current + 1;
+    seekRequestIdRef.current = seekRequestId;
+    pendingSeekMsRef.current = nextPositionMs;
+    pendingSeekStartedAtRef.current = Date.now();
+    setPositionMs(nextPositionMs);
+    await ensureTrackPlayerReady();
+    await TrackPlayer.seekTo(nextPositionMs / 1000);
+
+    if (seekResumeTimerRef.current) {
+      clearTimeout(seekResumeTimerRef.current);
+    }
+
+    seekResumeTimerRef.current = setTimeout(() => {
+      if (seekRequestIdRef.current !== seekRequestId) {
+        return;
+      }
+
+      if (resumeAfterSeek) {
+        TrackPlayer.getPlaybackState()
+          .then((state) => {
+            if (seekRequestIdRef.current === seekRequestId && state.state !== State.Playing) {
+              return TrackPlayer.play();
+            }
+            return undefined;
+          })
+          .catch(() => {});
+        setIsPlaying(true);
+      }
+
+      pendingSeekMsRef.current = null;
+      isSeekingRef.current = false;
+    }, 900);
   }
 
   useEffect(() => {
-    void Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: true,
+    void ensureTrackPlayerReady();
+
+    const progressSubscription = TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (event) => {
+      const fallbackTrack = currentTrackRef.current;
+      const nextPositionMs = Math.round(event.position * 1000);
+      const pendingSeekMs = pendingSeekMsRef.current;
+
+      if (pendingSeekMs !== null) {
+        const seekAgeMs = Date.now() - pendingSeekStartedAtRef.current;
+        const seekConfirmed = Math.abs(nextPositionMs - pendingSeekMs) < 1200 || seekAgeMs > 1600;
+
+        if (seekConfirmed) {
+          pendingSeekMsRef.current = null;
+          isSeekingRef.current = false;
+          setPositionMs(nextPositionMs);
+        }
+      } else if (!isSeekingRef.current) {
+        setPositionMs(nextPositionMs);
+      }
+
+      setDurationMs(
+        Math.round(event.duration * 1000) ||
+          (fallbackTrack?.durationSec ? fallbackTrack.durationSec * 1000 : 0),
+      );
     });
+
+    const stateSubscription = TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
+      if (event.state === State.Playing) {
+        desiredPlayingRef.current = true;
+        setIsPlaying(true);
+        return;
+      }
+
+      if (event.state === State.Paused || event.state === State.Stopped || event.state === State.Ended) {
+        setIsPlaying(false);
+      }
+    });
+
+    const activeTrackSubscription = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
+      const nextTrack = typeof event.index === 'number' ? queueRef.current[event.index] : null;
+
+      if (nextTrack) {
+        currentTrackRef.current = nextTrack;
+        lastTrackIdRef.current = nextTrack.id;
+        setCurrentTrack(nextTrack);
+        setDurationMs(nextTrack.durationSec ? nextTrack.durationSec * 1000 : 0);
+        setPositionMs(0);
+        pendingSeekMsRef.current = null;
+        isSeekingRef.current = false;
+        if (typeof event.index === 'number') {
+          void getLockScreenArtworkUrl(nextTrack.id, nextTrack.coverUrl).then((artwork) => {
+            void TrackPlayer.updateMetadataForTrack(event.index as number, { artwork });
+          });
+        }
+      }
+    });
+
+    return () => {
+      if (seekResumeTimerRef.current) {
+        clearTimeout(seekResumeTimerRef.current);
+      }
+      progressSubscription.remove();
+      stateSubscription.remove();
+      activeTrackSubscription.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -139,83 +378,13 @@ export default function App() {
   }
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadTrack() {
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-
-      setPositionMs(0);
-      setDurationMs(currentTrack?.durationSec ? currentTrack.durationSec * 1000 : 0);
-
-      if (!currentTrack?.audioUrl) {
-        return;
-      }
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: currentTrack.localAudioUrl || currentTrack.audioUrl },
-        { shouldPlay: true, progressUpdateIntervalMillis: 350 },
-        (status: AVPlaybackStatus) => {
-          if (!status.isLoaded) {
-            return;
-          }
-
-          setIsPlaying(status.isPlaying);
-          setPositionMs(status.positionMillis);
-          setDurationMs(status.durationMillis || (currentTrack.durationSec ? currentTrack.durationSec * 1000 : 0));
-        },
-      );
-
-      if (cancelled) {
-        await sound.unloadAsync();
-        return;
-      }
-
-      soundRef.current = sound;
-    }
-
-    void loadTrack();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentTrack]);
-
-  useEffect(() => {
-    async function syncPlayback() {
-      const sound = soundRef.current;
-      if (!sound) {
-        return;
-      }
-
-      if (isPlaying) {
-        await sound.playAsync();
-      } else {
-        await sound.pauseAsync();
-      }
-    }
-
-    void syncPlayback();
-  }, [isPlaying]);
-
-  useEffect(() => {
-    if (positionMs > 0 && durationMs > 0 && positionMs >= durationMs - 450) {
+    if (desiredPlayingRef.current && isRepeatEnabled && positionMs > 0 && durationMs > 0 && positionMs >= durationMs - 450) {
       if (isRepeatEnabled) {
         void seekToRatio(0);
         setIsPlaying(true);
-      } else {
-        playByOffset(1);
       }
     }
   }, [positionMs, durationMs, isRepeatEnabled]);
-
-  useEffect(() => {
-    return () => {
-      void soundRef.current?.unloadAsync();
-    };
-  }, []);
 
   function renderScreen() {
     if (activeRelease) {
@@ -226,7 +395,7 @@ export default function App() {
           isPlaying={isPlaying}
           onBack={() => setActiveRelease(null)}
           onPlayTrack={playTrack}
-          onTogglePlayback={() => setIsPlaying((current) => !current)}
+          onTogglePlayback={togglePlayback}
         />
       );
     }
@@ -272,7 +441,7 @@ export default function App() {
       );
     }
 
-    return <ProfileScreen />;
+    return <ProfileScreen onAuthChange={setCurrentUser} />;
   }
 
   return (
@@ -292,7 +461,7 @@ export default function App() {
               void handleFavorite(currentTrack.id);
             }
           }}
-          onToggle={() => setIsPlaying((current) => !current)}
+          onToggle={togglePlayback}
           onOpen={() => setIsFullPlayerOpen(true)}
           onSeek={seekToRatio}
         />
@@ -305,7 +474,7 @@ export default function App() {
           durationMs={durationMs}
           isFavorite={currentTrack ? favoriteIds.has(currentTrack.id) : false}
           onClose={() => setIsFullPlayerOpen(false)}
-          onToggle={() => setIsPlaying((current) => !current)}
+          onToggle={togglePlayback}
           onFavorite={() => {
             if (currentTrack) {
               void handleFavorite(currentTrack.id);

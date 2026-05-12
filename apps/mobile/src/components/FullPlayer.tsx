@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ChevronDown, Heart, ListMusic, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
 import { colors, radius, spacing } from '../theme';
@@ -17,7 +17,7 @@ type FullPlayerProps = {
   onFavorite: () => void;
   onPrevious: () => void;
   onNext: () => void;
-  onSeek: (ratio: number) => void;
+  onSeek: (ratio: number, resumeAfterSeek?: boolean) => void;
   queue: PlayerTrack[];
   onSelectQueueTrack: (track: PlayerTrack) => void;
   isShuffleEnabled: boolean;
@@ -36,6 +36,26 @@ function formatMs(value: number) {
   const seconds = totalSeconds % 60;
 
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function buildFallbackWaveform(count: number) {
+  return Array.from({ length: count }, (_, index) => {
+    const phase = index / Math.max(count - 1, 1);
+    return 0.22 + Math.abs(Math.sin(phase * Math.PI * 5.5)) * 0.58 + Math.abs(Math.sin(phase * Math.PI * 17)) * 0.2;
+  });
+}
+
+function sampleWaveform(source: number[] | null | undefined, count: number) {
+  const values = source?.length ? source : buildFallbackWaveform(count);
+  const maxValue = Math.max(...values, 1);
+
+  return Array.from({ length: count }, (_, index) => {
+    const start = Math.floor((index / count) * values.length);
+    const end = Math.max(start + 1, Math.floor(((index + 1) / count) * values.length));
+    const slice = values.slice(start, end);
+    const peak = Math.max(...slice, 0) / maxValue;
+    return Math.max(0.16, Math.min(1, peak));
+  });
 }
 
 export function FullPlayer({
@@ -60,7 +80,10 @@ export function FullPlayer({
 }: FullPlayerProps) {
   const [progressWidth, setProgressWidth] = useState(1);
   const [dragProgress, setDragProgress] = useState<number | null>(null);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const dragProgressRef = useRef<number | null>(null);
+  const dragCommittedRef = useRef(false);
 
   if (!track) {
     return null;
@@ -70,20 +93,73 @@ export function FullPlayer({
   const visibleProgress = dragProgress ?? progress;
   const visiblePositionMs =
     dragProgress !== null && durationMs > 0 ? Math.round(durationMs * dragProgress) : positionMs;
+  const waveformBars = sampleWaveform(track.waveformData, 86);
 
   function getSeekRatio(locationX: number) {
     return Math.max(0, Math.min(1, locationX / Math.max(progressWidth, 1)));
   }
 
   function updateDrag(locationX: number) {
-    setDragProgress(getSeekRatio(locationX));
+    dragCommittedRef.current = false;
+    setIsSeeking(true);
+    const nextRatio = getSeekRatio(locationX);
+    dragProgressRef.current = nextRatio;
+    setDragProgress(nextRatio);
   }
 
-  function commitDrag(locationX: number) {
-    const nextRatio = getSeekRatio(locationX);
-    setDragProgress(null);
-    onSeek(nextRatio);
+  function commitDrag(locationX?: number) {
+    if (dragCommittedRef.current) {
+      return;
+    }
+
+    dragCommittedRef.current = true;
+    const nextRatio = typeof locationX === 'number' ? getSeekRatio(locationX) : dragProgressRef.current;
+    if (nextRatio === null) {
+      setIsSeeking(false);
+      return;
+    }
+
+    dragProgressRef.current = nextRatio;
+    setDragProgress(nextRatio);
+    onSeek(nextRatio, isPlaying);
+    setTimeout(() => {
+      dragProgressRef.current = null;
+      dragCommittedRef.current = false;
+      setDragProgress(null);
+      setIsSeeking(false);
+    }, 260);
   }
+
+  function cancelDrag() {
+    dragProgressRef.current = null;
+    dragCommittedRef.current = false;
+    setDragProgress(null);
+    setIsSeeking(false);
+  }
+
+  const waveformPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
+        onMoveShouldSetPanResponderCapture: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: (event) => {
+          updateDrag(event.nativeEvent.locationX);
+        },
+        onPanResponderMove: (event) => {
+          updateDrag(event.nativeEvent.locationX);
+        },
+        onPanResponderRelease: (event) => {
+          commitDrag(event.nativeEvent.locationX);
+        },
+        onPanResponderTerminate: () => {
+          cancelDrag();
+        },
+      }),
+    [progressWidth, isPlaying, durationMs],
+  );
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
@@ -111,15 +187,26 @@ export function FullPlayer({
             <View
               style={styles.progressTouchArea}
               onLayout={(event) => setProgressWidth(event.nativeEvent.layout.width)}
-              onStartShouldSetResponder={() => true}
-              onMoveShouldSetResponder={() => true}
-              onResponderGrant={(event) => updateDrag(event.nativeEvent.locationX)}
-              onResponderMove={(event) => updateDrag(event.nativeEvent.locationX)}
-              onResponderRelease={(event) => commitDrag(event.nativeEvent.locationX)}
-              onResponderTerminate={(event) => commitDrag(event.nativeEvent.locationX)}
+              {...waveformPanResponder.panHandlers}
             >
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${visibleProgress * 100}%` }]} />
+              <View style={[styles.waveformTrack, isSeeking && styles.progressTrackSeeking]}>
+                {waveformBars.map((bar, index) => {
+                  const barProgress = index / Math.max(waveformBars.length - 1, 1);
+                  const played = barProgress <= visibleProgress;
+
+                  return (
+                    <View
+                      key={`${index}-${bar.toFixed(3)}`}
+                      style={[
+                        styles.waveformBar,
+                        {
+                          height: 8 + bar * 48,
+                          backgroundColor: played ? colors.accent : 'rgba(255,255,255,0.34)',
+                        },
+                      ]}
+                    />
+                  );
+                })}
                 <View style={[styles.progressThumb, { left: `${visibleProgress * 100}%` }]} />
               </View>
             </View>
@@ -152,6 +239,9 @@ export function FullPlayer({
           </View>
 
           <View style={styles.secondaryControls}>
+            <View style={styles.downloadButtonWrap}>
+              <TrackDownloadButton track={track} size={22} />
+            </View>
             <Pressable style={styles.iconButton} onPress={onFavorite}>
               <Heart
                 size={22}
@@ -223,7 +313,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 24,
+    top: 38,
     right: spacing.md,
     zIndex: 4,
     width: 40,
@@ -241,7 +331,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     gap: 24,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 72,
+    paddingBottom: spacing.lg,
   },
   cover: {
     width: '100%',
@@ -270,21 +362,26 @@ const styles = StyleSheet.create({
     minHeight: 34,
     justifyContent: 'center',
   },
-  progressTrack: {
-    height: 4,
+  waveformTrack: {
+    height: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
+  progressTrackSeeking: {
+    opacity: 0.92,
+  },
+  waveformBar: {
+    width: 2.2,
+    borderRadius: radius.pill,
   },
   progressThumb: {
     position: 'absolute',
-    top: -6,
-    width: 16,
-    height: 16,
-    marginLeft: -8,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    marginLeft: -1,
     borderRadius: radius.pill,
     backgroundColor: colors.accent,
   },
@@ -322,6 +419,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 14,
+  },
+  downloadButtonWrap: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(24,24,24,0.74)',
   },
   queueLayer: {
     position: 'absolute',

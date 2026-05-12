@@ -27,6 +27,19 @@ type BackfillStatus = {
 
 type BackfillProgress = Omit<BackfillStatus, 'id' | 'status' | 'error'>;
 
+type NormalizeStatus = {
+  id: string | null;
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  total: number;
+  processed: number;
+  normalized: number;
+  skipped: number;
+  failed: number;
+  error?: string;
+};
+
+type NormalizeProgress = Omit<NormalizeStatus, 'id' | 'status' | 'error'>;
+
 @Injectable()
 export class AudioService {
   private backfillStatus: BackfillStatus = {
@@ -36,6 +49,16 @@ export class AudioService {
     processed: 0,
     updated: 0,
     waveformUpdated: 0,
+    skipped: 0,
+    failed: 0,
+  };
+
+  private normalizeStatus: NormalizeStatus = {
+    id: null,
+    status: 'idle',
+    total: 0,
+    processed: 0,
+    normalized: 0,
     skipped: 0,
     failed: 0,
   };
@@ -162,6 +185,50 @@ export class AudioService {
       return waveform.length ? waveform : this.buildWaveformData(buffer, points);
     } catch {
       return this.buildWaveformData(buffer, points);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  }
+
+  private async normalizeAudioBuffer(buffer: Buffer) {
+    const tempDir = await fs.mkdtemp(join(tmpdir(), 'vinyl-normalize-'));
+    const sourcePath = join(tempDir, 'source.mp3');
+    const outputPath = join(tempDir, 'normalized.mp3');
+
+    try {
+      await fs.writeFile(sourcePath, buffer);
+      await execFileAsync(
+        'ffmpeg',
+        [
+          '-v',
+          'error',
+          '-i',
+          sourcePath,
+          '-map',
+          '0:a:0',
+          '-vn',
+          '-map_metadata',
+          '-1',
+          '-af',
+          'loudnorm=I=-14:TP=-1.5:LRA=11',
+          '-c:a',
+          'libmp3lame',
+          '-b:a',
+          '320k',
+          '-ar',
+          '44100',
+          '-id3v2_version',
+          '3',
+          '-write_id3v1',
+          '0',
+          outputPath,
+        ],
+        {
+          maxBuffer: 20 * 1024 * 1024,
+        },
+      );
+
+      return fs.readFile(outputPath);
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
@@ -370,9 +437,67 @@ export class AudioService {
 
     const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
     await this.storageService.deleteObject(bucket, audio.storageKey);
+    if (audio.normalizedStorageKey) {
+      try {
+        await this.storageService.deleteObject(bucket, audio.normalizedStorageKey);
+      } catch {
+        // Original deletion remains the source of truth; a missing prepared copy should not block cleanup.
+      }
+    }
     await this.prisma.audioFile.delete({ where: { id } });
 
     return { deleted: true };
+  }
+
+  async startNormalizeAudio() {
+    if (this.normalizeStatus.status === 'running') {
+      return this.normalizeStatus;
+    }
+
+    const id = Date.now().toString(36);
+    this.normalizeStatus = {
+      id,
+      status: 'running',
+      total: 0,
+      processed: 0,
+      normalized: 0,
+      skipped: 0,
+      failed: 0,
+    };
+
+    void this.normalizeAudioFiles((status) => {
+      this.normalizeStatus = {
+        ...this.normalizeStatus,
+        ...status,
+        id,
+        status: 'running',
+      };
+    })
+      .then((result) => {
+        this.normalizeStatus = {
+          id,
+          status: 'completed',
+          total: result.processed,
+          processed: result.processed,
+          normalized: result.normalized,
+          skipped: result.skipped,
+          failed: result.failed,
+        };
+      })
+      .catch((error) => {
+        this.normalizeStatus = {
+          ...this.normalizeStatus,
+          id,
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      });
+
+    return this.normalizeStatus;
+  }
+
+  getNormalizeAudioStatus() {
+    return this.normalizeStatus;
   }
 
   async startBackfillDurations() {
@@ -537,6 +662,122 @@ export class AudioService {
       processed,
       updated,
       waveformUpdated,
+      skipped,
+      failed,
+    };
+  }
+
+  async normalizeAudioFiles(onProgress?: (status: NormalizeProgress) => void) {
+    const audioFiles = await this.prisma.audioFile.findMany({
+      where: {
+        normalizedStorageKey: null,
+      },
+      include: {
+        track: {
+          include: {
+            release: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    let normalized = 0;
+    let skipped = 0;
+    let failed = 0;
+    let processed = 0;
+    const emitProgress = () =>
+      onProgress?.({
+        total: audioFiles.length,
+        processed,
+        normalized,
+        skipped,
+        failed,
+      });
+
+    emitProgress();
+
+    for (const audioFile of audioFiles) {
+      try {
+        const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
+        const url = await this.storageService.getSignedObjectUrl(bucket, audioFile.storageKey);
+        if (!url) {
+          failed += 1;
+          processed += 1;
+          emitProgress();
+          continue;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          failed += 1;
+          processed += 1;
+          emitProgress();
+          continue;
+        }
+
+        const originalBuffer = Buffer.from(await response.arrayBuffer());
+        if (!originalBuffer.length) {
+          skipped += 1;
+          processed += 1;
+          emitProgress();
+          continue;
+        }
+
+        const normalizedBuffer = await this.normalizeAudioBuffer(originalBuffer);
+        const normalizedKey = this.storageService.getAudioKey({
+          userId: audioFile.userId,
+          releaseId: audioFile.track.releaseId,
+          trackId: audioFile.trackId,
+          fileName: `normalized-${audioFile.id}.mp3`,
+        });
+        const normalizedUrl = await this.storageService.uploadObject({
+          bucket,
+          key: normalizedKey,
+          body: normalizedBuffer,
+          contentType: 'audio/mpeg',
+        });
+        const [detectedDuration, waveformData] = await Promise.all([
+          this.detectDurationFromBuffer(normalizedBuffer, 'audio/mpeg', normalizedBuffer.length),
+          this.generateWaveformData(normalizedBuffer, 'audio/mpeg'),
+        ]);
+
+        await this.prisma.$transaction([
+          this.prisma.audioFile.update({
+            where: { id: audioFile.id },
+            data: {
+              normalizedStorageKey: normalizedKey,
+              normalizedStorageUrl: normalizedUrl,
+              normalizedMimeType: 'audio/mpeg',
+              normalizedSizeBytes: normalizedBuffer.length,
+              normalizedAt: new Date(),
+            },
+          }),
+          this.prisma.track.update({
+            where: { id: audioFile.trackId },
+            data: {
+              durationSec: detectedDuration?.durationSec ?? audioFile.track.durationSec,
+              durationRaw: detectedDuration?.durationRaw ?? audioFile.track.durationRaw,
+              ...(waveformData.length ? { waveformData } : {}),
+            },
+          }),
+        ]);
+
+        normalized += 1;
+        processed += 1;
+        emitProgress();
+      } catch {
+        failed += 1;
+        processed += 1;
+        emitProgress();
+      }
+    }
+
+    return {
+      processed,
+      normalized,
       skipped,
       failed,
     };

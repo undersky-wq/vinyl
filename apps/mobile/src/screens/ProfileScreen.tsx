@@ -1,40 +1,73 @@
 import { useEffect, useState } from 'react';
 import { Image, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
-import { getCurrentUser, login, logout } from '../lib/api';
+import { getCurrentUser, login, logout, register } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
 import { AuthUser } from '../types';
 
-export function ProfileScreen() {
+type ProfileScreenProps = {
+  onAuthChange?: (user: AuthUser | null) => void;
+};
+
+export function ProfileScreen({ onAuthChange }: ProfileScreenProps) {
   const [lang, setLang] = useState<'ru' | 'en'>('en');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  const isRu = lang === 'ru';
+  const isRegister = mode === 'register';
+
+  function applyUser(nextUser: AuthUser | null) {
+    setUser(nextUser);
+    onAuthChange?.(nextUser);
+  }
 
   async function loadUser() {
     setIsLoading(true);
     setMessage('');
 
     try {
-      setUser(await getCurrentUser());
+      applyUser(await getCurrentUser());
     } catch {
-      setUser(null);
+      applyUser(null);
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleLogin() {
+  async function handleSubmit() {
     setIsLoading(true);
     setMessage('');
 
     try {
-      setUser(await login(email.trim(), password));
+      const nextUser = isRegister
+        ? await register({
+            email: email.trim(),
+            password,
+            displayName: displayName.trim(),
+            inviteCode: inviteCode.trim(),
+          })
+        : await login(email.trim(), password);
+
+      applyUser(nextUser);
       setPassword('');
+      setInviteCode('');
     } catch {
-      setMessage(lang === 'ru' ? 'Не удалось войти. Проверь почту и пароль.' : 'Could not sign in.');
+      setMessage(
+        isRegister
+          ? isRu
+            ? 'Не удалось зарегистрироваться. Проверь invite code и поля.'
+            : 'Could not register. Check invite code and fields.'
+          : isRu
+            ? 'Не удалось войти. Проверь почту и пароль.'
+            : 'Could not sign in.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -46,9 +79,10 @@ export function ProfileScreen() {
 
     try {
       await logout();
-      setUser(null);
+      applyUser(null);
+      setPassword('');
     } catch {
-      setMessage(lang === 'ru' ? 'Не удалось выйти.' : 'Could not log out.');
+      setMessage(isRu ? 'Не удалось выйти.' : 'Could not log out.');
     } finally {
       setIsLoading(false);
     }
@@ -66,12 +100,12 @@ export function ProfileScreen() {
           <View style={styles.language}>
             <Pressable onPress={() => setLang('ru')}>
               <Text style={[styles.languageText, lang === 'ru' && styles.languageActive]}>
-                {lang === 'ru' ? 'РУ' : 'RU'}
+                {isRu ? 'РУ' : 'RU'}
               </Text>
             </Pressable>
             <Pressable onPress={() => setLang('en')}>
               <Text style={[styles.languageText, lang === 'en' && styles.languageActive]}>
-                {lang === 'ru' ? 'АНГ' : 'ENG'}
+                {isRu ? 'АНГ' : 'ENG'}
               </Text>
             </Pressable>
           </View>
@@ -92,12 +126,24 @@ export function ProfileScreen() {
             <Text style={styles.email}>{user.email}</Text>
             <Text style={styles.role}>{user.role}</Text>
             <Pressable style={styles.button} onPress={handleLogout} disabled={isLoading}>
-              <Text style={styles.buttonText}>{lang === 'ru' ? 'Выйти' : 'Log out'}</Text>
+              <Text style={styles.buttonText}>{isRu ? 'Выйти' : 'Log out'}</Text>
             </Pressable>
+            {message ? <Text style={styles.message}>{message}</Text> : null}
           </View>
         ) : (
           <View style={styles.card}>
-            <Text style={styles.title}>{lang === 'ru' ? 'Вход' : 'Sign in'}</Text>
+            <Text style={styles.title}>
+              {isRegister ? (isRu ? 'Регистрация' : 'Create account') : isRu ? 'Вход' : 'Sign in'}
+            </Text>
+            {isRegister ? (
+              <TextInput
+                value={displayName}
+                onChangeText={setDisplayName}
+                placeholder={isRu ? 'имя' : 'display name'}
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+              />
+            ) : null}
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -110,13 +156,50 @@ export function ProfileScreen() {
             <TextInput
               value={password}
               onChangeText={setPassword}
-              placeholder={lang === 'ru' ? 'пароль' : 'password'}
+              placeholder={isRu ? 'пароль' : 'password'}
               placeholderTextColor={colors.muted}
               style={styles.input}
               secureTextEntry
             />
-            <Pressable style={styles.button} onPress={handleLogin} disabled={isLoading}>
-              <Text style={styles.buttonText}>{isLoading ? '...' : lang === 'ru' ? 'Войти' : 'Sign in'}</Text>
+            {isRegister ? (
+              <TextInput
+                value={inviteCode}
+                onChangeText={setInviteCode}
+                placeholder="invite code"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+                autoCapitalize="none"
+              />
+            ) : null}
+            <Pressable style={styles.button} onPress={handleSubmit} disabled={isLoading}>
+              <Text style={styles.buttonText}>
+                {isLoading
+                  ? '...'
+                  : isRegister
+                    ? isRu
+                      ? 'Зарегистрироваться'
+                      : 'Register'
+                    : isRu
+                      ? 'Войти'
+                      : 'Sign in'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.modeButton}
+              onPress={() => {
+                setMessage('');
+                setMode((current) => (current === 'login' ? 'register' : 'login'));
+              }}
+            >
+              <Text style={styles.modeText}>
+                {isRegister
+                  ? isRu
+                    ? 'Уже есть аккаунт? Войти'
+                    : 'Already have an account? Sign in'
+                  : isRu
+                    ? 'Нет аккаунта? Зарегистрироваться'
+                    : 'No account? Create one'}
+              </Text>
             </Pressable>
             {message ? <Text style={styles.message}>{message}</Text> : null}
           </View>
@@ -202,6 +285,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '900',
+  },
+  modeButton: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  modeText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '800',
   },
   message: {
     color: colors.accentStrong,

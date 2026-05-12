@@ -137,6 +137,11 @@ model AudioFile {
   sizeBytes       Int
   storageKey      String   @unique
   storageUrl      String?
+  normalizedStorageKey String? @unique
+  normalizedStorageUrl String?
+  normalizedMimeType   String?
+  normalizedSizeBytes  Int?
+  normalizedAt         DateTime?
   acquiredLegally Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

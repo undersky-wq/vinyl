@@ -266,6 +266,8 @@ export class PlaylistsService {
           audioFiles: Array<{
             storageKey: string;
             storageUrl: string | null;
+            normalizedStorageKey?: string | null;
+            normalizedStorageUrl?: string | null;
           }>;
         };
       }>;
@@ -308,7 +310,11 @@ export class PlaylistsService {
               item.track.audioFiles.map(async (audioFile) => ({
                 ...audioFile,
                 storageUrl:
-                  (await this.storageService.getSignedObjectUrl(bucket, audioFile.storageKey)) ||
+                  (await this.storageService.getSignedObjectUrl(
+                    bucket,
+                    audioFile.normalizedStorageKey || audioFile.storageKey,
+                  )) ||
+                  audioFile.normalizedStorageUrl ||
                   audioFile.storageUrl,
               })),
             ),
