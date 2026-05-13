@@ -109,7 +109,7 @@ export async function getLibraryFeed(limit = 20, offset = 0) {
 export async function getLibraryFeedFiltered(
   limit = 20,
   offset = 0,
-  filters: { styles?: string[]; artist?: string; key?: string } = {},
+  filters: { styles?: string[]; artist?: string; key?: string; search?: string } = {},
 ) {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -126,6 +126,10 @@ export async function getLibraryFeedFiltered(
 
   if (filters.key) {
     params.set('key', filters.key);
+  }
+
+  if (filters.search) {
+    params.set('search', filters.search);
   }
 
   return fetchJson<{

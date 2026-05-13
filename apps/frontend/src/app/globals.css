@@ -2894,8 +2894,8 @@ textarea {
 
 .library-filter {
   display: grid;
-  gap: 8px;
-  padding: 14px 16px;
+  gap: 0;
+  padding: 13px 16px;
   border: none;
   border-radius: 14px;
   background: #1c1c1c;
@@ -2969,16 +2969,16 @@ textarea {
 
 .library-filter__menu {
   position: absolute;
-  top: calc(100% + 12px);
+  top: calc(100% + 8px);
   left: 0;
   z-index: 40;
   display: grid;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
   min-width: 220px;
   max-height: 280px;
   overflow: auto;
-  padding: 12px;
+  padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   background: #1f1f1f;
@@ -2991,9 +2991,9 @@ textarea {
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   text-align: left;

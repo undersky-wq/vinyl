@@ -490,7 +490,6 @@ export default function App() {
           }}
           onToggle={togglePlayback}
           onOpen={() => setIsFullPlayerOpen(true)}
-          onSeek={seekToRatio}
         />
 
         <FullPlayer

@@ -152,7 +152,7 @@ function getFilterLabel(params: {
   }
 
   if (params.filter === 'style') {
-    return params.lang === 'ru' ? 'Стиль' : 'Style';
+    return params.lang === 'ru' ? 'Все стили' : 'All styles';
   }
 
   if (params.filter === 'artist') {
@@ -446,6 +446,44 @@ export function TracklistBrowser({
     }
   }, [artist, keyValue, lang, selectedPageSize, styleValue]);
 
+  const buildLibraryFeedParams = useCallback(
+    (limit: number, offset: number) => {
+      const params = new URLSearchParams();
+      params.set('limit', String(limit));
+      params.set('offset', String(offset));
+      if (styleValue) {
+        params.set('style', styleValue);
+      }
+      if (artist) {
+        params.set('artist', artist);
+      }
+      if (keyValue) {
+        params.set('key', keyValue);
+      }
+      return params;
+    },
+    [artist, keyValue, styleValue],
+  );
+
+  const loadFullFilteredQueue = useCallback(async () => {
+    const pageLimit = 60;
+    let offset = 0;
+    const releasesForQueue: Release[] = [];
+
+    while (true) {
+      const result = await getLibraryReleasesFeed(buildLibraryFeedParams(pageLimit, offset));
+      releasesForQueue.push(...result.releases);
+
+      if (!result.hasMore || result.releases.length === 0) {
+        break;
+      }
+
+      offset += pageLimit;
+    }
+
+    return buildFeed(releasesForQueue).filter((track) => Boolean(track.audioUrl));
+  }, [buildLibraryFeedParams]);
+
   useEffect(() => {
     if (!didMountRef.current) {
       didMountRef.current = true;
@@ -541,11 +579,19 @@ export function TracklistBrowser({
     return () => observer.disconnect();
   }, [groupedFeed.length, hasHiddenGroupedFeed]);
 
-  function playFromVisibleFeed(trackId: string) {
-    const startIndex = playableFilteredFeed.findIndex((track) => track.id === trackId);
-    const activeTrack = playableFilteredFeed[startIndex];
+  async function playFromVisibleFeed(trackId: string) {
+    const visibleStartIndex = playableFilteredFeed.findIndex((track) => track.id === trackId);
+
+    if (visibleStartIndex < 0) {
+      setStatus(lang === 'ru' ? 'Для этого трека ещё не загружен MP3.' : 'No MP3 uploaded for this track yet.');
+      return;
+    }
+
+    const queue = await loadFullFilteredQueue();
+    const startIndex = queue.findIndex((track) => track.id === trackId);
+    const activeTrack = queue[startIndex];
     const releaseQueue = activeTrack
-      ? playableFilteredFeed.filter((track) => track.releaseId === activeTrack.releaseId)
+      ? queue.filter((track) => track.releaseId === activeTrack.releaseId)
       : [];
 
     if (startIndex < 0) {
@@ -553,7 +599,7 @@ export function TracklistBrowser({
       return;
     }
 
-    playQueue(playableFilteredFeed, startIndex, releaseQueue);
+    playQueue(queue, startIndex, releaseQueue);
   }
 
   function handlePageSizeChange(nextPageSize: number) {
@@ -668,7 +714,6 @@ export function TracklistBrowser({
 
   function renderFilterMenu(
     filter: Exclude<FilterKey, null>,
-    label: string,
     value: string,
     items: string[],
     onSelect: (nextValue: string) => void,
@@ -677,7 +722,6 @@ export function TracklistBrowser({
 
     return (
       <div className="library-filter library-filter--menu">
-        <span className="library-filter__label">{label}</span>
         <div className="library-filter__menu-shell" ref={isOpen ? filterRef : null}>
           <button
             type="button"
@@ -727,13 +771,9 @@ export function TracklistBrowser({
     <div className="library-shell">
       <section className="library-main">
         <div className="library-toolbar library-toolbar--filters-only">
-          {renderFilterMenu('style', lang === 'ru' ? 'Стиль' : 'Style', styleValue, styles, setStyleValue)}
-          {renderFilterMenu('artist', lang === 'ru' ? 'Артист' : 'Artist', artist, artists, setArtist)}
-          {renderFilterMenu('key', lang === 'ru' ? 'Ключ' : 'Key', keyValue, keys, setKeyValue)}
-        </div>
-
-        <div className="library-heading">
-          <h2>{lang === 'ru' ? 'Лента релизов' : 'Release feed'}</h2>
+          {renderFilterMenu('style', styleValue, styles, setStyleValue)}
+          {renderFilterMenu('artist', artist, artists, setArtist)}
+          {renderFilterMenu('key', keyValue, keys, setKeyValue)}
         </div>
 
         {renderPagination('top')}
@@ -771,7 +811,7 @@ export function TracklistBrowser({
                   <button
                     type="button"
                     className="library-release__play"
-                    onClick={() => playFromVisibleFeed(tracks.find((track) => track.audioUrl)?.id || tracks[0]?.id || '')}
+                    onClick={() => void playFromVisibleFeed(tracks.find((track) => track.audioUrl)?.id || tracks[0]?.id || '')}
                     aria-label={lang === 'ru' ? 'Воспроизвести релиз' : 'Play release'}
                   >
                     <Play size={27} fill="currentColor" />
@@ -809,7 +849,7 @@ export function TracklistBrowser({
                               return;
                             }
 
-                            playFromVisibleFeed(track.id);
+                            void playFromVisibleFeed(track.id);
                           }}
                         >
                           <img src={track.coverUrl} alt="" width={44} height={44} loading="lazy" decoding="async" />
@@ -842,7 +882,7 @@ export function TracklistBrowser({
                                 return;
                               }
 
-                              playFromVisibleFeed(track.id);
+                              void playFromVisibleFeed(track.id);
                             }}
                           >
                             {isCurrentTrack && isPlaying ? (
@@ -855,7 +895,7 @@ export function TracklistBrowser({
                           <button
                             type="button"
                             className="library-track__name"
-                            onClick={() => playFromVisibleFeed(track.id)}
+                            onClick={() => void playFromVisibleFeed(track.id)}
                           >
                             <span className="library-track__artist">{track.artist}</span>
                             <span className="library-track__title">{track.title}</span>

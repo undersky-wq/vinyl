@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Heart, Pause, Play } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -14,7 +13,6 @@ type MiniPlayerProps = {
   onToggle: () => void;
   onFavorite: () => void;
   onOpen: () => void;
-  onSeek: (ratio: number, resumeAfterSeek?: boolean) => void;
 };
 
 function formatMs(value: number) {
@@ -38,9 +36,7 @@ export function MiniPlayer({
   onToggle,
   onFavorite,
   onOpen,
-  onSeek,
 }: MiniPlayerProps) {
-  const [progressWidth, setProgressWidth] = useState(1);
   const ringSize = 54;
   const ringStroke = 2.4;
   const ringRadius = (ringSize - ringStroke) / 2;
@@ -101,13 +97,6 @@ export function MiniPlayer({
         />
       </Pressable>
       <Text style={styles.time}>{track.durationRaw || formatMs(durationMs)}</Text>
-      <Pressable
-        style={styles.progressTrack}
-        onLayout={(event) => setProgressWidth(event.nativeEvent.layout.width)}
-        onPress={(event) => onSeek(event.nativeEvent.locationX / progressWidth, isPlaying)}
-      >
-        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-      </Pressable>
     </Pressable>
   );
 }
@@ -177,17 +166,5 @@ const styles = StyleSheet.create({
     height: 27,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  progressTrack: {
-    position: 'absolute',
-    left: 68,
-    right: 18,
-    bottom: 0,
-    height: 2,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
   },
 });

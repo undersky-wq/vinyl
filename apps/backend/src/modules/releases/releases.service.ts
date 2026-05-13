@@ -359,6 +359,8 @@ export class ReleasesService {
     const styles = this.splitList(query.style);
     const artist = query.artist?.trim();
     const key = query.key?.trim();
+    const search = query.search?.trim();
+    const searchReleaseIds = search ? await this.findReleaseIdsBySearch(userId, search) : [];
 
     const trackWhere: Prisma.TrackWhereInput = {
       audioFiles: {
@@ -389,6 +391,13 @@ export class ReleasesService {
         },
       },
       ...(styles.length ? { styles: { hasSome: styles } } : {}),
+      ...(search
+        ? {
+            id: {
+              in: searchReleaseIds,
+            },
+          }
+        : {}),
       tracks: {
         some: trackWhere,
       },

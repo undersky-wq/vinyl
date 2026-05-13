@@ -16,6 +16,9 @@ import {
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Playlist, Release } from '../types';
 
+const PAGE_SIZE = 40;
+const VISIBLE_PAGE_WINDOW_SIZE = 5;
+
 type LibraryScreenProps = {
   activeTrackId: string | null;
   onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
@@ -63,13 +66,14 @@ function buildPlayableTracks(release: Release) {
 export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avatarUrl }: LibraryScreenProps) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [stylesList, setStylesList] = useState<Array<{ name: string; count: number }>>([]);
-  const [artistsList, setArtistsList] = useState<string[]>([]);
-  const [keysList, setKeysList] = useState<string[]>([]);
+  const [artistsList] = useState<string[]>([]);
+  const [keysList] = useState<string[]>([]);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [selectedArtist, setSelectedArtist] = useState('');
   const [selectedKey, setSelectedKey] = useState('');
   const [query, setQuery] = useState('');
   const [openFilter, setOpenFilter] = useState<'style' | 'artist' | 'key' | null>(null);
+  const [isStylePickerOpen, setIsStylePickerOpen] = useState(false);
   const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -78,39 +82,28 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalReleases, setTotalReleases] = useState(0);
 
   const visibleReleases = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase();
-
     return releases
-      .filter((release) => buildPlayableTracks(release).length > 0)
-      .filter((release) => {
-        if (!normalizedQuery) {
-          return true;
-        }
+      .filter((release) => buildPlayableTracks(release).length > 0);
+  }, [releases]);
 
-        return (
-          release.title.toLocaleLowerCase().includes(normalizedQuery) ||
-          release.artist.toLocaleLowerCase().includes(normalizedQuery) ||
-          release.tracks.some((track) => track.title.toLocaleLowerCase().includes(normalizedQuery))
-        );
-      });
-  }, [query, releases]);
-
-  async function load() {
+  async function load(page = currentPage) {
     setIsLoading(true);
     setError('');
 
     try {
-      const result = await getLibraryFeedFiltered(40, 0, {
+      const nextPage = Math.max(1, page);
+      const result = await getLibraryFeedFiltered(PAGE_SIZE, (nextPage - 1) * PAGE_SIZE, {
         styles: selectedStyles,
-        artist: selectedArtist,
-        key: selectedKey,
+        search: query.trim(),
       });
       setReleases(result.releases);
+      setTotalReleases(result.total);
+      setCurrentPage(nextPage);
       setStylesList((result.options?.styles || []).map((name) => ({ name, count: 0 })));
-      setArtistsList(result.options?.artists || []);
-      setKeysList(result.options?.keys || []);
       void loadPersonalActions();
     } catch {
       setError('Не удалось загрузить библиотеку.');
@@ -120,8 +113,8 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
   }
 
   useEffect(() => {
-    void load();
-  }, [selectedArtist, selectedKey, selectedStyles]);
+    void load(1);
+  }, [query, selectedStyles]);
 
   function toggleStyle(style: string) {
     setSelectedStyles((current) =>
@@ -206,6 +199,55 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
     }
   }
 
+  const totalPages = Math.max(1, Math.ceil(totalReleases / PAGE_SIZE));
+  const firstVisiblePage = Math.min(
+    Math.max(1, currentPage - Math.floor(VISIBLE_PAGE_WINDOW_SIZE / 2)),
+    Math.max(1, totalPages - VISIBLE_PAGE_WINDOW_SIZE + 1),
+  );
+  const visiblePageNumbers = Array.from(
+    { length: Math.min(VISIBLE_PAGE_WINDOW_SIZE, totalPages) },
+    (_, index) => firstVisiblePage + index,
+  );
+
+  function renderPagination() {
+    if (totalReleases <= PAGE_SIZE) {
+      return null;
+    }
+
+    return (
+      <View style={styles.pagination}>
+        <Pressable
+          style={[styles.pageButton, (isLoading || currentPage <= 1) && styles.pageButtonDisabled]}
+          disabled={isLoading || currentPage <= 1}
+          onPress={() => void load(Math.max(1, currentPage - 1))}
+        >
+          <Text style={styles.pageButtonText}>{'<'}</Text>
+        </Pressable>
+        {visiblePageNumbers.map((page) => {
+          const active = page === currentPage;
+
+          return (
+            <Pressable
+              key={page}
+              style={[styles.pageButton, active && styles.pageButtonActive]}
+              disabled={isLoading || active}
+              onPress={() => void load(page)}
+            >
+              <Text style={[styles.pageButtonText, active && styles.pageButtonTextActive]}>{page}</Text>
+            </Pressable>
+          );
+        })}
+        <Pressable
+          style={[styles.pageButton, (isLoading || currentPage >= totalPages) && styles.pageButtonDisabled]}
+          disabled={isLoading || currentPage >= totalPages}
+          onPress={() => void load(Math.min(totalPages, currentPage + 1))}
+        >
+          <Text style={styles.pageButtonText}>{'>'}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.headerShell}>
@@ -262,11 +304,11 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
         ListHeaderComponent={
           <View style={styles.filtersBlock}>
             <View style={styles.selectedStyleRow}>
-              <Pressable style={styles.filterButton} onPress={() => setOpenFilter((current) => (current === 'style' ? null : 'style'))}>
+              <Pressable style={styles.filterButton} onPress={() => setIsStylePickerOpen((current) => !current)}>
                 <Text style={styles.filterButtonText}>{lang === 'ru' ? 'Все стили' : 'All styles'}</Text>
               </Pressable>
               <Pressable
-                style={[styles.filterButton, selectedArtist && styles.filterButtonActive]}
+                style={[styles.filterButton, styles.hiddenFilter, selectedArtist && styles.filterButtonActive]}
                 onPress={() => setOpenFilter((current) => (current === 'artist' ? null : 'artist'))}
               >
                 <Text style={[styles.filterButtonText, selectedArtist && styles.filterButtonTextActive]}>
@@ -274,7 +316,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
                 </Text>
               </Pressable>
               <Pressable
-                style={[styles.filterButton, selectedKey && styles.filterButtonActive]}
+                style={[styles.filterButton, styles.hiddenFilter, selectedKey && styles.filterButtonActive]}
                 onPress={() => setOpenFilter((current) => (current === 'key' ? null : 'key'))}
               >
                 <Text style={[styles.filterButtonText, selectedKey && styles.filterButtonTextActive]}>
@@ -382,6 +424,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
             ) : null}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
+            {renderPagination()}
           </View>
         }
         renderItem={({ item }) => {
@@ -452,6 +495,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
             </View>
           );
         }}
+        ListFooterComponent={renderPagination}
       />
 
       <Modal
@@ -632,6 +676,9 @@ const styles = StyleSheet.create({
   filterButtonActive: {
     backgroundColor: 'rgba(181,120,255,0.14)',
   },
+  hiddenFilter: {
+    display: 'none',
+  },
   filterButtonText: {
     color: colors.muted,
     fontSize: 13,
@@ -664,6 +711,35 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   styleChipTextActive: {
+    color: colors.accent,
+  },
+  pagination: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  pageButton: {
+    minWidth: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.panel,
+  },
+  pageButtonActive: {
+    backgroundColor: 'rgba(181,120,255,0.18)',
+  },
+  pageButtonDisabled: {
+    opacity: 0.35,
+  },
+  pageButtonText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  pageButtonTextActive: {
     color: colors.accent,
   },
   releaseCard: {
