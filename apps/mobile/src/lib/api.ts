@@ -43,7 +43,7 @@ export function getCoverUrl(release: Release) {
 export async function getHomeReleases(
   limit = 24,
   offset = 0,
-  filters: { style?: string; styles?: string[]; hasAudio?: boolean } = {},
+  filters: { style?: string; styles?: string[]; hasAudio?: boolean; search?: string } = {},
 ) {
   const params = new URLSearchParams({
     summary: 'true',
@@ -59,6 +59,10 @@ export async function getHomeReleases(
 
   if (filters.hasAudio) {
     params.set('hasAudio', 'true');
+  }
+
+  if (filters.search?.trim()) {
+    params.set('search', filters.search.trim());
   }
 
   return fetchJson<Release[]>(`/releases?${params.toString()}`);
@@ -94,28 +98,19 @@ export async function getReleaseStyles() {
 }
 
 export async function getPlayableReleaseStyles() {
-  const feed = await getLibraryFeedFiltered(60, 0);
-  const counts = new Map<string, number>();
-
-  for (const release of feed.releases) {
-    for (const style of release.styles) {
-      const normalized = style.trim();
-      if (normalized) {
-        counts.set(normalized, (counts.get(normalized) || 0) + 1);
-      }
-    }
-  }
-
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([name, count]) => ({ name, count }));
+  const feed = await getLibraryFeedFiltered(1, 0);
+  return (feed.options?.styles || []).map((name) => ({ name, count: 0 }));
 }
 
 export async function getLibraryFeed(limit = 20, offset = 0) {
   return getLibraryFeedFiltered(limit, offset);
 }
 
-export async function getLibraryFeedFiltered(limit = 20, offset = 0, filters: { styles?: string[] } = {}) {
+export async function getLibraryFeedFiltered(
+  limit = 20,
+  offset = 0,
+  filters: { styles?: string[]; artist?: string; key?: string } = {},
+) {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
@@ -125,7 +120,21 @@ export async function getLibraryFeedFiltered(limit = 20, offset = 0, filters: { 
     params.set('style', filters.styles.join(','));
   }
 
-  return fetchJson<{ releases: Release[]; total: number; hasMore: boolean }>(
+  if (filters.artist) {
+    params.set('artist', filters.artist);
+  }
+
+  if (filters.key) {
+    params.set('key', filters.key);
+  }
+
+  return fetchJson<{
+    releases: Release[];
+    total: number;
+    totalTracks: number;
+    hasMore: boolean;
+    options: { styles: string[]; artists: string[]; keys: string[] };
+  }>(
     `/releases/library-feed?${params.toString()}`,
   );
 }

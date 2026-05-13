@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Heart, ListMusic, Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
+import { LoadingState } from '../components/LoadingState';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import {
   addTrackToPlaylist,
@@ -10,7 +11,6 @@ import {
   getFavorites,
   getLibraryFeedFiltered,
   getPlaylists,
-  getPlayableReleaseStyles,
   removeTrackFromPlaylist,
   toggleFavoriteTrack,
 } from '../lib/api';
@@ -64,9 +64,13 @@ function buildPlayableTracks(release: Release) {
 export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avatarUrl }: LibraryScreenProps) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [stylesList, setStylesList] = useState<Array<{ name: string; count: number }>>([]);
+  const [artistsList, setArtistsList] = useState<string[]>([]);
+  const [keysList, setKeysList] = useState<string[]>([]);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
+  const [selectedArtist, setSelectedArtist] = useState('');
+  const [selectedKey, setSelectedKey] = useState('');
   const [query, setQuery] = useState('');
-  const [isStylePickerOpen, setIsStylePickerOpen] = useState(false);
+  const [openFilter, setOpenFilter] = useState<'style' | 'artist' | 'key' | null>(null);
   const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -99,12 +103,15 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
     setError('');
 
     try {
-      const [result, nextStyles] = await Promise.all([
-        getLibraryFeedFiltered(40, 0, { styles: selectedStyles }),
-        getPlayableReleaseStyles(),
-      ]);
+      const result = await getLibraryFeedFiltered(40, 0, {
+        styles: selectedStyles,
+        artist: selectedArtist,
+        key: selectedKey,
+      });
       setReleases(result.releases);
-      setStylesList(nextStyles);
+      setStylesList((result.options?.styles || []).map((name) => ({ name, count: 0 })));
+      setArtistsList(result.options?.artists || []);
+      setKeysList(result.options?.keys || []);
       void loadPersonalActions();
     } catch {
       setError('Не удалось загрузить библиотеку.');
@@ -115,7 +122,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
 
   useEffect(() => {
     void load();
-  }, [selectedStyles]);
+  }, [selectedArtist, selectedKey, selectedStyles]);
 
   function toggleStyle(style: string) {
     setSelectedStyles((current) =>
@@ -256,8 +263,24 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
         ListHeaderComponent={
           <View style={styles.filtersBlock}>
             <View style={styles.selectedStyleRow}>
-              <Pressable style={styles.filterButton} onPress={() => setIsStylePickerOpen((current) => !current)}>
+              <Pressable style={styles.filterButton} onPress={() => setOpenFilter((current) => (current === 'style' ? null : 'style'))}>
                 <Text style={styles.filterButtonText}>{lang === 'ru' ? 'Все стили' : 'All styles'}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.filterButton, selectedArtist && styles.filterButtonActive]}
+                onPress={() => setOpenFilter((current) => (current === 'artist' ? null : 'artist'))}
+              >
+                <Text style={[styles.filterButtonText, selectedArtist && styles.filterButtonTextActive]}>
+                  {selectedArtist || (lang === 'ru' ? 'Артист' : 'Artist')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.filterButton, selectedKey && styles.filterButtonActive]}
+                onPress={() => setOpenFilter((current) => (current === 'key' ? null : 'key'))}
+              >
+                <Text style={[styles.filterButtonText, selectedKey && styles.filterButtonTextActive]}>
+                  {selectedKey || (lang === 'ru' ? 'Ключ' : 'Key')}
+                </Text>
               </Pressable>
               {selectedStyles.map((style) => (
                 <Pressable
@@ -270,13 +293,13 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
               ))}
             </View>
 
-            {isStylePickerOpen ? (
+            {openFilter === 'style' ? (
               <View style={styles.stylePicker}>
                 <Pressable
                   style={[styles.styleChip, selectedStyles.length === 0 && styles.styleChipActive]}
                   onPress={() => {
                     setSelectedStyles([]);
-                    setIsStylePickerOpen(false);
+                    setOpenFilter(null);
                   }}
                 >
                   <Text style={[styles.styleChipText, selectedStyles.length === 0 && styles.styleChipTextActive]}>
@@ -299,7 +322,70 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
               </View>
             ) : null}
 
+            {openFilter === 'artist' ? (
+              <View style={styles.stylePicker}>
+                <Pressable
+                  style={[styles.styleChip, !selectedArtist && styles.styleChipActive]}
+                  onPress={() => {
+                    setSelectedArtist('');
+                    setOpenFilter(null);
+                  }}
+                >
+                  <Text style={[styles.styleChipText, !selectedArtist && styles.styleChipTextActive]}>
+                    {lang === 'ru' ? 'Все артисты' : 'All artists'}
+                  </Text>
+                </Pressable>
+                {artistsList.map((artistName) => (
+                  <Pressable
+                    key={artistName}
+                    style={[styles.styleChip, selectedArtist === artistName && styles.styleChipActive]}
+                    onPress={() => {
+                      setSelectedArtist((current) => (current === artistName ? '' : artistName));
+                      setOpenFilter(null);
+                    }}
+                  >
+                    <Text style={[styles.styleChipText, selectedArtist === artistName && styles.styleChipTextActive]}>
+                      {artistName}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            {openFilter === 'key' ? (
+              <View style={styles.stylePicker}>
+                <Pressable
+                  style={[styles.styleChip, !selectedKey && styles.styleChipActive]}
+                  onPress={() => {
+                    setSelectedKey('');
+                    setOpenFilter(null);
+                  }}
+                >
+                  <Text style={[styles.styleChipText, !selectedKey && styles.styleChipTextActive]}>
+                    {lang === 'ru' ? 'Все ключи' : 'All keys'}
+                  </Text>
+                </Pressable>
+                {keysList.map((trackKey) => (
+                  <Pressable
+                    key={trackKey}
+                    style={[styles.styleChip, selectedKey === trackKey && styles.styleChipActive]}
+                    onPress={() => {
+                      setSelectedKey((current) => (current === trackKey ? '' : trackKey));
+                      setOpenFilter(null);
+                    }}
+                  >
+                    <Text style={[styles.styleChipText, selectedKey === trackKey && styles.styleChipTextActive]}>
+                      {trackKey}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
             {error ? <Text style={styles.error}>{error}</Text> : null}
+            {isLoading && releases.length === 0 ? (
+              <LoadingState label={lang === 'ru' ? 'Загружаю библиотеку' : 'Loading library'} />
+            ) : null}
           </View>
         }
         renderItem={({ item }) => {

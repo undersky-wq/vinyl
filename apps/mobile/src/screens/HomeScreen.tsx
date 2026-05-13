@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, RefreshControl, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
+import { LoadingState } from '../components/LoadingState';
 import { ReleaseTile } from '../components/ReleaseTile';
 import { getHomeReleases, getReleaseStyles } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
@@ -34,7 +35,7 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
 
     try {
       const [nextReleases, nextStyles] = await Promise.all([
-        getHomeReleases(PAGE_SIZE, 0, { styles: selectedStyles, hasAudio: hasAudioOnly }),
+        getHomeReleases(PAGE_SIZE, 0, { styles: selectedStyles, hasAudio: hasAudioOnly, search: query }),
         getReleaseStyles(),
       ]);
       setReleases(nextReleases);
@@ -58,6 +59,7 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
       const nextReleases = await getHomeReleases(PAGE_SIZE, releases.length, {
         styles: selectedStyles,
         hasAudio: hasAudioOnly,
+        search: query,
       });
       setReleases((current) => {
         const known = new Set(current.map((release) => release.id));
@@ -75,20 +77,15 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
 
   useEffect(() => {
     void load();
-  }, [hasAudioOnly, selectedStyles.join('|')]);
+  }, [hasAudioOnly, selectedStyles.join('|'), query]);
 
   const visibleStyles = isStylesExpanded ? stylesList : stylesList.slice(0, 4);
-  const normalizedQuery = query.trim().toLocaleLowerCase();
   const filteredReleases = releases.filter((release) => {
     const matchesStyle =
       selectedStyles.length === 0 || selectedStyles.some((style) => release.styles.includes(style));
     const matchesAudio = !hasAudioOnly || release.tracks.some((track) => track.audioFiles.some((file) => file.storageUrl));
-    const matchesSearch =
-      !normalizedQuery ||
-      release.title.toLocaleLowerCase().includes(normalizedQuery) ||
-      release.artist.toLocaleLowerCase().includes(normalizedQuery);
 
-    return matchesStyle && matchesAudio && matchesSearch;
+    return matchesStyle && matchesAudio;
   });
 
   return (
@@ -190,6 +187,9 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
             </View>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
+            {isLoading && releases.length === 0 ? (
+              <LoadingState label={lang === 'ru' ? 'Загружаю коллекцию' : 'Loading collection'} />
+            ) : null}
           </View>
         }
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={load} tintColor={colors.accent} />}

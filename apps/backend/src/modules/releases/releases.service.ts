@@ -110,6 +110,8 @@ export class ReleasesService {
     const summaryOnly = query.summary === 'true';
     const take = query.limit ? Math.min(Math.max(Number(query.limit), 1), 48) : undefined;
     const skip = query.offset ? Math.max(Number(query.offset), 0) : undefined;
+    const search = query.search?.trim();
+    const searchReleaseIds = search ? await this.findReleaseIdsBySearch(userId, search) : [];
     const genres = query.genre
       ? query.genre
           .split(',')
@@ -130,19 +132,9 @@ export class ReleasesService {
       },
       ...(genres.length ? { genres: { hasSome: genres } } : {}),
       ...(styles.length ? { styles: { hasSome: styles } } : {}),
-      ...(query.search
+      ...(search
         ? {
-            OR: [
-              { artist: { contains: query.search, mode: 'insensitive' } },
-              { title: { contains: query.search, mode: 'insensitive' } },
-              {
-                tracks: {
-                  some: {
-                    title: { contains: query.search, mode: 'insensitive' },
-                  },
-                },
-              },
-            ],
+            id: { in: searchReleaseIds },
           }
         : {}),
       ...(query.hasAudio === 'true'
@@ -262,6 +254,7 @@ export class ReleasesService {
       return [];
     }
 
+    const searchReleaseIds = await this.findReleaseIdsBySearch(userId, search);
     const releases = await this.prisma.release.findMany({
       where: {
         collectionItems: {
@@ -269,31 +262,12 @@ export class ReleasesService {
             userId,
           },
         },
-        OR: [
-          { artist: { contains: search, mode: 'insensitive' } },
-          { title: { contains: search, mode: 'insensitive' } },
-          {
-            tracks: {
-              some: {
-                OR: [
-                  { title: { contains: search, mode: 'insensitive' } },
-                  { artists: { has: search } },
-                ],
-              },
-            },
-          },
-        ],
+        id: { in: searchReleaseIds },
       },
       take: 16,
       include: {
         tracks: {
-          where: {
-            title: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
-          take: 3,
+          take: 12,
           orderBy: {
             position: 'asc',
           },
@@ -336,6 +310,15 @@ export class ReleasesService {
       }
 
       for (const track of release.tracks) {
+        const trackArtist = track.artists.length ? track.artists.join(', ') : release.artist;
+        const matchesTrack =
+          track.title.toLowerCase().includes(search.toLowerCase()) ||
+          trackArtist.toLowerCase().includes(search.toLowerCase());
+
+        if (!matchesTrack) {
+          continue;
+        }
+
         suggestions.set(`track:${track.id}`, {
           id: `track:${track.id}`,
           label: track.title,
@@ -348,6 +331,25 @@ export class ReleasesService {
     }
 
     return [...suggestions.values()].slice(0, 8);
+  }
+
+  private async findReleaseIdsBySearch(userId: string, search: string) {
+    const pattern = `%${search}%`;
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT DISTINCT r.id
+      FROM "Release" r
+      INNER JOIN "CollectionItem" c ON c."releaseId" = r.id
+      LEFT JOIN "Track" t ON t."releaseId" = r.id
+      WHERE c."userId" = ${userId}
+        AND (
+          r.artist ILIKE ${pattern}
+          OR r.title ILIKE ${pattern}
+          OR t.title ILIKE ${pattern}
+          OR array_to_string(t.artists, ' ') ILIKE ${pattern}
+        )
+    `;
+
+    return rows.map((row) => row.id);
   }
 
   async findLibraryFeed(query: QueryReleasesDto) {

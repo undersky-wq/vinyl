@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
+import { LoadingState } from '../components/LoadingState';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { getCoverUrl, getPlaylists, updatePlaylist } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
@@ -153,7 +154,8 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
         onRefresh={load}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
-          <View style={styles.playlistChips}>
+          <View>
+            <View style={styles.playlistChips}>
             {playlists.map((playlist) => {
               const active = playlist.id === selectedPlaylist?.id;
               const editing = editingPlaylistId === playlist.id;
@@ -193,6 +195,10 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
                 </Pressable>
               );
             })}
+            </View>
+            {isLoading && playlists.length === 0 ? (
+              <LoadingState label={lang === 'ru' ? 'Загружаю плейлисты' : 'Loading playlists'} />
+            ) : null}
           </View>
         }
         renderItem={({ item, index }) => {
@@ -220,7 +226,7 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
             </Pressable>
           );
         }}
-        ListEmptyComponent={<Text style={styles.empty}>Плейлистов пока нет.</Text>}
+        ListEmptyComponent={isLoading ? null : <Text style={styles.empty}>Плейлистов пока нет.</Text>}
       />
     </View>
   );

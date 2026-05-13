@@ -1293,9 +1293,10 @@ textarea {
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-.mini-player__track:hover img {
+.mini-player__track img:hover {
   transform: scale(1.06);
   filter: brightness(1.06);
+  cursor: pointer;
 }
 
 .player-page__cover-frame.slide-next {
