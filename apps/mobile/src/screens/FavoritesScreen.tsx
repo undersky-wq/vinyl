@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
-import { LoadingState } from '../components/LoadingState';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { getCoverUrl, getFavoriteTracks } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
@@ -123,11 +122,6 @@ export function FavoritesScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Favor
         refreshing={isLoading}
         onRefresh={load}
         contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          isLoading && tracks.length === 0 ? (
-            <LoadingState label={lang === 'ru' ? 'Загружаю избранное' : 'Loading favourites'} />
-          ) : null
-        }
         renderItem={({ item, index }) => {
           const playerTrack = toPlayerTrack(item);
 

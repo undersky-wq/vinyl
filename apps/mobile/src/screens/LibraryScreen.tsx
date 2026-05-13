@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Heart, ListMusic, Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
-import { LoadingState } from '../components/LoadingState';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import {
   addTrackToPlaylist,
@@ -383,9 +382,6 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
             ) : null}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            {isLoading && releases.length === 0 ? (
-              <LoadingState label={lang === 'ru' ? 'Загружаю библиотеку' : 'Loading library'} />
-            ) : null}
           </View>
         }
         renderItem={({ item }) => {

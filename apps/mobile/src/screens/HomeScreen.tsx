@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, RefreshControl, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
-import { LoadingState } from '../components/LoadingState';
 import { ReleaseTile } from '../components/ReleaseTile';
 import { getHomeReleases, getReleaseStyles } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
@@ -187,9 +186,6 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
             </View>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            {isLoading && releases.length === 0 ? (
-              <LoadingState label={lang === 'ru' ? 'Загружаю коллекцию' : 'Loading collection'} />
-            ) : null}
           </View>
         }
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={load} tintColor={colors.accent} />}

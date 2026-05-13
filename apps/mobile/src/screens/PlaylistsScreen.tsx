@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
-import { LoadingState } from '../components/LoadingState';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { getCoverUrl, getPlaylists, updatePlaylist } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
@@ -196,9 +195,6 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
               );
             })}
             </View>
-            {isLoading && playlists.length === 0 ? (
-              <LoadingState label={lang === 'ru' ? 'Загружаю плейлисты' : 'Loading playlists'} />
-            ) : null}
           </View>
         }
         renderItem={({ item, index }) => {
