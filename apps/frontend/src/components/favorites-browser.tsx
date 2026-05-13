@@ -142,6 +142,7 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
       artist: track.artists?.length ? track.artists.join(', ') : track.release.artist,
       audioUrl: track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '',
       coverUrl: getCoverUrl(track.release),
+      releaseId: track.release.id,
       durationRaw: track.durationRaw,
       durationSec: track.durationSec,
       bpm: track.bpm,

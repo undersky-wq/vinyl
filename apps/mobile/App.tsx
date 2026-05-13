@@ -16,7 +16,7 @@ import { PlaylistsScreen } from './src/screens/PlaylistsScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReleaseDetailScreen } from './src/screens/ReleaseDetailScreen';
-import { getCurrentUser, getFavorites, toggleFavoriteTrack } from './src/lib/api';
+import { getCurrentUser, getFavorites, getRelease, toggleFavoriteTrack } from './src/lib/api';
 import { getLockScreenArtworkUrl } from './src/lib/artwork-cache';
 import { resolveOfflineTrack } from './src/lib/offline-audio';
 import { colors, radius, spacing } from './src/theme';
@@ -389,6 +389,21 @@ export default function App() {
     }
   }
 
+  async function openCurrentTrackRelease() {
+    const releaseId = currentTrackRef.current?.releaseId || currentTrack?.releaseId;
+    if (!releaseId) {
+      return;
+    }
+
+    try {
+      const release = await getRelease(releaseId);
+      setIsFullPlayerOpen(false);
+      setActiveRelease(release);
+    } catch (error) {
+      console.warn('Failed to open release from player cover', error);
+    }
+  }
+
   useEffect(() => {
     if (desiredPlayingRef.current && isRepeatEnabled && positionMs > 0 && durationMs > 0 && positionMs >= durationMs - 450) {
       if (isRepeatEnabled) {
@@ -501,6 +516,7 @@ export default function App() {
           onSelectQueueTrack={(track) => playTrack(track, queue)}
           onToggleShuffle={() => setIsShuffleEnabled((current) => !current)}
           onToggleRepeat={() => setIsRepeatEnabled((current) => !current)}
+          onOpenRelease={openCurrentTrackRelease}
         />
 
         <View style={styles.tabbar}>

@@ -143,9 +143,20 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         <ChevronDown size={24} />
       </button>
 
-      <div className={`player-page__cover-frame slide-${trackDirection}`} key={`cover-${currentTrack.id}`}>
+      <button
+        type="button"
+        className={`player-page__cover-frame player-page__cover-button slide-${trackDirection}`}
+        key={`cover-${currentTrack.id}`}
+        onClick={() => {
+          if (currentTrack.releaseId) {
+            router.push(`/releases/${currentTrack.releaseId}`);
+          }
+        }}
+        disabled={!currentTrack.releaseId}
+        aria-label={currentTrack.releaseId ? `${currentTrack.artist} - ${currentTrack.title}` : currentTrack.title}
+      >
         <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} />
-      </div>
+      </button>
       <div className={`player-page__meta slide-${trackDirection}`} key={`meta-${currentTrack.id}`}>
         <p>{currentTrack.artist}</p>
         <h1>{currentTrack.title}</h1>

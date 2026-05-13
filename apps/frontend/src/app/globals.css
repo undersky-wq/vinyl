@@ -1261,6 +1261,7 @@ textarea {
   height: min(72vw, 420px);
   border-radius: 24px;
   object-fit: cover;
+  transition: transform 0.22s ease, filter 0.22s ease;
 }
 
 .player-page__cover-frame {
@@ -1269,6 +1270,32 @@ textarea {
   overflow: hidden;
   border-radius: 24px;
   will-change: transform, opacity;
+}
+
+.player-page__cover-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.player-page__cover-button:disabled {
+  cursor: default;
+}
+
+.player-page__cover-button:not(:disabled):hover > img {
+  transform: scale(1.035);
+  filter: brightness(1.04);
+}
+
+.mini-player__track img {
+  border-radius: 12px;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.mini-player__track:hover img {
+  transform: scale(1.06);
+  filter: brightness(1.06);
 }
 
 .player-page__cover-frame.slide-next {

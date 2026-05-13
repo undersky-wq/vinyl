@@ -16,6 +16,7 @@ export type PlayerTrack = {
   artist: string;
   audioUrl: string;
   coverUrl: string;
+  releaseId?: string;
   waveformData?: number[];
 };
 
@@ -145,6 +146,27 @@ function getRandomNextIndex(currentIndex: number, size: number) {
 
 function mergeTrackById(tracks: PlayerTrack[], nextTrack: PlayerTrack) {
   return tracks.map((track) => (track.id === nextTrack.id ? { ...track, ...nextTrack } : track));
+}
+
+function getReleaseScopedDisplayQueue(queue: PlayerTrack[], track: PlayerTrack) {
+  if (!track.releaseId) {
+    return null;
+  }
+
+  const releaseQueue = queue.filter((item) => item.releaseId === track.releaseId);
+  return releaseQueue.length ? releaseQueue : null;
+}
+
+function getNextDisplayQueue(
+  queue: PlayerTrack[],
+  currentDisplayQueue: PlayerTrack[],
+  track: PlayerTrack,
+) {
+  if (currentDisplayQueue.some((item) => item.id === track.id)) {
+    return currentDisplayQueue;
+  }
+
+  return getReleaseScopedDisplayQueue(queue, track) || currentDisplayQueue;
 }
 
 function updateMediaSessionPosition(audio: HTMLAudioElement | null) {
@@ -389,10 +411,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       sharedCurrentIndex = nextIndex;
       sharedCurrentTrack = nextTrack;
+      sharedDisplayQueue = getNextDisplayQueue(queueRef.current, displayQueueRef.current, nextTrack);
       currentIndexRef.current = nextIndex;
       currentTrackRef.current = nextTrack;
+      displayQueueRef.current = sharedDisplayQueue;
       setCurrentIndex(nextIndex);
       setCurrentTrack(nextTrack);
+      setDisplayQueue(sharedDisplayQueue);
     };
 
     const onError = () => {
@@ -607,10 +632,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     sharedCurrentIndex = nextIndex;
     sharedCurrentTrack = nextTrack;
+    sharedDisplayQueue = getNextDisplayQueue(queueRef.current, displayQueueRef.current, nextTrack);
     currentIndexRef.current = nextIndex;
     currentTrackRef.current = nextTrack;
+    displayQueueRef.current = sharedDisplayQueue;
     setCurrentIndex(nextIndex);
     setCurrentTrack(nextTrack);
+    setDisplayQueue(sharedDisplayQueue);
   };
 
   const playPrevious = () => {
@@ -645,10 +673,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     sharedCurrentIndex = previousIndex;
     sharedCurrentTrack = previousTrack;
+    sharedDisplayQueue = getNextDisplayQueue(queueRef.current, displayQueueRef.current, previousTrack);
     currentIndexRef.current = previousIndex;
     currentTrackRef.current = previousTrack;
+    displayQueueRef.current = sharedDisplayQueue;
     setCurrentIndex(previousIndex);
     setCurrentTrack(previousTrack);
+    setDisplayQueue(sharedDisplayQueue);
   };
 
   const togglePlayback = () => {

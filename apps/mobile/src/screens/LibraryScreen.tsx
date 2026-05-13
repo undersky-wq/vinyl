@@ -50,6 +50,7 @@ function buildPlayableTracks(release: Release) {
         artist: getTrackArtist(release, track.artists),
         audioUrl,
         coverUrl: getCoverUrl(release),
+        releaseId: release.id,
         durationRaw: track.durationRaw,
         durationSec: track.durationSec,
         waveformData: track.waveformData,
@@ -92,11 +93,6 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
         );
       });
   }, [query, releases]);
-
-  const visibleQueue = useMemo(
-    () => visibleReleases.flatMap((release) => buildPlayableTracks(release).map((row) => row.playerTrack)),
-    [visibleReleases],
-  );
 
   async function load() {
     setIsLoading(true);
@@ -251,6 +247,11 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
         keyExtractor={(item) => item.id}
         refreshing={isLoading}
         onRefresh={load}
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        updateCellsBatchingPeriod={70}
+        windowSize={5}
+        removeClippedSubviews
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.filtersBlock}>
@@ -321,6 +322,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
 
               <View style={styles.tracks}>
                 {trackRows.map((row) => {
+                  const releaseQueue = trackRows.map((item) => item.playerTrack);
                   const isFavorite = favoriteIds.has(row.track.id);
                   const isActive = activeTrackId === row.track.id;
                   const isInPlaylist = playlists.some((playlist) =>
@@ -331,7 +333,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
                     <View key={row.track.id} style={styles.trackRow}>
                       <Pressable
                         style={styles.trackPlayArea}
-                        onPress={() => onPlayTrack(row.playerTrack, visibleQueue)}
+                        onPress={() => onPlayTrack(row.playerTrack, releaseQueue)}
                       >
                         <Text style={styles.position}>{row.track.position || ''}</Text>
                         <Text numberOfLines={1} style={[styles.trackName, isActive && styles.trackNameActive]}>

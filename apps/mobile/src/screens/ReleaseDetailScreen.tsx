@@ -34,6 +34,7 @@ function buildPlayableTracks(release: Release) {
         artist: getTrackArtist(release, track.artists),
         audioUrl,
         coverUrl: getCoverUrl(release),
+        releaseId: release.id,
         durationRaw: track.durationRaw,
         durationSec: track.durationSec,
         waveformData: track.waveformData,

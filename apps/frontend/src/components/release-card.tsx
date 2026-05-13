@@ -22,7 +22,7 @@ export function ReleaseCard({ release }: ReleaseCardProps) {
     'https://placehold.co/800x800/png';
 
   const playableTracks: PlayerTrack[] = release.tracks
-    .map((track) => {
+    .map((track): PlayerTrack | null => {
       if (!track.audioUrl) {
         return null;
       }
@@ -33,6 +33,7 @@ export function ReleaseCard({ release }: ReleaseCardProps) {
         artist: release.artist,
         audioUrl: track.audioUrl,
         coverUrl: coverSrc,
+        releaseId: release.id,
       };
     })
     .filter((track): track is PlayerTrack => Boolean(track));

@@ -350,7 +350,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   }, [isLightboxOpen]);
 
   const playableTracks: ReleasePlayerTrack[] = release.tracks
-    .map((track) => {
+    .map((track): ReleasePlayerTrack | null => {
       if (!track.audioFiles?.length) {
         return null;
       }
@@ -363,6 +363,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
         artist: getTrackArtist(track, release.artist),
         audioUrl,
         coverUrl: coverSrc,
+        releaseId: release.id,
         durationRaw: track.durationRaw ?? null,
         durationSec: track.durationSec ?? null,
         waveformData: Array.isArray(track.waveformData)

@@ -1,5 +1,19 @@
-import { useMemo, useRef, useState } from 'react';
-import { Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  Image,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextStyle,
+  View,
+} from 'react-native';
 import { ChevronDown, Heart, ListMusic, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
 import { colors, radius, spacing } from '../theme';
@@ -24,6 +38,7 @@ type FullPlayerProps = {
   isRepeatEnabled: boolean;
   onToggleShuffle: () => void;
   onToggleRepeat: () => void;
+  onOpenRelease?: () => void;
 };
 
 function formatMs(value: number) {
@@ -58,6 +73,77 @@ function sampleWaveform(source: number[] | null | undefined, count: number) {
   });
 }
 
+function MarqueeText({
+  text,
+  style,
+}: {
+  text: string;
+  style: StyleProp<TextStyle>;
+}) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [textWidth, setTextWidth] = useState(0);
+  const gap = 42;
+  const distance = textWidth + gap;
+  const shouldScroll = textWidth > containerWidth + 4;
+
+  useEffect(() => {
+    translateX.stopAnimation();
+    translateX.setValue(0);
+
+    if (!shouldScroll) {
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.delay(3000),
+        Animated.timing(translateX, {
+          toValue: -distance,
+          duration: Math.max(5200, distance * 38),
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateX, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [distance, shouldScroll, text, translateX]);
+
+  return (
+    <View
+      style={styles.marqueeViewport}
+      onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
+    >
+      <Animated.View
+        style={[styles.marqueeTrack, { transform: [{ translateX }] }]}
+      >
+        <Text
+          numberOfLines={1}
+          onLayout={(event) => setTextWidth(event.nativeEvent.layout.width)}
+          style={style}
+        >
+          {text}
+        </Text>
+        {shouldScroll ? (
+          <Text numberOfLines={1} style={[style, styles.marqueeClone]}>
+            {text}
+          </Text>
+        ) : null}
+      </Animated.View>
+    </View>
+  );
+}
+
 export function FullPlayer({
   track,
   visible,
@@ -77,43 +163,50 @@ export function FullPlayer({
   isRepeatEnabled,
   onToggleShuffle,
   onToggleRepeat,
+  onOpenRelease,
 }: FullPlayerProps) {
   const [progressWidth, setProgressWidth] = useState(1);
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const waveformTouchRef = useRef<View>(null);
+  const waveformLeftRef = useRef(0);
   const dragProgressRef = useRef<number | null>(null);
   const dragCommittedRef = useRef(false);
-
-  if (!track) {
-    return null;
-  }
 
   const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
   const visibleProgress = dragProgress ?? progress;
   const visiblePositionMs =
     dragProgress !== null && durationMs > 0 ? Math.round(durationMs * dragProgress) : positionMs;
-  const waveformBars = sampleWaveform(track.waveformData, 86);
 
-  function getSeekRatio(locationX: number) {
-    return Math.max(0, Math.min(1, locationX / Math.max(progressWidth, 1)));
+  function measureWaveform() {
+    waveformTouchRef.current?.measureInWindow((x, _y, width) => {
+      waveformLeftRef.current = x;
+      if (width > 0) {
+        setProgressWidth(width);
+      }
+    });
   }
 
-  function updateDrag(locationX: number) {
+  function getSeekRatio(pageX: number) {
+    return Math.max(0, Math.min(1, (pageX - waveformLeftRef.current) / Math.max(progressWidth, 1)));
+  }
+
+  function updateDrag(pageX: number) {
     dragCommittedRef.current = false;
     setIsSeeking(true);
-    const nextRatio = getSeekRatio(locationX);
+    const nextRatio = getSeekRatio(pageX);
     dragProgressRef.current = nextRatio;
     setDragProgress(nextRatio);
   }
 
-  function commitDrag(locationX?: number) {
+  function commitDrag(pageX?: number) {
     if (dragCommittedRef.current) {
       return;
     }
 
     dragCommittedRef.current = true;
-    const nextRatio = typeof locationX === 'number' ? getSeekRatio(locationX) : dragProgressRef.current;
+    const nextRatio = typeof pageX === 'number' ? getSeekRatio(pageX) : dragProgressRef.current;
     if (nextRatio === null) {
       setIsSeeking(false);
       return;
@@ -145,14 +238,16 @@ export function FullPlayer({
         onStartShouldSetPanResponderCapture: () => true,
         onMoveShouldSetPanResponderCapture: () => true,
         onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
         onPanResponderGrant: (event) => {
-          updateDrag(event.nativeEvent.locationX);
+          measureWaveform();
+          updateDrag(event.nativeEvent.pageX);
         },
         onPanResponderMove: (event) => {
-          updateDrag(event.nativeEvent.locationX);
+          updateDrag(event.nativeEvent.pageX);
         },
         onPanResponderRelease: (event) => {
-          commitDrag(event.nativeEvent.locationX);
+          commitDrag(event.nativeEvent.pageX);
         },
         onPanResponderTerminate: () => {
           cancelDrag();
@@ -160,6 +255,12 @@ export function FullPlayer({
       }),
     [progressWidth, isPlaying, durationMs],
   );
+
+  if (!track) {
+    return null;
+  }
+
+  const waveformBars = sampleWaveform(track.waveformData, 86);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
@@ -172,21 +273,27 @@ export function FullPlayer({
         </Pressable>
 
         <View style={styles.content}>
-          <Image source={{ uri: track.coverUrl }} style={styles.cover} />
+          <Pressable
+            style={styles.coverButton}
+            onPress={onOpenRelease}
+            disabled={!onOpenRelease || !track.releaseId}
+          >
+            <Image source={{ uri: track.coverUrl }} style={styles.cover} />
+          </Pressable>
 
           <View style={styles.meta}>
-            <Text numberOfLines={2} style={styles.title}>
-              {track.title}
-            </Text>
-            <Text numberOfLines={1} style={styles.artist}>
-              {track.artist}
-            </Text>
+            <MarqueeText text={track.title} style={styles.title} />
+            <MarqueeText text={track.artist} style={styles.artist} />
           </View>
 
           <View style={styles.progressWrap}>
             <View
+              ref={waveformTouchRef}
               style={styles.progressTouchArea}
-              onLayout={(event) => setProgressWidth(event.nativeEvent.layout.width)}
+              onLayout={(event) => {
+                setProgressWidth(event.nativeEvent.layout.width);
+                requestAnimationFrame(measureWaveform);
+              }}
               {...waveformPanResponder.panHandlers}
             >
               <View style={[styles.waveformTrack, isSeeking && styles.progressTrackSeeking]}>
@@ -313,7 +420,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 38,
+    top: Math.max((StatusBar.currentHeight || 0) + 12, 42),
     right: spacing.md,
     zIndex: 4,
     width: 40,
@@ -332,7 +439,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 24,
     paddingHorizontal: spacing.lg,
-    paddingTop: 72,
+    paddingTop: 94,
     paddingBottom: spacing.lg,
   },
   cover: {
@@ -341,8 +448,22 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: colors.panelSoft,
   },
+  coverButton: {
+    width: '100%',
+  },
   meta: {
     gap: 6,
+  },
+  marqueeViewport: {
+    overflow: 'hidden',
+    width: '100%',
+  },
+  marqueeTrack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  marqueeClone: {
+    marginLeft: 42,
   },
   title: {
     color: colors.text,
@@ -430,20 +551,30 @@ const styles = StyleSheet.create({
   },
   queueLayer: {
     position: 'absolute',
-    inset: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     justifyContent: 'flex-end',
+    zIndex: 50,
+    elevation: 50,
   },
   queueBackdrop: {
     position: 'absolute',
-    inset: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     backgroundColor: 'rgba(0,0,0,0.34)',
   },
   queueSheet: {
-    maxHeight: '48%',
+    width: '100%',
+    alignSelf: 'stretch',
+    maxHeight: '62%',
     gap: 10,
     paddingHorizontal: spacing.md,
     paddingTop: 10,
-    paddingBottom: 22,
+    paddingBottom: 26,
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     backgroundColor: 'rgba(24,24,24,0.98)',
@@ -461,7 +592,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   queue: {
-    maxHeight: 260,
+    maxHeight: 360,
   },
   queueRow: {
     minHeight: 48,

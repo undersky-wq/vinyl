@@ -380,9 +380,23 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             <ChevronDown size={19} />
           </button>
 
-          <div className={`player-page__cover-frame slide-${trackDirection}`} key={`mobile-cover-${currentTrack.id}`}>
+          <button
+            type="button"
+            className={`player-page__cover-frame player-page__cover-button slide-${trackDirection}`}
+            key={`mobile-cover-${currentTrack.id}`}
+            onClick={() => {
+              if (!currentTrack.releaseId) {
+                return;
+              }
+
+              setIsFullPlayerOpen(false);
+              router.push(`/releases/${currentTrack.releaseId}`);
+            }}
+            disabled={!currentTrack.releaseId}
+            aria-label={currentTrack.releaseId ? `${currentTrack.artist} - ${currentTrack.title}` : currentTrack.title}
+          >
             <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} />
-          </div>
+          </button>
           <div className={`player-page__meta slide-${trackDirection}`} key={`mobile-meta-${currentTrack.id}`}>
             <p>{currentTrack.artist}</p>
             <h1>{currentTrack.title}</h1>

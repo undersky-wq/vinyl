@@ -31,6 +31,7 @@ function toPlayerTrack(track: FavoriteTrack): PlayerTrack | null {
     artist: getTrackArtist(track),
     audioUrl,
     coverUrl: getCoverUrl(track.release),
+    releaseId: track.release.id,
     durationRaw: track.durationRaw,
     durationSec: track.durationSec,
     waveformData: track.waveformData,

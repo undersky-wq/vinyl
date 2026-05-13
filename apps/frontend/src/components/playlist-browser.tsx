@@ -228,6 +228,7 @@ export function PlaylistBrowser({
           artist: item.track.artists?.length ? item.track.artists.join(', ') : release.artist,
           audioUrl,
           coverUrl,
+          releaseId: release.id,
           durationRaw: item.track.durationRaw,
           durationSec: item.track.durationSec,
           bpm: item.track.bpm,

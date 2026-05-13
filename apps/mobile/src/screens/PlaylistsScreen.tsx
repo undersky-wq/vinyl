@@ -29,6 +29,7 @@ function toPlayerTrack(item: Playlist['items'][number]): PlayerTrack | null {
     artist: getTrackArtist(item.track),
     audioUrl,
     coverUrl: getCoverUrl(item.track.release),
+    releaseId: item.track.release.id,
     durationRaw: item.track.durationRaw,
     durationSec: item.track.durationSec,
     waveformData: item.track.waveformData,

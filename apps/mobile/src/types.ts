@@ -64,6 +64,7 @@ export type PlayerTrack = {
   audioUrl: string;
   localAudioUrl?: string | null;
   coverUrl: string;
+  releaseId?: string;
   durationRaw?: string | null;
   durationSec?: number | null;
   waveformData?: number[] | null;
