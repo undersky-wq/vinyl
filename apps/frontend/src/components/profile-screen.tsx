@@ -205,8 +205,13 @@ export function ProfileScreen({
       setDiscogsProgress(100);
       setStatus(lang === 'ru' ? 'Синхронизация завершена.' : 'Sync completed.');
       router.refresh();
-    } catch {
-      setStatus(lang === 'ru' ? 'Ошибка синхронизации.' : 'Sync failed.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      setStatus(
+        lang === 'ru'
+          ? `Ошибка синхронизации${message ? `: ${message}` : '.'}`
+          : `Sync failed${message ? `: ${message}` : '.'}`,
+      );
     } finally {
       if (discogsProgressTimerRef.current) {
         clearInterval(discogsProgressTimerRef.current);

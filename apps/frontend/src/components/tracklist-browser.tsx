@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { Check, ChevronDown, Heart, ListMusic, Pause, Play, Plus } from 'lucide-react';
+import { Heart, ListMusic, Pause, Play, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPlaylist, getLibraryReleasesFeed } from '../lib/api';
@@ -37,15 +37,13 @@ type FeedTrack = PlayerTrack & {
   waveformData: number[];
 };
 
-type FilterKey = 'style' | 'artist' | 'key' | null;
 type LibraryViewState = {
   releases: Release[];
   hasMore: boolean;
   total: number;
   currentPage: number;
   pageSize: number;
-  styleValue: string;
-  artist: string;
+  selectedStyles: string[];
   keyValue: string;
   scrollY: number;
 };
@@ -65,10 +63,16 @@ function readLibraryViewState() {
       return null;
     }
 
-    const parsed = JSON.parse(rawState) as Partial<LibraryViewState>;
+    const parsed = JSON.parse(rawState) as Partial<LibraryViewState> & { styleValue?: string };
     if (!Array.isArray(parsed.releases)) {
       return null;
     }
+
+    const selectedStyles = Array.isArray(parsed.selectedStyles)
+      ? parsed.selectedStyles.filter((value): value is string => typeof value === 'string' && value.length > 0)
+      : typeof parsed.styleValue === 'string' && parsed.styleValue
+        ? [parsed.styleValue]
+        : [];
 
     return {
       releases: parsed.releases,
@@ -76,8 +80,7 @@ function readLibraryViewState() {
       total: typeof parsed.total === 'number' ? parsed.total : parsed.releases.length,
       currentPage: typeof parsed.currentPage === 'number' ? parsed.currentPage : 1,
       pageSize: typeof parsed.pageSize === 'number' ? parsed.pageSize : 40,
-      styleValue: parsed.styleValue || '',
-      artist: parsed.artist || '',
+      selectedStyles,
       keyValue: parsed.keyValue || '',
       scrollY: typeof parsed.scrollY === 'number' ? parsed.scrollY : 0,
     } satisfies LibraryViewState;
@@ -142,26 +145,6 @@ function sortPlaylists(playlists: PlaylistSummary[]) {
   return [...playlists].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function getFilterLabel(params: {
-  lang: SiteLang;
-  filter: Exclude<FilterKey, null>;
-  value: string;
-}) {
-  if (params.value) {
-    return params.value;
-  }
-
-  if (params.filter === 'style') {
-    return params.lang === 'ru' ? 'Все стили' : 'All styles';
-  }
-
-  if (params.filter === 'artist') {
-    return params.lang === 'ru' ? 'Все артисты' : 'All artists';
-  }
-
-  return params.lang === 'ru' ? 'Все ключи' : 'All keys';
-}
-
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
   if (durationRaw) {
     return durationRaw;
@@ -174,6 +157,12 @@ function formatTrackDuration(durationRaw?: string | null, durationSec?: number |
   const minutes = Math.floor(durationSec / 60);
   const seconds = durationSec % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function toggleListValue(values: string[], nextValue: string) {
+  return values.includes(nextValue)
+    ? values.filter((value) => value !== nextValue)
+    : [...values, nextValue];
 }
 
 function ReleaseWaveform({
@@ -292,11 +281,11 @@ export function TracklistBrowser({
   const { favoriteTrackIds, toggleFavorite } = useFavorites();
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { playQueue, togglePlayback } = usePlayerActions();
-  const [styleValue, setStyleValue] = useState(() => restoredViewStateRef.current?.styleValue || '');
-  const [artist, setArtist] = useState(() => restoredViewStateRef.current?.artist || '');
+  const [selectedStyles, setSelectedStyles] = useState(() => restoredViewStateRef.current?.selectedStyles || []);
   const [keyValue, setKeyValue] = useState(() => restoredViewStateRef.current?.keyValue || '');
   const [localPlaylists, setLocalPlaylists] = useState(() => sortPlaylists(playlists));
-  const [openFilter, setOpenFilter] = useState<FilterKey>(null);
+  const [isStyleExpanded, setIsStyleExpanded] = useState(false);
+  const [isKeyExpanded, setIsKeyExpanded] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
   const [status, setStatus] = useState('');
   const [loadedReleases, setLoadedReleases] = useState(() => restoredViewStateRef.current?.releases || releases);
@@ -308,24 +297,29 @@ export function TracklistBrowser({
   );
   const [isFeedLoading, setIsFeedLoading] = useState(false);
   const [visibleReleaseCount, setVisibleReleaseCount] = useState(LIBRARY_VISIBLE_RELEASE_BATCH);
-  const filterRef = useRef<HTMLDivElement | null>(null);
   const feedLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(false);
   const didMountRef = useRef(false);
+  const selectedStylesKey = selectedStyles.join('|');
 
   const feed = useMemo(() => buildFeed(loadedReleases), [loadedReleases]);
   const styles = useMemo(
     () => initialOptions?.styles ?? dedupe(feed.flatMap((track) => track.styles)),
     [feed, initialOptions?.styles],
   );
-  const artists = useMemo(
-    () => initialOptions?.artists ?? dedupe(feed.map((track) => track.artist)),
-    [feed, initialOptions?.artists],
-  );
   const keys = useMemo(
     () => initialOptions?.keys ?? dedupe(feed.map((track) => track.keyValue || '')),
     [feed, initialOptions?.keys],
   );
+  const popularStyles = styles.slice(0, 11);
+  const selectedHiddenStyles = selectedStyles.filter((style) => !popularStyles.includes(style));
+  const collapsedStyles = [...new Set([...popularStyles, ...selectedHiddenStyles])];
+  const visibleStyles = isStyleExpanded ? styles : collapsedStyles;
+  const canToggleStyles = styles.length > collapsedStyles.length;
+  const popularKeys = keys.slice(0, 11);
+  const collapsedKeys = keyValue && !popularKeys.includes(keyValue) ? [...popularKeys, keyValue] : popularKeys;
+  const visibleKeys = isKeyExpanded ? keys : collapsedKeys;
+  const canToggleKeys = keys.length > collapsedKeys.length;
 
   useEffect(() => {
     setLocalPlaylists(sortPlaylists(playlists));
@@ -367,12 +361,11 @@ export function TracklistBrowser({
       total: totalReleases,
       currentPage,
       pageSize: selectedPageSize,
-      styleValue,
-      artist,
+      selectedStyles,
       keyValue,
       scrollY: typeof window === 'undefined' ? 0 : window.scrollY,
     });
-  }, [artist, currentPage, hasMore, keyValue, loadedReleases, selectedPageSize, styleValue, totalReleases]);
+  }, [currentPage, hasMore, keyValue, loadedReleases, selectedPageSize, selectedStylesKey, totalReleases]);
 
   useEffect(() => {
     let frame = 0;
@@ -390,8 +383,7 @@ export function TracklistBrowser({
           total: totalReleases,
           currentPage,
           pageSize: selectedPageSize,
-          styleValue,
-          artist,
+          selectedStyles,
           keyValue,
           scrollY: window.scrollY,
         });
@@ -405,7 +397,7 @@ export function TracklistBrowser({
       }
       window.removeEventListener('scroll', persistScrollPosition);
     };
-  }, [artist, currentPage, hasMore, keyValue, loadedReleases, selectedPageSize, styleValue, totalReleases]);
+  }, [currentPage, hasMore, keyValue, loadedReleases, selectedPageSize, selectedStylesKey, totalReleases]);
 
   const loadLibraryFeed = useCallback(async (page: number, nextPageSize = selectedPageSize) => {
     if (requestRef.current) {
@@ -419,11 +411,8 @@ export function TracklistBrowser({
     const safePage = Math.max(1, page);
     params.set('limit', String(nextPageSize));
     params.set('offset', String((safePage - 1) * nextPageSize));
-    if (styleValue) {
-      params.set('style', styleValue);
-    }
-    if (artist) {
-      params.set('artist', artist);
+    if (selectedStyles.length) {
+      params.set('style', selectedStyles.join(','));
     }
     if (keyValue) {
       params.set('key', keyValue);
@@ -444,25 +433,22 @@ export function TracklistBrowser({
       requestRef.current = false;
       setIsFeedLoading(false);
     }
-  }, [artist, keyValue, lang, selectedPageSize, styleValue]);
+  }, [keyValue, lang, selectedPageSize, selectedStylesKey]);
 
   const buildLibraryFeedParams = useCallback(
     (limit: number, offset: number) => {
       const params = new URLSearchParams();
       params.set('limit', String(limit));
       params.set('offset', String(offset));
-      if (styleValue) {
-        params.set('style', styleValue);
-      }
-      if (artist) {
-        params.set('artist', artist);
+      if (selectedStyles.length) {
+        params.set('style', selectedStyles.join(','));
       }
       if (keyValue) {
         params.set('key', keyValue);
       }
       return params;
     },
-    [artist, keyValue, styleValue],
+    [keyValue, selectedStylesKey],
   );
 
   const loadFullFilteredQueue = useCallback(async () => {
@@ -491,7 +477,7 @@ export function TracklistBrowser({
     }
 
     void loadLibraryFeed(1);
-  }, [artist, keyValue, loadLibraryFeed, styleValue]);
+  }, [keyValue, loadLibraryFeed, selectedStylesKey]);
 
   useEffect(() => {
     if (loadedReleases.length > 0 || isFeedLoading || totalReleases <= 0) {
@@ -501,24 +487,11 @@ export function TracklistBrowser({
     void loadLibraryFeed(1);
   }, [isFeedLoading, loadLibraryFeed, loadedReleases.length, totalReleases]);
 
-  useEffect(() => {
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node;
-
-      if (filterRef.current && !filterRef.current.contains(target)) {
-        setOpenFilter(null);
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, []);
-
   const filteredFeed = feed.filter((track) => {
-    const matchesStyle = !styleValue || track.styles.includes(styleValue);
-    const matchesArtist = !artist || track.artist === artist;
+    const matchesStyle =
+      selectedStyles.length === 0 || selectedStyles.some((style) => track.styles.includes(style));
     const matchesKey = !keyValue || track.keyValue === keyValue;
-    return matchesStyle && matchesArtist && matchesKey;
+    return matchesStyle && matchesKey;
   });
   const playableFilteredFeed = filteredFeed.filter((track) => Boolean(track.audioUrl));
   const totalPages = Math.max(1, Math.ceil(totalReleases / selectedPageSize));
@@ -552,7 +525,7 @@ export function TracklistBrowser({
 
   useEffect(() => {
     setVisibleReleaseCount(LIBRARY_VISIBLE_RELEASE_BATCH);
-  }, [artist, currentPage, keyValue, selectedPageSize, styleValue]);
+  }, [currentPage, keyValue, selectedPageSize, selectedStylesKey]);
 
   useEffect(() => {
     const target = feedLoadMoreRef.current;
@@ -712,68 +685,75 @@ export function TracklistBrowser({
     }
   }
 
-  function renderFilterMenu(
-    filter: Exclude<FilterKey, null>,
-    value: string,
-    items: string[],
-    onSelect: (nextValue: string) => void,
-  ) {
-    const isOpen = openFilter === filter;
-
-    return (
-      <div className="library-filter library-filter--menu">
-        <div className="library-filter__menu-shell" ref={isOpen ? filterRef : null}>
-          <button
-            type="button"
-            className={`library-filter__trigger${isOpen ? ' active' : ''}${value ? ' selected' : ''}`}
-            onClick={() => setOpenFilter((current) => (current === filter ? null : filter))}
-          >
-            <span>{getFilterLabel({ lang, filter, value })}</span>
-            <ChevronDown size={16} />
-          </button>
-
-          {isOpen ? (
-            <div className="library-filter__menu">
-              <button
-                type="button"
-                className={`library-filter__menu-item${!value ? ' selected' : ''}`}
-                onClick={() => {
-                  onSelect('');
-                  setOpenFilter(null);
-                }}
-              >
-                <span>{getFilterLabel({ lang, filter, value: '' })}</span>
-                {!value ? <Check size={14} /> : null}
-              </button>
-
-              {items.map((item) => (
-                <button
-                  type="button"
-                  key={`${filter}-${item}`}
-                  className={`library-filter__menu-item${value === item ? ' selected' : ''}`}
-                  onClick={() => {
-                    onSelect(item);
-                    setOpenFilter(null);
-                  }}
-                >
-                  <span>{item}</span>
-                  {value === item ? <Check size={14} /> : null}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="library-shell">
       <section className="library-main">
-        <div className="library-toolbar library-toolbar--filters-only">
-          {renderFilterMenu('style', styleValue, styles, setStyleValue)}
-          {renderFilterMenu('artist', artist, artists, setArtist)}
-          {renderFilterMenu('key', keyValue, keys, setKeyValue)}
+        <div className="library-chip-filters">
+          <section className={`filters filters--library${isStyleExpanded ? ' expanded' : ''}`}>
+            <button
+              type="button"
+              className={`chip${selectedStyles.length === 0 ? ' active' : ''}`}
+              onClick={() => setSelectedStyles([])}
+            >
+              {lang === 'ru' ? 'Все стили' : 'All styles'}
+            </button>
+
+            {visibleStyles.map((style) => (
+              <button
+                type="button"
+                className={`chip${selectedStyles.includes(style) ? ' active' : ''}`}
+                key={`library-style-${style}`}
+                onClick={() => setSelectedStyles((current) => toggleListValue(current, style))}
+              >
+                {style}
+              </button>
+            ))}
+
+            {canToggleStyles ? (
+              <button
+                type="button"
+                className="chip home-style-toggle"
+                onClick={() => setIsStyleExpanded((current) => !current)}
+                aria-expanded={isStyleExpanded}
+              >
+                ...
+              </button>
+            ) : null}
+          </section>
+
+          {keys.length ? (
+            <section className={`filters filters--library${isKeyExpanded ? ' expanded' : ''}`}>
+              <button
+                type="button"
+                className={`chip${!keyValue ? ' active' : ''}`}
+                onClick={() => setKeyValue('')}
+              >
+                {lang === 'ru' ? 'Все ключи' : 'All keys'}
+              </button>
+
+              {visibleKeys.map((key) => (
+                <button
+                  type="button"
+                  className={`chip${keyValue === key ? ' active' : ''}`}
+                  key={`library-key-${key}`}
+                  onClick={() => setKeyValue((current) => (current === key ? '' : key))}
+                >
+                  {key}
+                </button>
+              ))}
+
+              {canToggleKeys ? (
+                <button
+                  type="button"
+                  className="chip home-style-toggle"
+                  onClick={() => setIsKeyExpanded((current) => !current)}
+                  aria-expanded={isKeyExpanded}
+                >
+                  ...
+                </button>
+              ) : null}
+            </section>
+          ) : null}
         </div>
 
         {renderPagination('top')}

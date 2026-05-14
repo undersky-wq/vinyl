@@ -74,6 +74,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
   const [selectedKey, setSelectedKey] = useState('');
   const [query, setQuery] = useState('');
   const [openFilter, setOpenFilter] = useState<'style' | 'artist' | 'key' | null>(null);
+  const [isStylesExpanded, setIsStylesExpanded] = useState(false);
   const [isStylePickerOpen, setIsStylePickerOpen] = useState(false);
   const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
@@ -91,6 +92,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
     return releases
       .filter((release) => buildPlayableTracks(release).length > 0);
   }, [releases]);
+  const visibleStyles = isStylesExpanded ? stylesList : stylesList.slice(0, 4);
 
   async function load(page = currentPage, pageSize = selectedPageSize) {
     setIsLoading(true);
@@ -359,6 +361,37 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.filtersBlock}>
+            <View style={[styles.chips, isStylesExpanded && styles.chipsExpanded]}>
+              <Pressable
+                style={[styles.chip, selectedStyles.length === 0 && styles.chipActive]}
+                onPress={() => setSelectedStyles([])}
+              >
+                <Text style={[styles.chipText, selectedStyles.length === 0 && styles.chipTextActive]}>
+                  {lang === 'ru' ? 'Р’СЃРµ' : 'All'}
+                </Text>
+              </Pressable>
+
+              {visibleStyles.map((item) => {
+                const active = selectedStyles.includes(item.name);
+
+                return (
+                  <Pressable
+                    key={item.name}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => toggleStyle(item.name)}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.name}</Text>
+                  </Pressable>
+                );
+              })}
+
+              {stylesList.length > 4 ? (
+                <Pressable style={styles.chip} onPress={() => setIsStylesExpanded((current) => !current)}>
+                  <Text style={styles.chipText}>...</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
             <View style={styles.selectedStyleRow}>
               <Pressable style={styles.filterButton} onPress={() => setIsStylePickerOpen((current) => !current)}>
                 <Text style={styles.filterButtonText}>{lang === 'ru' ? 'Все стили' : 'All styles'}</Text>
@@ -717,9 +750,38 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   selectedStyleRow: {
+    display: 'none',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 9,
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+    overflow: 'hidden',
+    maxHeight: 91,
+  },
+  chipsExpanded: {
+    maxHeight: 1000,
+  },
+  chip: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: colors.panel,
+  },
+  chipActive: {
+    backgroundColor: 'rgba(181,120,255,0.14)',
+  },
+  chipText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: colors.accent,
   },
   filterButton: {
     alignSelf: 'flex-start',

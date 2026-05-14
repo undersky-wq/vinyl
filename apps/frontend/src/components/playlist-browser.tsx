@@ -355,39 +355,11 @@ export function PlaylistBrowser({
           visiblePlaylistSummaries.map((playlist) => (
             <div
               key={playlist.id}
-              className={`playlist-chip playlist-chip--editable${playlist.id === activePlaylist?.id ? ' active' : ''}`}
+              className={`playlist-chip${playlist.id === activePlaylist?.id ? ' active' : ''}`}
             >
-              {editingPlaylistId === playlist.id ? (
-                <input
-                  autoFocus
-                  className="playlist-chip__input"
-                  value={editingPlaylistName}
-                  onChange={(event) => setEditingPlaylistName(event.target.value)}
-                  onBlur={() => void savePlaylistName()}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      void savePlaylistName();
-                    }
-                    if (event.key === 'Escape') {
-                      setEditingPlaylistId(null);
-                      setEditingPlaylistName('');
-                    }
-                  }}
-                />
-              ) : (
-                <button type="button" className="playlist-chip__select" onClick={() => selectPlaylist(playlist.id)}>
-                  <span>{playlist.name}</span>
-                  <small>{playlist._count.items}</small>
-                </button>
-              )}
-              <button
-                type="button"
-                className="playlist-chip__rename"
-                onClick={() => startRenamePlaylist(playlist)}
-                aria-label={lang === 'ru' ? 'Переименовать плейлист' : 'Rename playlist'}
-              >
-                ✎
+              <button type="button" className="playlist-chip__select" onClick={() => selectPlaylist(playlist.id)}>
+                <span>{playlist.name}</span>
+                <small>{playlist._count.items}</small>
               </button>
             </div>
           ))

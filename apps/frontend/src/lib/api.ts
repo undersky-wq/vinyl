@@ -234,7 +234,7 @@ export async function postDiscogsSync() {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to sync Discogs');
+    throw new Error(await getResponseErrorMessage(response, 'Failed to sync Discogs'));
   }
 
   return parseJsonResponse(response);

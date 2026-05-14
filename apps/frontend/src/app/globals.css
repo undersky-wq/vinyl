@@ -2845,6 +2845,22 @@ textarea {
   gap: 14px;
 }
 
+.library-chip-filters {
+  position: relative;
+  z-index: 12;
+  display: grid;
+  gap: 10px;
+}
+
+.filters--library {
+  align-items: center;
+  margin: 0;
+}
+
+.filters--library .chip {
+  flex: 0 0 auto;
+}
+
 .library-tabs {
   display: flex;
   flex-wrap: wrap;
