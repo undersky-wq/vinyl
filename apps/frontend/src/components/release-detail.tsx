@@ -622,7 +622,6 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
         title: updatedTrack.title,
       },
     }));
-    router.refresh();
   }
 
   async function handleReleaseTextSave(patch: { artist?: string; title?: string }) {
@@ -637,7 +636,6 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       artist: updatedRelease.artist,
       title: updatedRelease.title,
     });
-    router.refresh();
   }
 
   return (

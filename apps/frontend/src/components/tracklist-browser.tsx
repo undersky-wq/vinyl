@@ -320,12 +320,12 @@ export function TracklistBrowser({
     () => initialOptions?.keys ?? dedupe(feed.map((track) => track.keyValue || '')),
     [feed, initialOptions?.keys],
   );
-  const popularStyles = styles.slice(0, isMobileFilters ? 3 : 11);
+  const popularStyles = styles.slice(0, isMobileFilters ? 3 : 8);
   const selectedHiddenStyles = selectedStyles.filter((style) => !popularStyles.includes(style));
   const collapsedStyles = [...new Set([...popularStyles, ...selectedHiddenStyles])];
   const visibleStyles = isStyleExpanded ? styles : collapsedStyles;
   const canToggleStyles = styles.length > collapsedStyles.length;
-  const popularKeys = keys.slice(0, isMobileFilters ? 3 : 11);
+  const popularKeys = keys.slice(0, isMobileFilters ? 3 : 8);
   const selectedHiddenKeys = selectedKeys.filter((key) => !popularKeys.includes(key));
   const collapsedKeys = [...new Set([...popularKeys, ...selectedHiddenKeys])];
   const visibleKeys = isKeyExpanded ? keys : collapsedKeys;

@@ -4,6 +4,9 @@ import { getRelease } from '../../../lib/api';
 import { cookies } from 'next/headers';
 import { normalizeSiteLang } from '../../../lib/language';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function ReleasePage({ params }: { params: Promise<{ id: string }> }) {
   const cookieStore = await cookies();
   const lang = normalizeSiteLang(cookieStore.get('site-lang')?.value);

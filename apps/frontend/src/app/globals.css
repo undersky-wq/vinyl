@@ -2857,15 +2857,24 @@ textarea {
   margin: 0;
   flex-wrap: nowrap;
   overflow: hidden;
+  width: 100%;
 }
 
 .filters--library .chip {
   flex: 0 0 auto;
 }
 
+.filters--library .home-style-toggle {
+  margin-left: auto;
+}
+
 .filters--library.expanded {
   flex-wrap: wrap;
   overflow: visible;
+}
+
+.filters--library.expanded .home-style-toggle {
+  margin-left: 0;
 }
 
 .library-tabs {
@@ -4434,6 +4443,42 @@ textarea {
     line-height: 1.2;
   }
 
+  .library-chip-filters {
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .filters--library {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    max-width: 100%;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  .filters--library.expanded {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .filters--library .chip {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+
+  .filters--library .home-style-toggle {
+    min-width: 44px;
+    margin-left: auto;
+    order: 999;
+  }
+
+  .filters--library.expanded .home-style-toggle {
+    margin-left: 0;
+  }
+
   .home-style-toggle {
     order: 999;
     min-width: 44px;
@@ -4717,16 +4762,21 @@ textarea {
     color: var(--player-accent);
   }
 
-  .playlist-track {
-    grid-template-columns: 48px minmax(0, 1fr) auto;
-    gap: 10px;
+  .playlist-track,
+  .favorites-track {
+    grid-template-columns: 48px 24px minmax(0, 1fr) 42px;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
     min-height: 56px;
     padding: 4px 0;
   }
 
   .playlist-track__number {
     display: inline-flex;
-    font-size: 1rem;
+    justify-content: center;
+    min-width: 0;
+    font-size: 0.8rem;
   }
 
   .playlist-track__cover {
@@ -4743,8 +4793,10 @@ textarea {
   .playlist-track__title {
     display: grid;
     gap: 3px;
+    min-width: 0;
+    overflow: hidden;
     white-space: normal;
-    font-size: 1rem;
+    font-size: 0.8rem;
   }
 
   .playlist-track__title > span:last-child {
@@ -4757,6 +4809,7 @@ textarea {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 0.8rem;
   }
 
   .playlist-track__artist::after {
@@ -4768,7 +4821,9 @@ textarea {
   }
 
   .playlist-track__time {
-    font-size: 1rem;
+    min-width: 0;
+    justify-self: end;
+    font-size: 0.8rem;
   }
 
   .mini-player {
@@ -4956,13 +5011,6 @@ textarea {
 
   .favorites-page__header {
     display: none;
-  }
-
-  .favorites-track {
-    grid-template-columns: 48px minmax(0, 1fr) 44px;
-    gap: 10px;
-    min-height: 56px;
-    padding: 4px 0;
   }
 
   .player-page__collapse {
