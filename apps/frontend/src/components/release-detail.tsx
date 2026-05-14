@@ -610,32 +610,48 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       [trackId]: nextText,
     }));
 
-    const updatedTrack = await updateTrackMetadata(trackId, {
-      ...(patch.title !== undefined ? { title: nextText.title } : {}),
-      ...(patch.artist !== undefined ? { artists: nextText.artist ? [nextText.artist] : [] } : {}),
-    });
+    try {
+      const updatedTrack = await updateTrackMetadata(trackId, {
+        title: nextText.title,
+        artists: nextText.artist ? [nextText.artist] : [],
+      });
 
-    setTrackTextById((current) => ({
-      ...current,
-      [trackId]: {
-        artist: getTrackArtist(updatedTrack, release.artist),
-        title: updatedTrack.title,
-      },
-    }));
+      setTrackTextById((current) => ({
+        ...current,
+        [trackId]: {
+          artist: getTrackArtist(updatedTrack, release.artist),
+          title: updatedTrack.title,
+        },
+      }));
+    } catch (error) {
+      setTrackTextById((current) => ({
+        ...current,
+        [trackId]: currentText,
+      }));
+      window.alert(error instanceof Error ? error.message : 'Track rename failed');
+      throw error;
+    }
   }
 
   async function handleReleaseTextSave(patch: { artist?: string; title?: string }) {
+    const currentText = releaseText;
     const nextText = {
       ...releaseText,
       ...patch,
     };
 
     setReleaseText(nextText);
-    const updatedRelease = await updateReleaseMetadata(release.id, patch);
-    setReleaseText({
-      artist: updatedRelease.artist,
-      title: updatedRelease.title,
-    });
+    try {
+      const updatedRelease = await updateReleaseMetadata(release.id, nextText);
+      setReleaseText({
+        artist: updatedRelease.artist,
+        title: updatedRelease.title,
+      });
+    } catch (error) {
+      setReleaseText(currentText);
+      window.alert(error instanceof Error ? error.message : 'Release rename failed');
+      throw error;
+    }
   }
 
   return (
