@@ -2855,10 +2855,17 @@ textarea {
 .filters--library {
   align-items: center;
   margin: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .filters--library .chip {
   flex: 0 0 auto;
+}
+
+.filters--library.expanded {
+  flex-wrap: wrap;
+  overflow: visible;
 }
 
 .library-tabs {
@@ -4525,6 +4532,10 @@ textarea {
     display: contents;
   }
 
+  .track-row__meta-edit:has(.track-meta-pill:disabled) {
+    display: none;
+  }
+
   .track-row .track-favorite-button,
   .track-row .track-playlist-menu__trigger,
   .track-row .track-icon-button--danger {
@@ -4714,7 +4725,8 @@ textarea {
   }
 
   .playlist-track__number {
-    display: none;
+    display: inline-flex;
+    font-size: 1rem;
   }
 
   .playlist-track__cover {
@@ -4801,6 +4813,26 @@ textarea {
 
   .mobile-player-overlay .player-page__waveform {
     height: 72px;
+  }
+
+  .mobile-player-overlay .player-page {
+    position: relative;
+    isolation: isolate;
+    background:
+      linear-gradient(180deg, rgba(16, 16, 16, 0.35), #101010 54%),
+      var(--player-cover-bg) center top / cover no-repeat,
+      #101010;
+  }
+
+  .mobile-player-overlay .player-page::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--player-cover-bg) center top / cover no-repeat;
+    filter: blur(34px) saturate(1.2);
+    opacity: 0.24;
+    transform: scale(1.08);
   }
 
   .mobile-player-overlay__collapse {

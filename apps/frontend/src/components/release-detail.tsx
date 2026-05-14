@@ -3,7 +3,14 @@
 import { ImagePlus, Play, Plus, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { deleteRelease, deleteTrackAudio, updateReleaseStyles, updateTrackMetadata, uploadReleaseCover } from '../lib/api';
+import {
+  deleteRelease,
+  deleteTrackAudio,
+  updateReleaseMetadata,
+  updateReleaseStyles,
+  updateTrackMetadata,
+  uploadReleaseCover,
+} from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayer } from '../providers/player-provider';
@@ -356,6 +363,10 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   const [styleTags, setStyleTags] = useState(() => [...release.styles]);
   const [styleDraft, setStyleDraft] = useState('');
   const [isSavingStyles, setIsSavingStyles] = useState(false);
+  const [releaseText, setReleaseText] = useState(() => ({
+    artist: release.artist,
+    title: release.title,
+  }));
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [trackMetaById, setTrackMetaById] = useState(() =>
     Object.fromEntries(
@@ -473,6 +484,13 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   useEffect(() => {
     setStyleTags([...release.styles]);
   }, [release.styles]);
+
+  useEffect(() => {
+    setReleaseText({
+      artist: release.artist,
+      title: release.title,
+    });
+  }, [release.artist, release.title]);
 
   useEffect(() => {
     setTrackTextById(
@@ -607,6 +625,21 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
     router.refresh();
   }
 
+  async function handleReleaseTextSave(patch: { artist?: string; title?: string }) {
+    const nextText = {
+      ...releaseText,
+      ...patch,
+    };
+
+    setReleaseText(nextText);
+    const updatedRelease = await updateReleaseMetadata(release.id, patch);
+    setReleaseText({
+      artist: updatedRelease.artist,
+      title: updatedRelease.title,
+    });
+    router.refresh();
+  }
+
   return (
     <div className="release-page">
       <div className="release-header">
@@ -682,9 +715,25 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
         <div className="release-panel">
           <div className="release-title-row">
             <h1 className="release-heading">
-              <span className="release-heading__artist">{release.artist}</span>
+              <EditableTrackText
+                value={releaseText.artist}
+                className="release-heading__artist"
+                disabled={!isAdmin}
+                ariaLabel={lang === 'ru' ? 'Редактировать артиста релиза' : 'Edit release artist'}
+                onSave={async (value) => {
+                  await handleReleaseTextSave({ artist: value });
+                }}
+              />
               <span className="release-heading__dash">—</span>
-              <span className="release-heading__title">{release.title}</span>
+              <EditableTrackText
+                value={releaseText.title}
+                className="release-heading__title"
+                disabled={!isAdmin}
+                ariaLabel={lang === 'ru' ? 'Редактировать название релиза' : 'Edit release title'}
+                onSave={async (value) => {
+                  await handleReleaseTextSave({ title: value });
+                }}
+              />
             </h1>
             {user?.role === 'ADMIN' ? (
               <button

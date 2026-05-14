@@ -44,7 +44,7 @@ type LibraryViewState = {
   currentPage: number;
   pageSize: number;
   selectedStyles: string[];
-  keyValue: string;
+  selectedKeys: string[];
   scrollY: number;
 };
 
@@ -63,7 +63,7 @@ function readLibraryViewState() {
       return null;
     }
 
-    const parsed = JSON.parse(rawState) as Partial<LibraryViewState> & { styleValue?: string };
+    const parsed = JSON.parse(rawState) as Partial<LibraryViewState> & { styleValue?: string; keyValue?: string };
     if (!Array.isArray(parsed.releases)) {
       return null;
     }
@@ -73,6 +73,11 @@ function readLibraryViewState() {
       : typeof parsed.styleValue === 'string' && parsed.styleValue
         ? [parsed.styleValue]
         : [];
+    const selectedKeys = Array.isArray(parsed.selectedKeys)
+      ? parsed.selectedKeys.filter((value): value is string => typeof value === 'string' && value.length > 0)
+      : typeof parsed.keyValue === 'string' && parsed.keyValue
+        ? [parsed.keyValue]
+        : [];
 
     return {
       releases: parsed.releases,
@@ -81,7 +86,7 @@ function readLibraryViewState() {
       currentPage: typeof parsed.currentPage === 'number' ? parsed.currentPage : 1,
       pageSize: typeof parsed.pageSize === 'number' ? parsed.pageSize : 40,
       selectedStyles,
-      keyValue: parsed.keyValue || '',
+      selectedKeys,
       scrollY: typeof parsed.scrollY === 'number' ? parsed.scrollY : 0,
     } satisfies LibraryViewState;
   } catch {
@@ -282,7 +287,7 @@ export function TracklistBrowser({
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { playQueue, togglePlayback } = usePlayerActions();
   const [selectedStyles, setSelectedStyles] = useState(() => restoredViewStateRef.current?.selectedStyles || []);
-  const [keyValue, setKeyValue] = useState(() => restoredViewStateRef.current?.keyValue || '');
+  const [selectedKeys, setSelectedKeys] = useState(() => restoredViewStateRef.current?.selectedKeys || []);
   const [localPlaylists, setLocalPlaylists] = useState(() => sortPlaylists(playlists));
   const [isStyleExpanded, setIsStyleExpanded] = useState(false);
   const [isKeyExpanded, setIsKeyExpanded] = useState(false);
@@ -297,10 +302,14 @@ export function TracklistBrowser({
   );
   const [isFeedLoading, setIsFeedLoading] = useState(false);
   const [visibleReleaseCount, setVisibleReleaseCount] = useState(LIBRARY_VISIBLE_RELEASE_BATCH);
+  const [isMobileFilters, setIsMobileFilters] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 720px)').matches : false,
+  );
   const feedLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(false);
   const didMountRef = useRef(false);
   const selectedStylesKey = selectedStyles.join('|');
+  const selectedKeysKey = selectedKeys.join('|');
 
   const feed = useMemo(() => buildFeed(loadedReleases), [loadedReleases]);
   const styles = useMemo(
@@ -311,19 +320,32 @@ export function TracklistBrowser({
     () => initialOptions?.keys ?? dedupe(feed.map((track) => track.keyValue || '')),
     [feed, initialOptions?.keys],
   );
-  const popularStyles = styles.slice(0, 11);
+  const popularStyles = styles.slice(0, isMobileFilters ? 3 : 11);
   const selectedHiddenStyles = selectedStyles.filter((style) => !popularStyles.includes(style));
   const collapsedStyles = [...new Set([...popularStyles, ...selectedHiddenStyles])];
   const visibleStyles = isStyleExpanded ? styles : collapsedStyles;
   const canToggleStyles = styles.length > collapsedStyles.length;
-  const popularKeys = keys.slice(0, 11);
-  const collapsedKeys = keyValue && !popularKeys.includes(keyValue) ? [...popularKeys, keyValue] : popularKeys;
+  const popularKeys = keys.slice(0, isMobileFilters ? 3 : 11);
+  const selectedHiddenKeys = selectedKeys.filter((key) => !popularKeys.includes(key));
+  const collapsedKeys = [...new Set([...popularKeys, ...selectedHiddenKeys])];
   const visibleKeys = isKeyExpanded ? keys : collapsedKeys;
   const canToggleKeys = keys.length > collapsedKeys.length;
 
   useEffect(() => {
     setLocalPlaylists(sortPlaylists(playlists));
   }, [playlists]);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 720px)');
+    const handleChange = () => setIsMobileFilters(media.matches);
+
+    handleChange();
+    media.addEventListener('change', handleChange);
+
+    return () => {
+      media.removeEventListener('change', handleChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (restoredViewStateRef.current) {
@@ -362,10 +384,10 @@ export function TracklistBrowser({
       currentPage,
       pageSize: selectedPageSize,
       selectedStyles,
-      keyValue,
+      selectedKeys,
       scrollY: typeof window === 'undefined' ? 0 : window.scrollY,
     });
-  }, [currentPage, hasMore, keyValue, loadedReleases, selectedPageSize, selectedStylesKey, totalReleases]);
+  }, [currentPage, hasMore, loadedReleases, selectedKeysKey, selectedPageSize, selectedStylesKey, totalReleases]);
 
   useEffect(() => {
     let frame = 0;
@@ -384,7 +406,7 @@ export function TracklistBrowser({
           currentPage,
           pageSize: selectedPageSize,
           selectedStyles,
-          keyValue,
+          selectedKeys,
           scrollY: window.scrollY,
         });
       });
@@ -397,7 +419,7 @@ export function TracklistBrowser({
       }
       window.removeEventListener('scroll', persistScrollPosition);
     };
-  }, [currentPage, hasMore, keyValue, loadedReleases, selectedPageSize, selectedStylesKey, totalReleases]);
+  }, [currentPage, hasMore, loadedReleases, selectedKeysKey, selectedPageSize, selectedStylesKey, totalReleases]);
 
   const loadLibraryFeed = useCallback(async (page: number, nextPageSize = selectedPageSize) => {
     if (requestRef.current) {
@@ -414,8 +436,8 @@ export function TracklistBrowser({
     if (selectedStyles.length) {
       params.set('style', selectedStyles.join(','));
     }
-    if (keyValue) {
-      params.set('key', keyValue);
+    if (selectedKeys.length) {
+      params.set('key', selectedKeys.join(','));
     }
 
     try {
@@ -433,7 +455,7 @@ export function TracklistBrowser({
       requestRef.current = false;
       setIsFeedLoading(false);
     }
-  }, [keyValue, lang, selectedPageSize, selectedStylesKey]);
+  }, [lang, selectedKeysKey, selectedPageSize, selectedStylesKey]);
 
   const buildLibraryFeedParams = useCallback(
     (limit: number, offset: number) => {
@@ -443,12 +465,12 @@ export function TracklistBrowser({
       if (selectedStyles.length) {
         params.set('style', selectedStyles.join(','));
       }
-      if (keyValue) {
-        params.set('key', keyValue);
+      if (selectedKeys.length) {
+        params.set('key', selectedKeys.join(','));
       }
       return params;
     },
-    [keyValue, selectedStylesKey],
+    [selectedKeysKey, selectedStylesKey],
   );
 
   const loadFullFilteredQueue = useCallback(async () => {
@@ -477,7 +499,7 @@ export function TracklistBrowser({
     }
 
     void loadLibraryFeed(1);
-  }, [keyValue, loadLibraryFeed, selectedStylesKey]);
+  }, [loadLibraryFeed, selectedKeysKey, selectedStylesKey]);
 
   useEffect(() => {
     if (loadedReleases.length > 0 || isFeedLoading || totalReleases <= 0) {
@@ -490,7 +512,7 @@ export function TracklistBrowser({
   const filteredFeed = feed.filter((track) => {
     const matchesStyle =
       selectedStyles.length === 0 || selectedStyles.some((style) => track.styles.includes(style));
-    const matchesKey = !keyValue || track.keyValue === keyValue;
+    const matchesKey = selectedKeys.length === 0 || Boolean(track.keyValue && selectedKeys.includes(track.keyValue));
     return matchesStyle && matchesKey;
   });
   const playableFilteredFeed = filteredFeed.filter((track) => Boolean(track.audioUrl));
@@ -525,7 +547,7 @@ export function TracklistBrowser({
 
   useEffect(() => {
     setVisibleReleaseCount(LIBRARY_VISIBLE_RELEASE_BATCH);
-  }, [currentPage, keyValue, selectedPageSize, selectedStylesKey]);
+  }, [currentPage, selectedKeysKey, selectedPageSize, selectedStylesKey]);
 
   useEffect(() => {
     const target = feedLoadMoreRef.current;
@@ -725,8 +747,8 @@ export function TracklistBrowser({
             <section className={`filters filters--library${isKeyExpanded ? ' expanded' : ''}`}>
               <button
                 type="button"
-                className={`chip${!keyValue ? ' active' : ''}`}
-                onClick={() => setKeyValue('')}
+                className={`chip${selectedKeys.length === 0 ? ' active' : ''}`}
+                onClick={() => setSelectedKeys([])}
               >
                 {lang === 'ru' ? 'Все ключи' : 'All keys'}
               </button>
@@ -734,9 +756,9 @@ export function TracklistBrowser({
               {visibleKeys.map((key) => (
                 <button
                   type="button"
-                  className={`chip${keyValue === key ? ' active' : ''}`}
+                  className={`chip${selectedKeys.includes(key) ? ' active' : ''}`}
                   key={`library-key-${key}`}
-                  onClick={() => setKeyValue((current) => (current === key ? '' : key))}
+                  onClick={() => setSelectedKeys((current) => toggleListValue(current, key))}
                 >
                   {key}
                 </button>

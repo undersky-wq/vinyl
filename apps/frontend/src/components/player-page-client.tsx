@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { ChevronDown, ListMusic, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { SiteLang } from '../lib/language';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
@@ -132,7 +133,10 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   }
 
   return (
-    <section className={`player-page${pageTransition ? ` ${pageTransition}` : ''}`}>
+    <section
+      className={`player-page${pageTransition ? ` ${pageTransition}` : ''}`}
+      style={{ '--player-cover-bg': `url("${currentTrack.coverUrl}")` } as CSSProperties}
+    >
       <button
         type="button"
         className="player-page__collapse"

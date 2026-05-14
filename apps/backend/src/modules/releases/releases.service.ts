@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateManualReleaseDto, ManualTrackInput } from './dto/create-manual-release.dto';
 import { QueryReleasesDto } from './dto/query-releases.dto';
+import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
 
 @Injectable()
@@ -358,7 +359,7 @@ export class ReleasesService {
     const skip = query.offset ? Math.max(Number(query.offset), 0) : 0;
     const styles = this.splitList(query.style);
     const artist = query.artist?.trim();
-    const key = query.key?.trim();
+    const keys = this.splitList(query.key);
     const search = query.search?.trim();
     const searchReleaseIds = search ? await this.findReleaseIdsBySearch(userId, search) : [];
 
@@ -382,7 +383,7 @@ export class ReleasesService {
             ],
           }
         : {}),
-      ...(key ? { key } : {}),
+      ...(keys.length ? { key: { in: keys } } : {}),
     };
     const where: Prisma.ReleaseWhereInput = {
       collectionItems: {
@@ -498,44 +499,7 @@ export class ReleasesService {
       return null;
     }
 
-    const isManualRelease = release.discogsReleaseId < 0;
-    const needsHydration =
-      !isManualRelease &&
-      (release.tracks.length === 0 ||
-        release.genres.length === 0 ||
-        release.styles.length === 0 ||
-        !release.country ||
-        !release.coverStorageUrl ||
-        !release.coverThumbStorageUrl ||
-        !release.coverMediumStorageUrl);
-
-    if (!needsHydration) {
-      return this.signReleaseUrls(release, includeAudioUrls);
-    }
-
-    await this.discogsService.hydrateReleaseFromDiscogs(id);
-
-    const hydratedRelease = await this.prisma.release.findUnique({
-      where: { id },
-      include: {
-        images: true,
-        tracks: {
-          include: {
-            audioFiles: true,
-            storeLinks: true,
-          },
-          orderBy: {
-            position: 'asc',
-          },
-        },
-      },
-    });
-
-    if (!hydratedRelease) {
-      return null;
-    }
-
-    return this.signReleaseUrls(hydratedRelease, includeAudioUrls);
+    return this.signReleaseUrls(release, includeAudioUrls);
   }
 
   async deleteRelease(id: string) {
@@ -635,6 +599,45 @@ export class ReleasesService {
     if (!updatedRelease) {
       throw new NotFoundException('Release not found');
     }
+
+    return this.signReleaseUrls(updatedRelease, true);
+  }
+
+  async updateReleaseMetadata(id: string, dto: UpdateReleaseMetadataDto) {
+    const data: Prisma.ReleaseUpdateInput = {};
+
+    if ('artist' in dto) {
+      const artist = dto.artist?.trim();
+      if (!artist) {
+        throw new BadRequestException('Release artist is required');
+      }
+      data.artist = artist;
+    }
+
+    if ('title' in dto) {
+      const title = dto.title?.trim();
+      if (!title) {
+        throw new BadRequestException('Release title is required');
+      }
+      data.title = title;
+    }
+
+    const updatedRelease = await this.prisma.release.update({
+      where: { id },
+      data,
+      include: {
+        images: true,
+        tracks: {
+          include: {
+            audioFiles: true,
+            storeLinks: true,
+          },
+          orderBy: {
+            position: 'asc',
+          },
+        },
+      },
+    });
 
     return this.signReleaseUrls(updatedRelease, true);
   }

@@ -60,6 +60,38 @@ export class DiscogsService {
 
     for (const item of collection) {
       try {
+        const existingRelease = await this.prisma.release.findUnique({
+          where: {
+            discogsReleaseId: item.basic_information.id,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (existingRelease) {
+          await this.prisma.collectionItem.upsert({
+            where: {
+              userId_releaseId: {
+                userId,
+                releaseId: existingRelease.id,
+              },
+            },
+            create: {
+              userId,
+              releaseId: existingRelease.id,
+              discogsItemId: String(item.id),
+              addedAt: new Date(item.date_added),
+            },
+            update: {
+              discogsItemId: String(item.id),
+              addedAt: new Date(item.date_added),
+            },
+          });
+          syncedReleases.push(existingRelease.id);
+          continue;
+        }
+
         const fullRelease = await this.fetchDiscogsReleaseDetails(item.basic_information.id);
         const source = this.mergeDiscogsRelease(item.basic_information, fullRelease);
         const release = await this.upsertReleaseFromDiscogs(source);

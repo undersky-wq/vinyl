@@ -465,6 +465,26 @@ export async function updateReleaseStyles(releaseId: string, styles: string[]) {
   return parseJsonResponse<Release>(response);
 }
 
+export async function updateReleaseMetadata(
+  releaseId: string,
+  input: { artist?: string; title?: string },
+) {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/metadata`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Release metadata update failed'));
+  }
+
+  return parseJsonResponse<Release>(response);
+}
+
 export async function updateTrackMetadata(
   trackId: string,
   input: { bpm?: number | null; key?: string | null; title?: string; artists?: string[] },
