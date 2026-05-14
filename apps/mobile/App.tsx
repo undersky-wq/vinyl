@@ -33,6 +33,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [currentTrack, setCurrentTrack] = useState<PlayerTrack | null>(null);
   const [queue, setQueue] = useState<PlayerTrack[]>([]);
+  const [queuePreview, setQueuePreview] = useState<PlayerTrack[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
@@ -149,9 +150,10 @@ export default function App() {
     await TrackPlayer.skip(startIndex);
   }
 
-  async function playTrack(track: PlayerTrack, nextQueue?: PlayerTrack[]) {
+  async function playTrack(track: PlayerTrack, nextQueue?: PlayerTrack[], nextQueuePreview?: PlayerTrack[]) {
     try {
       desiredPlayingRef.current = true;
+      setQueuePreview(nextQueuePreview?.length ? nextQueuePreview : nextQueue?.length ? nextQueue : [track]);
       await prepareQueue(nextQueue?.length ? nextQueue : [track], track.id);
       await TrackPlayer.play();
       setIsPlaying(true);
@@ -507,12 +509,13 @@ export default function App() {
             }
           }}
           queue={queue}
+          queuePreview={queuePreview}
           isShuffleEnabled={isShuffleEnabled}
           isRepeatEnabled={isRepeatEnabled}
           onPrevious={() => playByOffset(-1)}
           onNext={() => playByOffset(1)}
           onSeek={seekToRatio}
-          onSelectQueueTrack={(track) => playTrack(track, queue)}
+          onSelectQueueTrack={(track) => playTrack(track, queue, queuePreview)}
           onToggleShuffle={() => setIsShuffleEnabled((current) => !current)}
           onToggleRepeat={() => setIsRepeatEnabled((current) => !current)}
           onOpenRelease={openCurrentTrackRelease}

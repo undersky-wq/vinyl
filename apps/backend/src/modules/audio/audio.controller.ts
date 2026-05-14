@@ -71,6 +71,12 @@ export class AudioController {
     return this.audioService.startNormalizeAudio();
   }
 
+  @Post('normalize/clear')
+  @UseGuards(AdminGuard)
+  clearNormalizeAudio() {
+    return this.audioService.clearNormalizedAudioFiles();
+  }
+
   @Get('normalize/status')
   @UseGuards(AdminGuard)
   normalizeAudioStatus() {

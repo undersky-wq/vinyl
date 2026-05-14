@@ -193,7 +193,7 @@ export class AudioService {
   private async normalizeAudioBuffer(buffer: Buffer) {
     const tempDir = await fs.mkdtemp(join(tmpdir(), 'vinyl-normalize-'));
     const sourcePath = join(tempDir, 'source.mp3');
-    const outputPath = join(tempDir, 'normalized.mp3');
+    const outputPath = join(tempDir, 'prepared.mp3');
 
     try {
       await fs.writeFile(sourcePath, buffer);
@@ -202,6 +202,8 @@ export class AudioService {
         [
           '-v',
           'error',
+          '-err_detect',
+          'ignore_err',
           '-i',
           sourcePath,
           '-map',
@@ -209,14 +211,8 @@ export class AudioService {
           '-vn',
           '-map_metadata',
           '-1',
-          '-af',
-          'loudnorm=I=-14:TP=-1.5:LRA=11',
           '-c:a',
-          'libmp3lame',
-          '-b:a',
-          '320k',
-          '-ar',
-          '44100',
+          'copy',
           '-id3v2_version',
           '3',
           '-write_id3v1',
@@ -498,6 +494,67 @@ export class AudioService {
 
   getNormalizeAudioStatus() {
     return this.normalizeStatus;
+  }
+
+  async clearNormalizedAudioFiles() {
+    const audioFiles = await this.prisma.audioFile.findMany({
+      where: {
+        normalizedStorageKey: {
+          not: null,
+        },
+      },
+      select: {
+        id: true,
+        normalizedStorageKey: true,
+      },
+    });
+    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
+    let deleted = 0;
+    let failed = 0;
+
+    for (const audioFile of audioFiles) {
+      if (!audioFile.normalizedStorageKey) {
+        continue;
+      }
+
+      try {
+        await this.storageService.deleteObject(bucket, audioFile.normalizedStorageKey);
+        deleted += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    await this.prisma.audioFile.updateMany({
+      where: {
+        normalizedStorageKey: {
+          not: null,
+        },
+      },
+      data: {
+        normalizedStorageKey: null,
+        normalizedStorageUrl: null,
+        normalizedMimeType: null,
+        normalizedSizeBytes: null,
+        normalizedAt: null,
+      },
+    });
+
+    this.normalizeStatus = {
+      id: null,
+      status: 'idle',
+      total: 0,
+      processed: 0,
+      normalized: 0,
+      skipped: 0,
+      failed: 0,
+    };
+
+    return {
+      cleared: audioFiles.length,
+      deleted,
+      failed,
+    };
   }
 
   async startBackfillDurations() {

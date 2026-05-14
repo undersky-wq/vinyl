@@ -16,12 +16,13 @@ import {
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Playlist, Release } from '../types';
 
-const PAGE_SIZE = 40;
+const DEFAULT_PAGE_SIZE = 40;
+const PAGE_SIZE_OPTIONS = [20, 40, 60];
 const VISIBLE_PAGE_WINDOW_SIZE = 5;
 
 type LibraryScreenProps = {
   activeTrackId: string | null;
-  onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
+  onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[], queuePreview?: PlayerTrack[]) => void;
   onOpenProfile: () => void;
   avatarUrl?: string | null;
 };
@@ -84,25 +85,27 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalReleases, setTotalReleases] = useState(0);
+  const [selectedPageSize, setSelectedPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const visibleReleases = useMemo(() => {
     return releases
       .filter((release) => buildPlayableTracks(release).length > 0);
   }, [releases]);
 
-  async function load(page = currentPage) {
+  async function load(page = currentPage, pageSize = selectedPageSize) {
     setIsLoading(true);
     setError('');
 
     try {
       const nextPage = Math.max(1, page);
-      const result = await getLibraryFeedFiltered(PAGE_SIZE, (nextPage - 1) * PAGE_SIZE, {
+      const result = await getLibraryFeedFiltered(pageSize, (nextPage - 1) * pageSize, {
         styles: selectedStyles,
         search: query.trim(),
       });
       setReleases(result.releases);
       setTotalReleases(result.total);
       setCurrentPage(nextPage);
+      setSelectedPageSize(pageSize);
       setStylesList((result.options?.styles || []).map((name) => ({ name, count: 0 })));
       void loadPersonalActions();
     } catch {
@@ -199,7 +202,41 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil(totalReleases / PAGE_SIZE));
+  async function loadFullFilteredQueue() {
+    const pageSize = 60;
+    let offset = 0;
+    const nextReleases: Release[] = [];
+
+    while (true) {
+      const result = await getLibraryFeedFiltered(pageSize, offset, {
+        styles: selectedStyles,
+        search: query.trim(),
+      });
+      nextReleases.push(...result.releases);
+
+      if (!result.hasMore || result.releases.length === 0) {
+        break;
+      }
+
+      offset += pageSize;
+    }
+
+    return nextReleases.flatMap((release) => buildPlayableTracks(release).map((row) => row.playerTrack));
+  }
+
+  async function playFromLibrary(row: PlayableTrackRow, releaseQueue: PlayerTrack[]) {
+    try {
+      const fullQueue = await loadFullFilteredQueue();
+      const queueForPlayback = fullQueue.some((track) => track.id === row.playerTrack.id)
+        ? fullQueue
+        : releaseQueue;
+      onPlayTrack(row.playerTrack, queueForPlayback, releaseQueue);
+    } catch {
+      onPlayTrack(row.playerTrack, releaseQueue, releaseQueue);
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalReleases / selectedPageSize));
   const firstVisiblePage = Math.min(
     Math.max(1, currentPage - Math.floor(VISIBLE_PAGE_WINDOW_SIZE / 2)),
     Math.max(1, totalPages - VISIBLE_PAGE_WINDOW_SIZE + 1),
@@ -209,41 +246,60 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
     (_, index) => firstVisiblePage + index,
   );
 
-  function renderPagination() {
-    if (totalReleases <= PAGE_SIZE) {
+  function renderPagination(position: 'top' | 'bottom') {
+    if (totalReleases <= selectedPageSize && position === 'top') {
       return null;
     }
 
     return (
-      <View style={styles.pagination}>
-        <Pressable
-          style={[styles.pageButton, (isLoading || currentPage <= 1) && styles.pageButtonDisabled]}
-          disabled={isLoading || currentPage <= 1}
-          onPress={() => void load(Math.max(1, currentPage - 1))}
-        >
-          <Text style={styles.pageButtonText}>{'<'}</Text>
-        </Pressable>
-        {visiblePageNumbers.map((page) => {
-          const active = page === currentPage;
+      <View style={[styles.pagination, position === 'bottom' && styles.paginationBottom]}>
+        {position === 'bottom' ? (
+          <View style={styles.pageSizePicker}>
+            <Text style={styles.pageSizeLabel}>Per page</Text>
+            {PAGE_SIZE_OPTIONS.map((option) => (
+              <Pressable
+                key={option}
+                style={[styles.pageSizeButton, option === selectedPageSize && styles.pageButtonActive]}
+                disabled={isLoading || option === selectedPageSize}
+                onPress={() => void load(1, option)}
+              >
+                <Text style={[styles.pageButtonText, option === selectedPageSize && styles.pageButtonTextActive]}>
+                  {option}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        <View style={styles.pageButtons}>
+          <Pressable
+            style={[styles.pageButton, (isLoading || currentPage <= 1) && styles.pageButtonDisabled]}
+            disabled={isLoading || currentPage <= 1}
+            onPress={() => void load(Math.max(1, currentPage - 1))}
+          >
+            <Text style={styles.pageButtonText}>{'<'}</Text>
+          </Pressable>
+          {visiblePageNumbers.map((page) => {
+            const active = page === currentPage;
 
-          return (
-            <Pressable
-              key={page}
-              style={[styles.pageButton, active && styles.pageButtonActive]}
-              disabled={isLoading || active}
-              onPress={() => void load(page)}
-            >
-              <Text style={[styles.pageButtonText, active && styles.pageButtonTextActive]}>{page}</Text>
-            </Pressable>
-          );
-        })}
-        <Pressable
-          style={[styles.pageButton, (isLoading || currentPage >= totalPages) && styles.pageButtonDisabled]}
-          disabled={isLoading || currentPage >= totalPages}
-          onPress={() => void load(Math.min(totalPages, currentPage + 1))}
-        >
-          <Text style={styles.pageButtonText}>{'>'}</Text>
-        </Pressable>
+            return (
+              <Pressable
+                key={page}
+                style={[styles.pageButton, active && styles.pageButtonActive]}
+                disabled={isLoading || active}
+                onPress={() => void load(page)}
+              >
+                <Text style={[styles.pageButtonText, active && styles.pageButtonTextActive]}>{page}</Text>
+              </Pressable>
+            );
+          })}
+          <Pressable
+            style={[styles.pageButton, (isLoading || currentPage >= totalPages) && styles.pageButtonDisabled]}
+            disabled={isLoading || currentPage >= totalPages}
+            onPress={() => void load(Math.min(totalPages, currentPage + 1))}
+          >
+            <Text style={styles.pageButtonText}>{'>'}</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -334,13 +390,13 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
               ))}
             </View>
 
-            {openFilter === 'style' ? (
+            {isStylePickerOpen ? (
               <View style={styles.stylePicker}>
                 <Pressable
                   style={[styles.styleChip, selectedStyles.length === 0 && styles.styleChipActive]}
                   onPress={() => {
                     setSelectedStyles([]);
-                    setOpenFilter(null);
+                    setIsStylePickerOpen(false);
                   }}
                 >
                   <Text style={[styles.styleChipText, selectedStyles.length === 0 && styles.styleChipTextActive]}>
@@ -424,7 +480,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
             ) : null}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            {renderPagination()}
+            {renderPagination('top')}
           </View>
         }
         renderItem={({ item }) => {
@@ -458,7 +514,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
                     <View key={row.track.id} style={styles.trackRow}>
                       <Pressable
                         style={styles.trackPlayArea}
-                        onPress={() => onPlayTrack(row.playerTrack, releaseQueue)}
+                        onPress={() => void playFromLibrary(row, releaseQueue)}
                       >
                         <Text style={styles.position}>{row.track.position || ''}</Text>
                         <Text numberOfLines={1} style={[styles.trackName, isActive && styles.trackNameActive]}>
@@ -495,7 +551,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
             </View>
           );
         }}
-        ListFooterComponent={renderPagination}
+        ListFooterComponent={() => renderPagination('bottom')}
       />
 
       <Modal
@@ -716,9 +772,35 @@ const styles = StyleSheet.create({
   pagination: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     gap: 8,
     paddingVertical: 8,
+  },
+  paginationBottom: {
+    justifyContent: 'space-between',
+  },
+  pageButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 6,
+  },
+  pageSizePicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  pageSizeLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  pageSizeButton: {
+    minWidth: 30,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.panel,
   },
   pageButton: {
     minWidth: 36,

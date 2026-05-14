@@ -33,6 +33,7 @@ type FullPlayerProps = {
   onNext: () => void;
   onSeek: (ratio: number, resumeAfterSeek?: boolean) => void;
   queue: PlayerTrack[];
+  queuePreview?: PlayerTrack[];
   onSelectQueueTrack: (track: PlayerTrack) => void;
   isShuffleEnabled: boolean;
   isRepeatEnabled: boolean;
@@ -158,6 +159,7 @@ export function FullPlayer({
   onNext,
   onSeek,
   queue,
+  queuePreview,
   onSelectQueueTrack,
   isShuffleEnabled,
   isRepeatEnabled,
@@ -261,6 +263,7 @@ export function FullPlayer({
   }
 
   const waveformBars = sampleWaveform(track.waveformData, 86);
+  const visibleQueue = queuePreview?.length ? queuePreview : queue;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
@@ -370,7 +373,7 @@ export function FullPlayer({
               <View style={styles.queueHandle} />
               <Text style={styles.queueHeading}>Up next</Text>
               <ScrollView style={styles.queue}>
-                {queue.map((queueTrack, index) => {
+                {visibleQueue.map((queueTrack, index) => {
                   const active = queueTrack.id === track.id;
                   return (
                     <Pressable
