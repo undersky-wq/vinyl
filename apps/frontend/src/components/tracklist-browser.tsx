@@ -321,15 +321,15 @@ export function TracklistBrowser({
     [feed, initialOptions?.keys],
   );
   const popularStyles = styles.slice(0, isMobileFilters ? 3 : 8);
-  const selectedHiddenStyles = selectedStyles.filter((style) => !popularStyles.includes(style));
-  const collapsedStyles = [...new Set([...popularStyles, ...selectedHiddenStyles])];
-  const visibleStyles = isStyleExpanded ? styles : collapsedStyles;
-  const canToggleStyles = styles.length > collapsedStyles.length;
+  const collapsedStyles = [...new Set(popularStyles)];
+  const isShowingSelectedStylesOnly = !isStyleExpanded && selectedStyles.length > 0;
+  const visibleStyles = isStyleExpanded ? styles : selectedStyles.length ? selectedStyles : collapsedStyles;
+  const canToggleStyles = styles.length > visibleStyles.length || isStyleExpanded;
   const popularKeys = keys.slice(0, isMobileFilters ? 3 : 8);
-  const selectedHiddenKeys = selectedKeys.filter((key) => !popularKeys.includes(key));
-  const collapsedKeys = [...new Set([...popularKeys, ...selectedHiddenKeys])];
-  const visibleKeys = isKeyExpanded ? keys : collapsedKeys;
-  const canToggleKeys = keys.length > collapsedKeys.length;
+  const collapsedKeys = [...new Set(popularKeys)];
+  const isShowingSelectedKeysOnly = !isKeyExpanded && selectedKeys.length > 0;
+  const visibleKeys = isKeyExpanded ? keys : selectedKeys.length ? selectedKeys : collapsedKeys;
+  const canToggleKeys = keys.length > visibleKeys.length || isKeyExpanded;
 
   useEffect(() => {
     setLocalPlaylists(sortPlaylists(playlists));
@@ -712,13 +712,15 @@ export function TracklistBrowser({
       <section className="library-main">
         <div className="library-chip-filters">
           <section className={`filters filters--library${isStyleExpanded ? ' expanded' : ''}`}>
-            <button
-              type="button"
-              className={`chip${selectedStyles.length === 0 ? ' active' : ''}`}
-              onClick={() => setSelectedStyles([])}
-            >
-              {lang === 'ru' ? 'Все стили' : 'All styles'}
-            </button>
+            {!isShowingSelectedStylesOnly ? (
+              <button
+                type="button"
+                className={`chip${selectedStyles.length === 0 ? ' active' : ''}`}
+                onClick={() => setSelectedStyles([])}
+              >
+                {lang === 'ru' ? 'Все стили' : 'All styles'}
+              </button>
+            ) : null}
 
             {visibleStyles.map((style) => (
               <button
@@ -745,13 +747,15 @@ export function TracklistBrowser({
 
           {keys.length ? (
             <section className={`filters filters--library${isKeyExpanded ? ' expanded' : ''}`}>
-              <button
-                type="button"
-                className={`chip${selectedKeys.length === 0 ? ' active' : ''}`}
-                onClick={() => setSelectedKeys([])}
-              >
-                {lang === 'ru' ? 'Все ключи' : 'All keys'}
-              </button>
+              {!isShowingSelectedKeysOnly ? (
+                <button
+                  type="button"
+                  className={`chip${selectedKeys.length === 0 ? ' active' : ''}`}
+                  onClick={() => setSelectedKeys([])}
+                >
+                  {lang === 'ru' ? 'Все ключи' : 'All keys'}
+                </button>
+              ) : null}
 
               {visibleKeys.map((key) => (
                 <button

@@ -56,10 +56,10 @@ export function HomeStyleFilters({
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 720px)').matches : false,
   );
   const popularStyles = styles.slice(0, isMobile ? 4 : 11);
-  const selectedHiddenStyles = selectedStyles.filter((style) => !popularStyles.includes(style));
-  const collapsedStyles = [...new Set([...popularStyles, ...selectedHiddenStyles])];
-  const visibleStyles = isExpanded ? styles : collapsedStyles;
-  const canToggle = styles.length > collapsedStyles.length;
+  const collapsedStyles = [...new Set(popularStyles)];
+  const isShowingSelectedOnly = !isExpanded && selectedStyles.length > 0;
+  const visibleStyles = isExpanded ? styles : selectedStyles.length ? selectedStyles : collapsedStyles;
+  const canToggle = styles.length > visibleStyles.length || isExpanded;
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 720px)');
@@ -75,30 +75,34 @@ export function HomeStyleFilters({
 
   return (
     <section className={`filters filters--home${isExpanded ? ' expanded' : ''}`}>
-      <Link
-        className={`chip${!selectedStyles.length && !hasAudio ? ' active' : ''}`}
-        href={buildFilterHref({
-          search,
-          hasAudio,
-          styles: selectedStyles,
-          nextStyles: [],
-          nextHasAudio: '',
-        })}
-      >
-        {lang === 'ru' ? 'Все' : 'All'}
-      </Link>
+      {!isShowingSelectedOnly ? (
+        <Link
+          className={`chip${!selectedStyles.length && !hasAudio ? ' active' : ''}`}
+          href={buildFilterHref({
+            search,
+            hasAudio,
+            styles: selectedStyles,
+            nextStyles: [],
+            nextHasAudio: '',
+          })}
+        >
+          {lang === 'ru' ? 'Все' : 'All'}
+        </Link>
+      ) : null}
 
-      <Link
-        className={`chip${hasAudio === 'true' ? ' active' : ''}`}
-        href={buildFilterHref({
-          search,
-          hasAudio,
-          styles: selectedStyles,
-          nextHasAudio: hasAudio === 'true' ? '' : 'true',
-        })}
-      >
-        {lang === 'ru' ? 'Есть аудио' : 'Has audio'}
-      </Link>
+      {!isShowingSelectedOnly || hasAudio === 'true' ? (
+        <Link
+          className={`chip${hasAudio === 'true' ? ' active' : ''}`}
+          href={buildFilterHref({
+            search,
+            hasAudio,
+            styles: selectedStyles,
+            nextHasAudio: hasAudio === 'true' ? '' : 'true',
+          })}
+        >
+          {lang === 'ru' ? 'Есть аудио' : 'Has audio'}
+        </Link>
+      ) : null}
 
       {visibleStyles.map((item) => {
         const nextStyles = toggleValue(selectedStyles, item);

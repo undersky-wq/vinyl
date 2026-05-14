@@ -408,6 +408,11 @@ textarea {
   box-shadow: none;
 }
 
+.chip.active {
+  background: var(--player-accent-soft);
+  color: var(--player-accent-strong);
+}
+
 .filters--home .chip {
   flex: 0 0 auto;
 }
