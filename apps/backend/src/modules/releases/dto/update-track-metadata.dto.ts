@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class UpdateTrackMetadataDto {
   @IsOptional()
@@ -13,4 +13,13 @@ export class UpdateTrackMetadataDto {
   @IsOptional()
   @IsString()
   key?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  artists?: string[];
 }

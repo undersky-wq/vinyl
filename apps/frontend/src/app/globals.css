@@ -1056,6 +1056,32 @@ textarea {
   white-space: nowrap;
 }
 
+.track-text-edit {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.track-text-edit:hover,
+.track-text-edit:focus-visible {
+  color: var(--player-accent);
+  outline: none;
+}
+
+.track-text-input {
+  min-width: 0;
+  max-width: 100%;
+  border: 0;
+  border-radius: 9px;
+  padding: 3px 7px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font: inherit;
+}
+
 .track-row__artist::after {
   content: ' - ';
   color: var(--text);

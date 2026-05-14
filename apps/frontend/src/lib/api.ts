@@ -465,7 +465,10 @@ export async function updateReleaseStyles(releaseId: string, styles: string[]) {
   return parseJsonResponse<Release>(response);
 }
 
-export async function updateTrackMetadata(trackId: string, input: { bpm?: number | null; key?: string | null }) {
+export async function updateTrackMetadata(
+  trackId: string,
+  input: { bpm?: number | null; key?: string | null; title?: string; artists?: string[] },
+) {
   const response = await fetch(`${API_URL}/releases/tracks/${trackId}/metadata`, {
     method: 'PATCH',
     credentials: 'include',

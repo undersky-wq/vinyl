@@ -153,6 +153,84 @@ function EditableTrackMeta({
   );
 }
 
+function EditableTrackText({
+  value,
+  className,
+  disabled,
+  ariaLabel,
+  onSave,
+}: {
+  value: string;
+  className: string;
+  disabled?: boolean;
+  ariaLabel: string;
+  onSave: (value: string) => Promise<void>;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setDraft(value);
+    }
+  }, [isEditing, value]);
+
+  if (isEditing) {
+    return (
+      <input
+        className={`track-text-input ${className}`}
+        value={draft}
+        autoFocus
+        disabled={isSaving}
+        aria-label={ariaLabel}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => setIsEditing(false)}
+        onKeyDown={async (event) => {
+          if (event.key === 'Escape') {
+            setIsEditing(false);
+            return;
+          }
+
+          if (event.key !== 'Enter') {
+            return;
+          }
+
+          event.preventDefault();
+          const nextValue = draft.trim();
+          if (!nextValue) {
+            setIsEditing(false);
+            return;
+          }
+
+          setIsSaving(true);
+          try {
+            await onSave(nextValue);
+            setIsEditing(false);
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+      />
+    );
+  }
+
+  if (disabled) {
+    return <span className={className}>{value}</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      className={`track-text-edit ${className}`}
+      aria-label={ariaLabel}
+      onClick={() => setIsEditing(true)}
+    >
+      {value}
+    </button>
+  );
+}
+
 function buildFallbackWaveform(seed: string, points = 180) {
   let hash = 0;
   for (let index = 0; index < seed.length; index += 1) {
@@ -290,6 +368,17 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       ]),
     ),
   );
+  const [trackTextById, setTrackTextById] = useState(() =>
+    Object.fromEntries(
+      release.tracks.map((track) => [
+        track.id,
+        {
+          artist: getTrackArtist(track, release.artist),
+          title: track.title,
+        },
+      ]),
+    ),
+  );
   const coverOriginalSrc =
     uploadedCoverUrl ||
     release.coverStorageUrl ||
@@ -357,10 +446,15 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
 
       const audioUrl = track.audioFiles?.find((file) => file.storageUrl)?.storageUrl || '';
 
+      const trackText = trackTextById[track.id] || {
+        artist: getTrackArtist(track, release.artist),
+        title: track.title,
+      };
+
       return {
         id: track.id,
-        title: track.title,
-        artist: getTrackArtist(track, release.artist),
+        title: trackText.title,
+        artist: trackText.artist,
         audioUrl,
         coverUrl: coverSrc,
         releaseId: release.id,
@@ -379,6 +473,20 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   useEffect(() => {
     setStyleTags([...release.styles]);
   }, [release.styles]);
+
+  useEffect(() => {
+    setTrackTextById(
+      Object.fromEntries(
+        release.tracks.map((track) => [
+          track.id,
+          {
+            artist: getTrackArtist(track, release.artist),
+            title: track.title,
+          },
+        ]),
+      ),
+    );
+  }, [release.artist, release.tracks]);
 
   async function saveReleaseStyles(nextStyles: string[]) {
     setStyleTags(nextStyles);
@@ -467,6 +575,33 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       [trackId]: {
         bpm: updatedTrack.bpm,
         key: updatedTrack.key,
+      },
+    }));
+    router.refresh();
+  }
+
+  async function handleTrackTextSave(trackId: string, patch: { artist?: string; title?: string }) {
+    const currentText = trackTextById[trackId] || { artist: release.artist, title: '' };
+    const nextText = {
+      ...currentText,
+      ...patch,
+    };
+
+    setTrackTextById((current) => ({
+      ...current,
+      [trackId]: nextText,
+    }));
+
+    const updatedTrack = await updateTrackMetadata(trackId, {
+      ...(patch.title !== undefined ? { title: nextText.title } : {}),
+      ...(patch.artist !== undefined ? { artists: nextText.artist ? [nextText.artist] : [] } : {}),
+    });
+
+    setTrackTextById((current) => ({
+      ...current,
+      [trackId]: {
+        artist: getTrackArtist(updatedTrack, release.artist),
+        title: updatedTrack.title,
       },
     }));
     router.refresh();
@@ -621,6 +756,10 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
             release.tracks.map((track) => {
               const audioFile = track.audioFiles?.[0] || null;
               const trackMeta = trackMetaById[track.id] || { bpm: track.bpm, key: track.key };
+              const trackText = trackTextById[track.id] || {
+                artist: getTrackArtist(track, release.artist),
+                title: track.title,
+              };
               const isCurrentTrack = currentTrack?.id === track.id;
 
               return (
@@ -655,8 +794,24 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                 </div>
 
                 <div className="track-row__title-block">
-                  <span className="track-row__artist">{getTrackArtist(track, release.artist)}</span>
-                  <span className="track-row__title">{track.title}</span>
+                  <EditableTrackText
+                    value={trackText.artist}
+                    className="track-row__artist"
+                    disabled={!isAdmin}
+                    ariaLabel={lang === 'ru' ? 'Редактировать артиста трека' : 'Edit track artist'}
+                    onSave={async (value) => {
+                      await handleTrackTextSave(track.id, { artist: value });
+                    }}
+                  />
+                  <EditableTrackText
+                    value={trackText.title}
+                    className="track-row__title"
+                    disabled={!isAdmin}
+                    ariaLabel={lang === 'ru' ? 'Редактировать название трека' : 'Edit track title'}
+                    onSave={async (value) => {
+                      await handleTrackTextSave(track.id, { title: value });
+                    }}
+                  />
                 </div>
 
                 <span className="track-row__duration muted">

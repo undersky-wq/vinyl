@@ -640,14 +640,32 @@ export class ReleasesService {
   }
 
   async updateTrackMetadata(trackId: string, dto: UpdateTrackMetadataDto) {
-    const key = dto.key?.trim() || null;
+    const data: Prisma.TrackUpdateInput = {};
+
+    if ('bpm' in dto) {
+      data.bpm = dto.bpm ?? null;
+    }
+
+    if ('key' in dto) {
+      data.key = dto.key?.trim() || null;
+    }
+
+    if ('title' in dto) {
+      const title = dto.title?.trim();
+      if (!title) {
+        throw new BadRequestException('Track title is required');
+      }
+
+      data.title = title;
+    }
+
+    if ('artists' in dto) {
+      data.artists = (dto.artists || []).map((artist) => artist.trim()).filter(Boolean);
+    }
 
     return this.prisma.track.update({
       where: { id: trackId },
-      data: {
-        bpm: dto.bpm ?? null,
-        key,
-      },
+      data,
     });
   }
 
