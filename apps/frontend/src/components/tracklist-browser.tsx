@@ -323,13 +323,9 @@ export function TracklistBrowser({
     () => initialOptions?.keys ?? dedupe(feed.map((track) => track.keyValue || '')),
     [feed, initialOptions?.keys],
   );
-  const popularStyles = styles.slice(0, isMobileFilters ? 3 : 8);
-  const collapsedStyles = [...new Set(popularStyles)];
-  const visibleStyles = isStyleExpanded ? styles : selectedStyles.length ? selectedStyles : collapsedStyles;
+  const visibleStyles = isStyleExpanded ? styles : selectedStyles;
   const canToggleStyles = styles.length > visibleStyles.length || isStyleExpanded;
-  const popularKeys = keys.slice(0, isMobileFilters ? 3 : 8);
-  const collapsedKeys = [...new Set(popularKeys)];
-  const visibleKeys = isKeyExpanded ? keys : selectedKeys.length ? selectedKeys : collapsedKeys;
+  const visibleKeys = isKeyExpanded ? keys : selectedKeys;
   const canToggleKeys = keys.length > visibleKeys.length || isKeyExpanded;
 
   useEffect(() => {
@@ -950,6 +946,21 @@ export function TracklistBrowser({
                     );
                   })}
                 </div>
+
+                {release.styles.length ? (
+                  <div className="library-release__footer" aria-label={lang === 'ru' ? 'Стили релиза' : 'Release styles'}>
+                    {release.styles.map((style) => (
+                      <span
+                        className={`library-release__style-chip${
+                          selectedStyles.includes(style) ? ' active' : ''
+                        }`}
+                        key={style}
+                      >
+                        {style}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </article>
           ))}

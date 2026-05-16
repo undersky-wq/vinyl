@@ -68,13 +68,14 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
   const [releases, setReleases] = useState<Release[]>([]);
   const [stylesList, setStylesList] = useState<Array<{ name: string; count: number }>>([]);
   const [artistsList] = useState<string[]>([]);
-  const [keysList] = useState<string[]>([]);
+  const [keysList, setKeysList] = useState<string[]>([]);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [selectedArtist, setSelectedArtist] = useState('');
-  const [selectedKey, setSelectedKey] = useState('');
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [openFilter, setOpenFilter] = useState<'style' | 'artist' | 'key' | null>(null);
   const [isStylesExpanded, setIsStylesExpanded] = useState(false);
+  const [isKeysExpanded, setIsKeysExpanded] = useState(false);
   const [isStylePickerOpen, setIsStylePickerOpen] = useState(false);
   const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
@@ -92,7 +93,14 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
     return releases
       .filter((release) => buildPlayableTracks(release).length > 0);
   }, [releases]);
-  const visibleStyles = isStylesExpanded ? stylesList : stylesList.slice(0, 4);
+  const visiblePageQueue = useMemo(
+    () => visibleReleases.flatMap((release) => buildPlayableTracks(release).map((row) => row.playerTrack)),
+    [visibleReleases],
+  );
+  const visibleStyles = isStylesExpanded
+    ? stylesList
+    : selectedStyles.map((name) => ({ name, count: 0 }));
+  const visibleKeys = isKeysExpanded ? keysList : selectedKeys;
 
   async function load(page = currentPage, pageSize = selectedPageSize) {
     setIsLoading(true);
@@ -102,6 +110,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
       const nextPage = Math.max(1, page);
       const result = await getLibraryFeedFiltered(pageSize, (nextPage - 1) * pageSize, {
         styles: selectedStyles,
+        key: selectedKeys,
         search: query.trim(),
       });
       setReleases(result.releases);
@@ -109,6 +118,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
       setCurrentPage(nextPage);
       setSelectedPageSize(pageSize);
       setStylesList((result.options?.styles || []).map((name) => ({ name, count: 0 })));
+      setKeysList(result.options?.keys || []);
       void loadPersonalActions();
     } catch {
       setError('Не удалось загрузить библиотеку.');
@@ -119,11 +129,17 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
 
   useEffect(() => {
     void load(1);
-  }, [query, selectedStyles]);
+  }, [query, selectedKeys.join('|'), selectedStyles.join('|')]);
 
   function toggleStyle(style: string) {
     setSelectedStyles((current) =>
       current.includes(style) ? current.filter((item) => item !== style) : [...current, style],
+    );
+  }
+
+  function toggleKey(key: string) {
+    setSelectedKeys((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
     );
   }
 
@@ -212,6 +228,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
     while (true) {
       const result = await getLibraryFeedFiltered(pageSize, offset, {
         styles: selectedStyles,
+        key: selectedKeys,
         search: query.trim(),
       });
       nextReleases.push(...result.releases);
@@ -226,16 +243,16 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
     return nextReleases.flatMap((release) => buildPlayableTracks(release).map((row) => row.playerTrack));
   }
 
-  async function playFromLibrary(row: PlayableTrackRow, releaseQueue: PlayerTrack[]) {
-    try {
-      const fullQueue = await loadFullFilteredQueue();
-      const queueForPlayback = fullQueue.some((track) => track.id === row.playerTrack.id)
-        ? fullQueue
-        : releaseQueue;
-      onPlayTrack(row.playerTrack, queueForPlayback, releaseQueue);
-    } catch {
-      onPlayTrack(row.playerTrack, releaseQueue, releaseQueue);
-    }
+  function playFromLibrary(row: PlayableTrackRow, releaseQueue: PlayerTrack[]) {
+    const immediateQueue = visiblePageQueue.some((track) => track.id === row.playerTrack.id)
+      ? visiblePageQueue
+      : releaseQueue;
+
+    onPlayTrack(row.playerTrack, immediateQueue, releaseQueue);
+
+    void loadFullFilteredQueue().catch(() => {
+      // Playback already started from the visible page queue; keep it uninterrupted.
+    });
   }
 
   const totalPages = Math.max(1, Math.ceil(totalReleases / selectedPageSize));
@@ -367,7 +384,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
                 onPress={() => setSelectedStyles([])}
               >
                 <Text style={[styles.chipText, selectedStyles.length === 0 && styles.chipTextActive]}>
-                  {lang === 'ru' ? 'Р’СЃРµ' : 'All'}
+                  {lang === 'ru' ? 'Все стили' : 'All styles'}
                 </Text>
               </Pressable>
 
@@ -385,133 +402,43 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
                 );
               })}
 
-              {stylesList.length > 4 ? (
+              {stylesList.length ? (
                 <Pressable style={styles.chip} onPress={() => setIsStylesExpanded((current) => !current)}>
                   <Text style={styles.chipText}>...</Text>
                 </Pressable>
               ) : null}
             </View>
 
-            <View style={styles.selectedStyleRow}>
-              <Pressable style={styles.filterButton} onPress={() => setIsStylePickerOpen((current) => !current)}>
-                <Text style={styles.filterButtonText}>{lang === 'ru' ? 'Все стили' : 'All styles'}</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.filterButton, styles.hiddenFilter, selectedArtist && styles.filterButtonActive]}
-                onPress={() => setOpenFilter((current) => (current === 'artist' ? null : 'artist'))}
-              >
-                <Text style={[styles.filterButtonText, selectedArtist && styles.filterButtonTextActive]}>
-                  {selectedArtist || (lang === 'ru' ? 'Артист' : 'Artist')}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.filterButton, styles.hiddenFilter, selectedKey && styles.filterButtonActive]}
-                onPress={() => setOpenFilter((current) => (current === 'key' ? null : 'key'))}
-              >
-                <Text style={[styles.filterButtonText, selectedKey && styles.filterButtonTextActive]}>
-                  {selectedKey || (lang === 'ru' ? 'Ключ' : 'Key')}
-                </Text>
-              </Pressable>
-              {selectedStyles.map((style) => (
+            {keysList.length ? (
+              <View style={[styles.chips, isKeysExpanded && styles.chipsExpanded]}>
                 <Pressable
-                  key={style}
-                  style={[styles.filterButton, styles.filterButtonActive]}
-                  onPress={() => toggleStyle(style)}
+                  style={[styles.chip, selectedKeys.length === 0 && styles.chipActive]}
+                  onPress={() => setSelectedKeys([])}
                 >
-                  <Text style={[styles.filterButtonText, styles.filterButtonTextActive]}>{style}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            {isStylePickerOpen ? (
-              <View style={styles.stylePicker}>
-                <Pressable
-                  style={[styles.styleChip, selectedStyles.length === 0 && styles.styleChipActive]}
-                  onPress={() => {
-                    setSelectedStyles([]);
-                    setIsStylePickerOpen(false);
-                  }}
-                >
-                  <Text style={[styles.styleChipText, selectedStyles.length === 0 && styles.styleChipTextActive]}>
-                    {lang === 'ru' ? 'Все стили' : 'All styles'}
-                  </Text>
-                </Pressable>
-                {stylesList.map((item) => {
-                  const active = selectedStyles.includes(item.name);
-
-                  return (
-                    <Pressable
-                      key={item.name}
-                      style={[styles.styleChip, active && styles.styleChipActive]}
-                      onPress={() => toggleStyle(item.name)}
-                    >
-                      <Text style={[styles.styleChipText, active && styles.styleChipTextActive]}>{item.name}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            {openFilter === 'artist' ? (
-              <View style={styles.stylePicker}>
-                <Pressable
-                  style={[styles.styleChip, !selectedArtist && styles.styleChipActive]}
-                  onPress={() => {
-                    setSelectedArtist('');
-                    setOpenFilter(null);
-                  }}
-                >
-                  <Text style={[styles.styleChipText, !selectedArtist && styles.styleChipTextActive]}>
-                    {lang === 'ru' ? 'Все артисты' : 'All artists'}
-                  </Text>
-                </Pressable>
-                {artistsList.map((artistName) => (
-                  <Pressable
-                    key={artistName}
-                    style={[styles.styleChip, selectedArtist === artistName && styles.styleChipActive]}
-                    onPress={() => {
-                      setSelectedArtist((current) => (current === artistName ? '' : artistName));
-                      setOpenFilter(null);
-                    }}
-                  >
-                    <Text style={[styles.styleChipText, selectedArtist === artistName && styles.styleChipTextActive]}>
-                      {artistName}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-
-            {openFilter === 'key' ? (
-              <View style={styles.stylePicker}>
-                <Pressable
-                  style={[styles.styleChip, !selectedKey && styles.styleChipActive]}
-                  onPress={() => {
-                    setSelectedKey('');
-                    setOpenFilter(null);
-                  }}
-                >
-                  <Text style={[styles.styleChipText, !selectedKey && styles.styleChipTextActive]}>
+                  <Text style={[styles.chipText, selectedKeys.length === 0 && styles.chipTextActive]}>
                     {lang === 'ru' ? 'Все ключи' : 'All keys'}
                   </Text>
                 </Pressable>
-                {keysList.map((trackKey) => (
-                  <Pressable
-                    key={trackKey}
-                    style={[styles.styleChip, selectedKey === trackKey && styles.styleChipActive]}
-                    onPress={() => {
-                      setSelectedKey((current) => (current === trackKey ? '' : trackKey));
-                      setOpenFilter(null);
-                    }}
-                  >
-                    <Text style={[styles.styleChipText, selectedKey === trackKey && styles.styleChipTextActive]}>
-                      {trackKey}
-                    </Text>
-                  </Pressable>
-                ))}
+
+                {visibleKeys.map((trackKey) => {
+                  const active = selectedKeys.includes(trackKey);
+
+                  return (
+                    <Pressable
+                      key={trackKey}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => toggleKey(trackKey)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{trackKey}</Text>
+                    </Pressable>
+                  );
+                })}
+
+                <Pressable style={styles.chip} onPress={() => setIsKeysExpanded((current) => !current)}>
+                  <Text style={styles.chipText}>...</Text>
+                </Pressable>
               </View>
             ) : null}
-
             {error ? <Text style={styles.error}>{error}</Text> : null}
             {renderPagination('top')}
           </View>
@@ -529,7 +456,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
                   </Text>
                   <Text numberOfLines={2} style={styles.releaseTitle}>
                     {item.title}
-                    {item.year ? ` • ${item.year}` : ''}
+                    {item.year ? ` вЂў ${item.year}` : ''}
                   </Text>
                 </View>
               </View>
@@ -609,7 +536,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
               <TextInput
                 value={playlistName}
                 onChangeText={setPlaylistName}
-                placeholder={lang === 'ru' ? 'РќРѕРІС‹Р№ РїР»РµР№Р»РёСЃС‚' : 'New playlist'}
+                placeholder={lang === 'ru' ? 'Новый плейлист' : 'New playlist'}
                 placeholderTextColor={colors.muted}
                 style={styles.playlistCreateInput}
                 autoCapitalize="sentences"

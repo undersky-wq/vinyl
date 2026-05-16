@@ -109,7 +109,7 @@ export async function getLibraryFeed(limit = 20, offset = 0) {
 export async function getLibraryFeedFiltered(
   limit = 20,
   offset = 0,
-  filters: { styles?: string[]; artist?: string; key?: string; search?: string } = {},
+  filters: { styles?: string[]; artist?: string; key?: string | string[]; search?: string } = {},
 ) {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -124,7 +124,9 @@ export async function getLibraryFeedFiltered(
     params.set('artist', filters.artist);
   }
 
-  if (filters.key) {
+  if (Array.isArray(filters.key) && filters.key.length) {
+    params.set('key', filters.key.join(','));
+  } else if (typeof filters.key === 'string' && filters.key) {
     params.set('key', filters.key);
   }
 
