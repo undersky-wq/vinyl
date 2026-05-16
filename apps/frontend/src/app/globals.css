@@ -2869,17 +2869,9 @@ textarea {
   flex: 0 0 auto;
 }
 
-.filters--library .home-style-toggle {
-  margin-left: auto;
-}
-
 .filters--library.expanded {
   flex-wrap: wrap;
   overflow: visible;
-}
-
-.filters--library.expanded .home-style-toggle {
-  margin-left: 0;
 }
 
 .library-tabs {

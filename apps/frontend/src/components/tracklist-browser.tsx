@@ -742,17 +742,6 @@ export function TracklistBrowser({
               {lang === 'ru' ? 'Все стили' : 'All styles'}
             </button>
 
-            {canToggleStyles && !isStyleExpanded ? (
-              <button
-                type="button"
-                className="chip home-style-toggle"
-                onClick={() => setIsStyleExpanded(true)}
-                aria-expanded={isStyleExpanded}
-              >
-                ...
-              </button>
-            ) : null}
-
             {visibleStyles.map((style) => (
               <button
                 type="button"
@@ -764,11 +753,11 @@ export function TracklistBrowser({
               </button>
             ))}
 
-            {canToggleStyles && isStyleExpanded ? (
+            {canToggleStyles ? (
               <button
                 type="button"
                 className="chip home-style-toggle"
-                onClick={() => setIsStyleExpanded(false)}
+                onClick={() => setIsStyleExpanded((current) => !current)}
                 aria-expanded={isStyleExpanded}
               >
                 ...
@@ -786,17 +775,6 @@ export function TracklistBrowser({
                 {lang === 'ru' ? 'Все ключи' : 'All keys'}
               </button>
 
-              {canToggleKeys && !isKeyExpanded ? (
-                <button
-                  type="button"
-                  className="chip home-style-toggle"
-                  onClick={() => setIsKeyExpanded(true)}
-                  aria-expanded={isKeyExpanded}
-                >
-                  ...
-                </button>
-              ) : null}
-
               {visibleKeys.map((key) => (
                 <button
                   type="button"
@@ -808,11 +786,11 @@ export function TracklistBrowser({
                 </button>
               ))}
 
-              {canToggleKeys && isKeyExpanded ? (
+              {canToggleKeys ? (
                 <button
                   type="button"
                   className="chip home-style-toggle"
-                  onClick={() => setIsKeyExpanded(false)}
+                  onClick={() => setIsKeyExpanded((current) => !current)}
                   aria-expanded={isKeyExpanded}
                 >
                   ...
