@@ -4000,15 +4000,7 @@ textarea {
 }
 
 .library-release__style-chip {
-  color: #8d8d8d;
-  font-size: 0.86rem;
-  font-weight: 600;
-  line-height: 1;
-  transition: color 0.18s ease;
-}
-
-.library-release__style-chip.active {
-  color: var(--accent);
+  cursor: default;
 }
 
 .library-sidebar,

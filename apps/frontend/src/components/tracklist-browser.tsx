@@ -742,6 +742,17 @@ export function TracklistBrowser({
               {lang === 'ru' ? 'Все стили' : 'All styles'}
             </button>
 
+            {canToggleStyles && !isStyleExpanded ? (
+              <button
+                type="button"
+                className="chip home-style-toggle"
+                onClick={() => setIsStyleExpanded(true)}
+                aria-expanded={isStyleExpanded}
+              >
+                ...
+              </button>
+            ) : null}
+
             {visibleStyles.map((style) => (
               <button
                 type="button"
@@ -753,11 +764,11 @@ export function TracklistBrowser({
               </button>
             ))}
 
-            {canToggleStyles ? (
+            {canToggleStyles && isStyleExpanded ? (
               <button
                 type="button"
                 className="chip home-style-toggle"
-                onClick={() => setIsStyleExpanded((current) => !current)}
+                onClick={() => setIsStyleExpanded(false)}
                 aria-expanded={isStyleExpanded}
               >
                 ...
@@ -775,6 +786,17 @@ export function TracklistBrowser({
                 {lang === 'ru' ? 'Все ключи' : 'All keys'}
               </button>
 
+              {canToggleKeys && !isKeyExpanded ? (
+                <button
+                  type="button"
+                  className="chip home-style-toggle"
+                  onClick={() => setIsKeyExpanded(true)}
+                  aria-expanded={isKeyExpanded}
+                >
+                  ...
+                </button>
+              ) : null}
+
               {visibleKeys.map((key) => (
                 <button
                   type="button"
@@ -786,11 +808,11 @@ export function TracklistBrowser({
                 </button>
               ))}
 
-              {canToggleKeys ? (
+              {canToggleKeys && isKeyExpanded ? (
                 <button
                   type="button"
                   className="chip home-style-toggle"
-                  onClick={() => setIsKeyExpanded((current) => !current)}
+                  onClick={() => setIsKeyExpanded(false)}
                   aria-expanded={isKeyExpanded}
                 >
                   ...
@@ -951,7 +973,7 @@ export function TracklistBrowser({
                   <div className="library-release__footer" aria-label={lang === 'ru' ? 'Стили релиза' : 'Release styles'}>
                     {release.styles.map((style) => (
                       <span
-                        className={`library-release__style-chip${
+                        className={`chip library-release__style-chip${
                           selectedStyles.includes(style) ? ' active' : ''
                         }`}
                         key={style}
