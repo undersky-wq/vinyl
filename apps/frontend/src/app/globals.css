@@ -409,7 +409,7 @@ textarea {
 }
 
 .chip.active {
-  background: var(--player-accent-soft);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--player-accent-strong);
 }
 

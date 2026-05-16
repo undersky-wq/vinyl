@@ -37,6 +37,7 @@ type PlayerContextType = {
   playTrack: (track: PlayerTrack) => void;
   playQueue: (tracks: PlayerTrack[], startIndex?: number, displayTracks?: PlayerTrack[]) => void;
   playQueueAtPercent: (tracks: PlayerTrack[], startIndex: number, percent: number) => void;
+  replaceQueuePreservingCurrent: (tracks: PlayerTrack[], displayTracks?: PlayerTrack[]) => void;
   playPrevious: () => void;
   playNext: () => void;
   setVolume: (value: number) => void;
@@ -608,6 +609,35 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     playQueue(tracks, startIndex);
   };
 
+  const replaceQueuePreservingCurrent = (tracks: PlayerTrack[], displayTracks?: PlayerTrack[]) => {
+    const activeTrack = currentTrackRef.current;
+    if (!activeTrack) {
+      return;
+    }
+
+    const playableTracks = tracks.filter((track) => Boolean(track.audioUrl));
+    const nextIndex = playableTracks.findIndex((track) => track.id === activeTrack.id);
+    if (nextIndex < 0) {
+      return;
+    }
+
+    const requestedDisplayQueue = (displayTracks || playableTracks).filter((track) => Boolean(track.audioUrl));
+    const nextDisplayQueue = requestedDisplayQueue.some((track) => track.id === activeTrack.id)
+      ? requestedDisplayQueue
+      : getReleaseScopedDisplayQueue(playableTracks, activeTrack) || playableTracks;
+
+    sharedQueue = playableTracks;
+    sharedDisplayQueue = nextDisplayQueue;
+    sharedCurrentIndex = nextIndex;
+    queueRef.current = playableTracks;
+    displayQueueRef.current = nextDisplayQueue;
+    currentIndexRef.current = nextIndex;
+
+    setQueue(playableTracks);
+    setDisplayQueue(nextDisplayQueue);
+    setCurrentIndex(nextIndex);
+  };
+
   const playNext = () => {
     const queueSize = queueRef.current.length;
     if (!queueSize) {
@@ -920,6 +950,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     playTrack,
     playQueue,
     playQueueAtPercent,
+    replaceQueuePreservingCurrent,
     playPrevious,
     playNext,
     setVolume,

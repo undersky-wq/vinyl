@@ -285,7 +285,7 @@ export function TracklistBrowser({
   const { requireAuth } = useAuth();
   const { favoriteTrackIds, toggleFavorite } = useFavorites();
   const { currentTrack, isPlaying } = usePlayerTransport();
-  const { playQueue, togglePlayback } = usePlayerActions();
+  const { playQueue, replaceQueuePreservingCurrent, togglePlayback } = usePlayerActions();
   const [selectedStyles, setSelectedStyles] = useState(() => restoredViewStateRef.current?.selectedStyles || []);
   const [selectedKeys, setSelectedKeys] = useState(() => restoredViewStateRef.current?.selectedKeys || []);
   const [localPlaylists, setLocalPlaylists] = useState(() => sortPlaylists(playlists));
@@ -308,8 +308,11 @@ export function TracklistBrowser({
   const feedLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(false);
   const didMountRef = useRef(false);
+  const fullQueueCacheRef = useRef<{ key: string; tracks: PlayerTrack[] } | null>(null);
+  const fullQueueRequestRef = useRef<Promise<PlayerTrack[]> | null>(null);
   const selectedStylesKey = selectedStyles.join('|');
   const selectedKeysKey = selectedKeys.join('|');
+  const fullQueueCacheKey = `${selectedStylesKey}::${selectedKeysKey}`;
 
   const feed = useMemo(() => buildFeed(loadedReleases), [loadedReleases]);
   const styles = useMemo(
@@ -322,12 +325,10 @@ export function TracklistBrowser({
   );
   const popularStyles = styles.slice(0, isMobileFilters ? 3 : 8);
   const collapsedStyles = [...new Set(popularStyles)];
-  const isShowingSelectedStylesOnly = !isStyleExpanded && selectedStyles.length > 0;
   const visibleStyles = isStyleExpanded ? styles : selectedStyles.length ? selectedStyles : collapsedStyles;
   const canToggleStyles = styles.length > visibleStyles.length || isStyleExpanded;
   const popularKeys = keys.slice(0, isMobileFilters ? 3 : 8);
   const collapsedKeys = [...new Set(popularKeys)];
-  const isShowingSelectedKeysOnly = !isKeyExpanded && selectedKeys.length > 0;
   const visibleKeys = isKeyExpanded ? keys : selectedKeys.length ? selectedKeys : collapsedKeys;
   const canToggleKeys = keys.length > visibleKeys.length || isKeyExpanded;
 
@@ -474,23 +475,38 @@ export function TracklistBrowser({
   );
 
   const loadFullFilteredQueue = useCallback(async () => {
+    if (fullQueueCacheRef.current?.key === fullQueueCacheKey) {
+      return fullQueueCacheRef.current.tracks;
+    }
+
+    if (fullQueueRequestRef.current) {
+      return fullQueueRequestRef.current;
+    }
+
     const pageLimit = 60;
     let offset = 0;
     const releasesForQueue: Release[] = [];
 
-    while (true) {
-      const result = await getLibraryReleasesFeed(buildLibraryFeedParams(pageLimit, offset));
-      releasesForQueue.push(...result.releases);
+    fullQueueRequestRef.current = (async () => {
+      while (true) {
+        const result = await getLibraryReleasesFeed(buildLibraryFeedParams(pageLimit, offset));
+        releasesForQueue.push(...result.releases);
 
-      if (!result.hasMore || result.releases.length === 0) {
-        break;
+        if (!result.hasMore || result.releases.length === 0) {
+          break;
+        }
+
+        offset += pageLimit;
       }
 
-      offset += pageLimit;
-    }
+      const tracks = buildFeed(releasesForQueue).filter((track) => Boolean(track.audioUrl));
+      fullQueueCacheRef.current = { key: fullQueueCacheKey, tracks };
+      fullQueueRequestRef.current = null;
+      return tracks;
+    })();
 
-    return buildFeed(releasesForQueue).filter((track) => Boolean(track.audioUrl));
-  }, [buildLibraryFeedParams]);
+    return fullQueueRequestRef.current;
+  }, [buildLibraryFeedParams, fullQueueCacheKey]);
 
   useEffect(() => {
     if (!didMountRef.current) {
@@ -500,6 +516,11 @@ export function TracklistBrowser({
 
     void loadLibraryFeed(1);
   }, [loadLibraryFeed, selectedKeysKey, selectedStylesKey]);
+
+  useEffect(() => {
+    fullQueueCacheRef.current = null;
+    fullQueueRequestRef.current = null;
+  }, [selectedKeysKey, selectedStylesKey]);
 
   useEffect(() => {
     if (loadedReleases.length > 0 || isFeedLoading || totalReleases <= 0) {
@@ -582,19 +603,24 @@ export function TracklistBrowser({
       return;
     }
 
-    const queue = await loadFullFilteredQueue();
-    const startIndex = queue.findIndex((track) => track.id === trackId);
-    const activeTrack = queue[startIndex];
-    const releaseQueue = activeTrack
-      ? queue.filter((track) => track.releaseId === activeTrack.releaseId)
-      : [];
+    const visibleTrack = playableFilteredFeed[visibleStartIndex];
+    const visibleReleaseQueue = playableFilteredFeed.filter((track) => track.releaseId === visibleTrack.releaseId);
+    playQueue(playableFilteredFeed, visibleStartIndex, visibleReleaseQueue);
 
-    if (startIndex < 0) {
-      setStatus(lang === 'ru' ? 'Для этого трека ещё не загружен MP3.' : 'No MP3 uploaded for this track yet.');
-      return;
-    }
+    loadFullFilteredQueue()
+      .then((queue) => {
+        const activeIndex = queue.findIndex((track) => track.id === trackId);
+        const activeTrack = queue[activeIndex];
+        if (activeIndex < 0 || !activeTrack) {
+          return;
+        }
 
-    playQueue(queue, startIndex, releaseQueue);
+        const releaseQueue = queue.filter((track) => track.releaseId === activeTrack.releaseId);
+        replaceQueuePreservingCurrent(queue, releaseQueue);
+      })
+      .catch(() => {
+        // The current page queue is already playing; keep playback uninterrupted.
+      });
   }
 
   function handlePageSizeChange(nextPageSize: number) {
@@ -712,15 +738,13 @@ export function TracklistBrowser({
       <section className="library-main">
         <div className="library-chip-filters">
           <section className={`filters filters--library${isStyleExpanded ? ' expanded' : ''}`}>
-            {!isShowingSelectedStylesOnly ? (
-              <button
-                type="button"
-                className={`chip${selectedStyles.length === 0 ? ' active' : ''}`}
-                onClick={() => setSelectedStyles([])}
-              >
-                {lang === 'ru' ? 'Все стили' : 'All styles'}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className={`chip${selectedStyles.length === 0 ? ' active' : ''}`}
+              onClick={() => setSelectedStyles([])}
+            >
+              {lang === 'ru' ? 'Все стили' : 'All styles'}
+            </button>
 
             {visibleStyles.map((style) => (
               <button
@@ -747,15 +771,13 @@ export function TracklistBrowser({
 
           {keys.length ? (
             <section className={`filters filters--library${isKeyExpanded ? ' expanded' : ''}`}>
-              {!isShowingSelectedKeysOnly ? (
-                <button
-                  type="button"
-                  className={`chip${selectedKeys.length === 0 ? ' active' : ''}`}
-                  onClick={() => setSelectedKeys([])}
-                >
-                  {lang === 'ru' ? 'Все ключи' : 'All keys'}
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className={`chip${selectedKeys.length === 0 ? ' active' : ''}`}
+                onClick={() => setSelectedKeys([])}
+              >
+                {lang === 'ru' ? 'Все ключи' : 'All keys'}
+              </button>
 
               {visibleKeys.map((key) => (
                 <button

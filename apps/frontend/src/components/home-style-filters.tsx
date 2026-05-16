@@ -57,7 +57,6 @@ export function HomeStyleFilters({
   );
   const popularStyles = styles.slice(0, isMobile ? 4 : 11);
   const collapsedStyles = [...new Set(popularStyles)];
-  const isShowingSelectedOnly = !isExpanded && selectedStyles.length > 0;
   const visibleStyles = isExpanded ? styles : selectedStyles.length ? selectedStyles : collapsedStyles;
   const canToggle = styles.length > visibleStyles.length || isExpanded;
 
@@ -75,22 +74,20 @@ export function HomeStyleFilters({
 
   return (
     <section className={`filters filters--home${isExpanded ? ' expanded' : ''}`}>
-      {!isShowingSelectedOnly ? (
-        <Link
-          className={`chip${!selectedStyles.length && !hasAudio ? ' active' : ''}`}
-          href={buildFilterHref({
-            search,
-            hasAudio,
-            styles: selectedStyles,
-            nextStyles: [],
-            nextHasAudio: '',
-          })}
-        >
-          {lang === 'ru' ? 'Все' : 'All'}
-        </Link>
-      ) : null}
+      <Link
+        className={`chip${!selectedStyles.length && !hasAudio ? ' active' : ''}`}
+        href={buildFilterHref({
+          search,
+          hasAudio,
+          styles: selectedStyles,
+          nextStyles: [],
+          nextHasAudio: '',
+        })}
+      >
+        {lang === 'ru' ? 'Все' : 'All'}
+      </Link>
 
-      {!isShowingSelectedOnly || hasAudio === 'true' ? (
+      {(!selectedStyles.length || isExpanded || hasAudio === 'true') ? (
         <Link
           className={`chip${hasAudio === 'true' ? ' active' : ''}`}
           href={buildFilterHref({
