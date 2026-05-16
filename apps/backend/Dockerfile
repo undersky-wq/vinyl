@@ -1,13 +1,11 @@
 FROM node:24-alpine AS deps
 WORKDIR /app/apps/backend
-RUN apk add --no-cache ffmpeg
 
 COPY apps/backend/package.json ./
 RUN npm install
 
 FROM node:24-alpine AS builder
 WORKDIR /app/apps/backend
-RUN apk add --no-cache ffmpeg
 
 COPY --from=deps /app/apps/backend/node_modules ./node_modules
 COPY tsconfig.base.json /app/tsconfig.base.json
