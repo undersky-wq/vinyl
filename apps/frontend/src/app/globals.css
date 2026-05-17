@@ -4442,8 +4442,8 @@ textarea {
 
   .filters--home .chip {
     flex: 0 0 auto;
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    padding: 7px 10px;
+    font-size: 0.8rem;
     line-height: 1.2;
   }
 
@@ -4454,10 +4454,10 @@ textarea {
 
   .filters--library {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 8px;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
     padding-bottom: 0;
   }
 
@@ -4468,14 +4468,13 @@ textarea {
 
   .filters--library .chip {
     flex: 0 0 auto;
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    padding: 7px 10px;
+    font-size: 0.8rem;
     line-height: 1.2;
   }
 
   .filters--library .home-style-toggle {
-    min-width: 44px;
-    margin-left: auto;
+    min-width: 38px;
     order: 999;
   }
 
@@ -4485,7 +4484,7 @@ textarea {
 
   .home-style-toggle {
     order: 999;
-    min-width: 44px;
+    min-width: 38px;
   }
 
   .cover-frame:active img,
@@ -4751,6 +4750,21 @@ textarea {
 
   .library-track__time {
     font-size: 0.8rem;
+  }
+
+  .library-release__footer {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 6px;
+  }
+
+  .library-release__style-chip {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    line-height: 1.2;
   }
 
   .playlist-chip-row {
