@@ -57,7 +57,7 @@ export function HomeStyleFilters({
   );
   const popularStyles = styles.slice(0, isMobile ? 4 : 11);
   const collapsedStyles = [...new Set(popularStyles)];
-  const visibleStyles = isExpanded ? styles : selectedStyles.length ? selectedStyles : collapsedStyles;
+  const visibleStyles = isExpanded ? styles : [...new Set([...collapsedStyles, ...selectedStyles])];
   const canToggle = styles.length > visibleStyles.length || isExpanded;
 
   useEffect(() => {

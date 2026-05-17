@@ -4883,9 +4883,9 @@ textarea {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 18px;
+    gap: 19px;
     min-height: 100dvh;
-    padding: max(60px, calc(env(safe-area-inset-top) + 42px)) 26px max(24px, env(safe-area-inset-bottom));
+    padding: max(78px, calc(env(safe-area-inset-top) + 60px)) 26px max(24px, env(safe-area-inset-bottom));
   }
 
   .mobile-player-overlay .player-page__waveform {
@@ -5138,7 +5138,7 @@ textarea {
 
   .player-page__controls {
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 10px;
+    gap: 14px;
     width: min(calc(100vw - 64px), 460px);
     padding: 0;
   }
@@ -5166,15 +5166,15 @@ textarea {
   }
 
   .player-page__secondary-actions {
-    gap: 18px;
+    gap: 22px;
     margin-top: -4px;
   }
 
   .player-page__secondary-actions .track-favorite-button,
   .player-page__secondary-actions .track-playlist-menu__trigger,
   .player-page__secondary-actions .player-queue-menu__trigger {
-    width: 42px;
-    height: 42px;
+    width: 58px;
+    height: 58px;
     border-radius: 999px;
     background: rgba(18, 18, 18, 0.72);
   }
