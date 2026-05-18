@@ -4158,8 +4158,8 @@ textarea {
 .tracklist-draft__list {
   display: grid;
   gap: 10px;
-  max-height: 420px;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .tracklist-draft__item {

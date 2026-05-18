@@ -82,6 +82,7 @@ export type Playlist = {
   id: string;
   name: string;
   description: string | null;
+  sortOrder?: number;
   items: Array<{
     id: string;
     sortOrder: number;

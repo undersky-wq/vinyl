@@ -147,7 +147,16 @@ function dedupe(values: string[]) {
 }
 
 function sortPlaylists(playlists: PlaylistSummary[]) {
-  return [...playlists].sort((a, b) => a.name.localeCompare(b.name));
+  return [...playlists].sort((a, b) => {
+    const orderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
+    const orderB = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
+
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+
+    return a.name.localeCompare(b.name);
+  });
 }
 
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
@@ -711,6 +720,7 @@ export function TracklistBrowser({
             id: createdPlaylist.id,
             name: createdPlaylist.name,
             description: createdPlaylist.description,
+            sortOrder: createdPlaylist.sortOrder,
             _count: {
               items: createdPlaylist.items.length,
             },
