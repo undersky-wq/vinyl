@@ -3,7 +3,7 @@ import { FlatList, Image, Pressable, StatusBar, StyleSheet, Text, TextInput, Vie
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
-import { getCoverUrl, getPlaylists, updatePlaylist } from '../lib/api';
+import { getCoverUrl, getPlaylists, reorderPlaylists, updatePlaylist } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Playlist } from '../types';
 
@@ -43,6 +43,7 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
   const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
   const [editingPlaylistName, setEditingPlaylistName] = useState('');
+  const [draggedPlaylistId, setDraggedPlaylistId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   async function load() {
@@ -105,6 +106,30 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
     }
   }
 
+  async function movePlaylist(activePlaylistId: string, overPlaylistId: string) {
+    if (activePlaylistId === overPlaylistId) {
+      return;
+    }
+
+    const fromIndex = playlists.findIndex((playlist) => playlist.id === activePlaylistId);
+    const toIndex = playlists.findIndex((playlist) => playlist.id === overPlaylistId);
+
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+      return;
+    }
+
+    const nextPlaylists = [...playlists];
+    const [movedPlaylist] = nextPlaylists.splice(fromIndex, 1);
+    nextPlaylists.splice(toIndex, 0, movedPlaylist);
+    setPlaylists(nextPlaylists);
+
+    try {
+      await reorderPlaylists(nextPlaylists.map((playlist) => playlist.id));
+    } catch {
+      setPlaylists(playlists);
+    }
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.headerShell}>
@@ -162,9 +187,17 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
               return (
                 <Pressable
                   key={playlist.id}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setSelectedPlaylistId(playlist.id)}
-                  onLongPress={() => startRename(playlist)}
+                  style={[styles.chip, active && styles.chipActive, draggedPlaylistId === playlist.id && styles.chipDragging]}
+                  onPress={() => {
+                    if (draggedPlaylistId && draggedPlaylistId !== playlist.id) {
+                      void movePlaylist(draggedPlaylistId, playlist.id);
+                      setDraggedPlaylistId(null);
+                      return;
+                    }
+
+                    setSelectedPlaylistId(playlist.id);
+                  }}
+                  onLongPress={() => setDraggedPlaylistId(playlist.id)}
                 >
                   {editing ? (
                     <TextInput
@@ -331,6 +364,10 @@ const styles = StyleSheet.create({
   },
   chipActive: {
     backgroundColor: 'rgba(181,120,255,0.14)',
+  },
+  chipDragging: {
+    opacity: 0.58,
+    transform: [{ scale: 0.97 }],
   },
   chipText: {
     color: colors.muted,

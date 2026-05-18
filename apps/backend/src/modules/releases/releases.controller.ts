@@ -18,6 +18,7 @@ import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AdminGuard } from '../auth/auth.guards';
 import { AuthService } from '../auth/auth.service';
+import { CreateReleaseTrackDto } from './dto/create-release-track.dto';
 import { CreateManualReleaseDto } from './dto/create-manual-release.dto';
 import { QueryReleasesDto } from './dto/query-releases.dto';
 import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
@@ -130,5 +131,20 @@ export class ReleasesController {
     @Body() dto: UpdateTrackMetadataDto,
   ) {
     return this.releasesService.updateTrackMetadata(trackId, dto);
+  }
+
+  @Post(':id/tracks')
+  @UseGuards(AdminGuard)
+  async createTrack(
+    @Param('id') id: string,
+    @Body() dto: CreateReleaseTrackDto,
+  ) {
+    return this.releasesService.createTrack(id, dto);
+  }
+
+  @Delete('tracks/:trackId')
+  @UseGuards(AdminGuard)
+  async deleteTrack(@Param('trackId') trackId: string) {
+    return this.releasesService.deleteTrack(trackId);
   }
 }

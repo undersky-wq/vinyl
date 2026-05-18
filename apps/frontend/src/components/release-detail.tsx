@@ -2,8 +2,10 @@
 
 import { ImagePlus, Play, Plus, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  createReleaseTrack,
+  deleteReleaseTrack,
   deleteRelease,
   deleteTrackAudio,
   updateReleaseMetadata,
@@ -357,8 +359,12 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [deletingAudioId, setDeletingAudioId] = useState<string | null>(null);
+  const [deletingTrackId, setDeletingTrackId] = useState<string | null>(null);
   const [isDeletingRelease, setIsDeletingRelease] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [tracks, setTracks] = useState(() => release.tracks);
+  const [newTrackDraft, setNewTrackDraft] = useState({ position: '', artist: '', title: '' });
+  const [isCreatingTrack, setIsCreatingTrack] = useState(false);
   const [uploadedCoverUrl, setUploadedCoverUrl] = useState<string | null>(null);
   const [styleTags, setStyleTags] = useState(() => [...release.styles]);
   const [styleDraft, setStyleDraft] = useState('');
@@ -370,7 +376,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [trackMetaById, setTrackMetaById] = useState(() =>
     Object.fromEntries(
-      release.tracks.map((track) => [
+      tracks.map((track) => [
         track.id,
         {
           bpm: track.bpm,
@@ -381,7 +387,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   );
   const [trackTextById, setTrackTextById] = useState(() =>
     Object.fromEntries(
-      release.tracks.map((track) => [
+      tracks.map((track) => [
         track.id,
         {
           artist: getTrackArtist(track, release.artist),
@@ -449,7 +455,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
     };
   }, [isLightboxOpen]);
 
-  const playableTracks: ReleasePlayerTrack[] = release.tracks
+  const playableTracks: ReleasePlayerTrack[] = tracks
     .map((track): ReleasePlayerTrack | null => {
       if (!track.audioFiles?.length) {
         return null;
@@ -493,9 +499,13 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   }, [release.artist, release.title]);
 
   useEffect(() => {
+    setTracks(release.tracks);
+  }, [release.tracks]);
+
+  useEffect(() => {
     setTrackTextById(
       Object.fromEntries(
-        release.tracks.map((track) => [
+        tracks.map((track) => [
           track.id,
           {
             artist: getTrackArtist(track, release.artist),
@@ -504,7 +514,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
         ]),
       ),
     );
-  }, [release.artist, release.tracks]);
+  }, [release.artist, tracks]);
 
   async function saveReleaseStyles(nextStyles: string[]) {
     setStyleTags(nextStyles);
@@ -572,6 +582,75 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       router.refresh();
     } finally {
       setIsUploadingCover(false);
+    }
+  }
+
+  async function handleCreateTrack(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const title = newTrackDraft.title.trim();
+    if (!title) {
+      return;
+    }
+
+    setIsCreatingTrack(true);
+    try {
+      const createdTrack = await createReleaseTrack(release.id, {
+        position: newTrackDraft.position.trim() || undefined,
+        artist: newTrackDraft.artist.trim() || undefined,
+        title,
+      });
+
+      setTracks((current) => [...current, createdTrack]);
+      setTrackMetaById((current) => ({
+        ...current,
+        [createdTrack.id]: {
+          bpm: createdTrack.bpm,
+          key: createdTrack.key,
+        },
+      }));
+      setTrackTextById((current) => ({
+        ...current,
+        [createdTrack.id]: {
+          artist: getTrackArtist(createdTrack, release.artist),
+          title: createdTrack.title,
+        },
+      }));
+      setNewTrackDraft({ position: '', artist: '', title: '' });
+      router.refresh();
+    } finally {
+      setIsCreatingTrack(false);
+    }
+  }
+
+  async function handleDeleteTrack(trackId: string, title: string) {
+    const confirmed = window.confirm(
+      lang === 'ru'
+        ? `Удалить трек "${title}" целиком? MP3 и привязки к плейлистам тоже удалятся.`
+        : `Delete track "${title}" completely? MP3 and playlist links will also be removed.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingTrackId(trackId);
+    try {
+      await deleteReleaseTrack(trackId);
+      setTracks((current) => current.filter((track) => track.id !== trackId));
+      setTrackMetaById((current) => {
+        const next = { ...current };
+        delete next[trackId];
+        return next;
+      });
+      setTrackTextById((current) => {
+        const next = { ...current };
+        delete next[trackId];
+        return next;
+      });
+      router.refresh();
+    } finally {
+      setDeletingTrackId(null);
     }
   }
 
@@ -814,9 +893,51 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       </div>
 
       <div className="release-panel">
+        {isAdmin ? (
+          <form className="release-track-form" onSubmit={handleCreateTrack}>
+            <input
+              value={newTrackDraft.position}
+              placeholder="A1"
+              aria-label={lang === 'ru' ? 'Позиция трека' : 'Track position'}
+              onChange={(event) =>
+                setNewTrackDraft((current) => ({
+                  ...current,
+                  position: event.target.value,
+                }))
+              }
+            />
+            <input
+              value={newTrackDraft.artist}
+              placeholder={lang === 'ru' ? 'Артист' : 'Artist'}
+              aria-label={lang === 'ru' ? 'Артист трека' : 'Track artist'}
+              onChange={(event) =>
+                setNewTrackDraft((current) => ({
+                  ...current,
+                  artist: event.target.value,
+                }))
+              }
+            />
+            <input
+              value={newTrackDraft.title}
+              placeholder={lang === 'ru' ? 'Название трека' : 'Track title'}
+              aria-label={lang === 'ru' ? 'Название трека' : 'Track title'}
+              required
+              onChange={(event) =>
+                setNewTrackDraft((current) => ({
+                  ...current,
+                  title: event.target.value,
+                }))
+              }
+            />
+            <button type="submit" disabled={isCreatingTrack || !newTrackDraft.title.trim()}>
+              <Plus size={15} />
+              {isCreatingTrack ? (lang === 'ru' ? 'Добавляю...' : 'Adding...') : lang === 'ru' ? 'Добавить трек' : 'Add track'}
+            </button>
+          </form>
+        ) : null}
         <div className="tracklist">
-          {release.tracks.length ? (
-            release.tracks.map((track) => {
+          {tracks.length ? (
+            tracks.map((track) => {
               const audioFile = track.audioFiles?.[0] || null;
               const trackMeta = trackMetaById[track.id] || { bpm: track.bpm, key: track.key };
               const trackText = trackTextById[track.id] || {
@@ -931,6 +1052,17 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                       }}
                     >
                       <Trash2 size={15} />
+                    </button>
+                  ) : null}
+                  {user?.role === 'ADMIN' ? (
+                    <button
+                      type="button"
+                      className="track-icon-button track-icon-button--danger"
+                      aria-label={lang === 'ru' ? 'Удалить трек целиком' : 'Delete whole track'}
+                      disabled={deletingTrackId === track.id}
+                      onClick={() => void handleDeleteTrack(track.id, trackText.title)}
+                    >
+                      <X size={15} />
                     </button>
                   ) : null}
                 </div>

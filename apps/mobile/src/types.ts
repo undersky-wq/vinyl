@@ -35,6 +35,7 @@ export type PlaylistSummary = {
   id: string;
   name: string;
   description: string | null;
+  sortOrder?: number;
   _count: {
     items: number;
   };
@@ -44,6 +45,7 @@ export type Playlist = {
   id: string;
   name: string;
   description: string | null;
+  sortOrder?: number;
   items: Array<{
     track: Track;
   }>;

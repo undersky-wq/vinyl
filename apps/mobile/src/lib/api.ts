@@ -207,6 +207,16 @@ export async function updatePlaylist(playlistId: string, input: { name?: string;
   });
 }
 
+export async function reorderPlaylists(playlistIds: string[]) {
+  return fetchJson<PlaylistSummary[]>('/playlists/reorder', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ playlistIds }),
+  });
+}
+
 export async function getCurrentUser() {
   return fetchJson<AuthUser | null>('/auth/me');
 }

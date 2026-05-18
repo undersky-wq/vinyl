@@ -32,7 +32,7 @@ export class PlaylistsService {
         },
       },
       orderBy: {
-        updatedAt: 'desc',
+        sortOrder: 'asc',
       },
     });
 
@@ -55,7 +55,7 @@ export class PlaylistsService {
         },
       },
       orderBy: {
-        updatedAt: 'desc',
+        sortOrder: 'asc',
       },
     });
   }
@@ -102,6 +102,7 @@ export class PlaylistsService {
         userId,
         name: dto.name,
         description: dto.description,
+        sortOrder: await this.getNextPlaylistSortOrder(userId),
         items: dto.trackIds?.length
           ? {
               create: dto.trackIds.map((trackId, index) => ({
@@ -249,6 +250,45 @@ export class PlaylistsService {
     ]);
 
     return this.findOne(playlistId);
+  }
+
+  async reorderPlaylists(userId: string, playlistIds: string[]) {
+    const playlists = await this.prisma.playlist.findMany({
+      where: { userId },
+      select: { id: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    const existingIds = new Set(playlists.map((playlist) => playlist.id));
+    const nextIds = playlistIds.filter((playlistId) => existingIds.has(playlistId));
+    const missingIds = playlists.map((playlist) => playlist.id).filter((playlistId) => !nextIds.includes(playlistId));
+    const orderedIds = [...nextIds, ...missingIds];
+
+    await this.prisma.$transaction([
+      ...orderedIds.map((playlistId, index) =>
+        this.prisma.playlist.update({
+          where: { id: playlistId },
+          data: { sortOrder: 10000 + index },
+        }),
+      ),
+      ...orderedIds.map((playlistId, index) =>
+        this.prisma.playlist.update({
+          where: { id: playlistId },
+          data: { sortOrder: index },
+        }),
+      ),
+    ]);
+
+    return this.findSummaries(userId);
+  }
+
+  private async getNextPlaylistSortOrder(userId: string) {
+    const lastPlaylist = await this.prisma.playlist.findFirst({
+      where: { userId },
+      orderBy: { sortOrder: 'desc' },
+      select: { sortOrder: true },
+    });
+
+    return (lastPlaylist?.sortOrder ?? -1) + 1;
   }
 
   private async signPlaylistAudioUrls<

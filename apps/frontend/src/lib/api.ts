@@ -386,6 +386,23 @@ export async function reorderPlaylist(playlistId: string, trackIds: string[]) {
   return parseJsonResponse<Playlist>(response);
 }
 
+export async function reorderPlaylists(playlistIds: string[]) {
+  const response = await fetch(`${API_URL}/playlists/reorder`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ playlistIds }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Playlist order update failed'));
+  }
+
+  return parseJsonResponse<PlaylistSummary[]>(response);
+}
+
 export async function uploadTrackAudio(trackId: string, file: File) {
   const payload = new FormData();
   payload.append('file', file);
@@ -503,6 +520,39 @@ export async function updateTrackMetadata(
   }
 
   return parseJsonResponse<Release['tracks'][number]>(response);
+}
+
+export async function createReleaseTrack(
+  releaseId: string,
+  input: { position?: string; title: string; artist?: string },
+) {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/tracks`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Track creation failed'));
+  }
+
+  return parseJsonResponse<Release['tracks'][number]>(response);
+}
+
+export async function deleteReleaseTrack(trackId: string) {
+  const response = await fetch(`${API_URL}/releases/tracks/${trackId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Track delete failed'));
+  }
+
+  return parseJsonResponse<{ deleted: boolean }>(response);
 }
 
 export async function deleteTrackAudio(audioId: string) {

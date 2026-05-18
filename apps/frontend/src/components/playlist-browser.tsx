@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { getPlaylist, reorderPlaylist, updatePlaylist } from '../lib/api';
+import { getPlaylist, reorderPlaylist, reorderPlaylists, updatePlaylist } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
@@ -147,7 +147,7 @@ export function PlaylistBrowser({
   const [activePlaylistId, setActivePlaylistId] = useState(
     initialPlaylistId || initialPlaylist?.id || playlistSummaries[0]?.id || '',
   );
-  const [arePlaylistChipsExpanded, setArePlaylistChipsExpanded] = useState(false);
+  const [draggedPlaylistId, setDraggedPlaylistId] = useState<string | null>(null);
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [isReorderDirty, setIsReorderDirty] = useState(false);
   const [isPlaylistLoading, setIsPlaylistLoading] = useState(false);
@@ -156,9 +156,7 @@ export function PlaylistBrowser({
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { playQueue, togglePlayback } = usePlayerActions();
   const activePlaylist = activePlaylistId ? playlistCache[activePlaylistId] || null : null;
-  const visiblePlaylistSummaries = arePlaylistChipsExpanded
-    ? localSummaries
-    : localSummaries.slice(0, 6);
+  const visiblePlaylistSummaries = localSummaries;
 
   function selectPlaylist(playlistId: string) {
     setActivePlaylistId(playlistId);
@@ -286,6 +284,31 @@ export function PlaylistBrowser({
     setIsReorderDirty(true);
   }
 
+  async function movePlaylist(activePlaylistChipId: string, overPlaylistChipId: string) {
+    if (activePlaylistChipId === overPlaylistChipId) {
+      return;
+    }
+
+    const fromIndex = localSummaries.findIndex((playlist) => playlist.id === activePlaylistChipId);
+    const toIndex = localSummaries.findIndex((playlist) => playlist.id === overPlaylistChipId);
+
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+      return;
+    }
+
+    const nextSummaries = [...localSummaries];
+    const [movedPlaylist] = nextSummaries.splice(fromIndex, 1);
+    nextSummaries.splice(toIndex, 0, movedPlaylist);
+    setLocalSummaries(nextSummaries);
+
+    try {
+      const updatedSummaries = await reorderPlaylists(nextSummaries.map((playlist) => playlist.id));
+      setLocalSummaries(updatedSummaries);
+    } catch {
+      setLocalSummaries(playlistSummaries);
+    }
+  }
+
   async function saveTrackOrder() {
     if (!activePlaylist || !isReorderDirty) {
       return;
@@ -350,12 +373,31 @@ export function PlaylistBrowser({
 
   return (
     <section className="playlists-page">
-      <div className={`playlist-chip-row${arePlaylistChipsExpanded ? ' expanded' : ''}`}>
+      <div className="playlist-chip-row">
         {visiblePlaylistSummaries.length ? (
           visiblePlaylistSummaries.map((playlist) => (
             <div
               key={playlist.id}
-              className={`playlist-chip${playlist.id === activePlaylist?.id ? ' active' : ''}`}
+              className={`playlist-chip${playlist.id === activePlaylist?.id ? ' active' : ''}${
+                draggedPlaylistId === playlist.id ? ' dragging' : ''
+              }`}
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.effectAllowed = 'move';
+                setDraggedPlaylistId(playlist.id);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (draggedPlaylistId) {
+                  void movePlaylist(draggedPlaylistId, playlist.id);
+                }
+                setDraggedPlaylistId(null);
+              }}
+              onDragEnd={() => setDraggedPlaylistId(null)}
             >
               <button type="button" className="playlist-chip__select" onClick={() => selectPlaylist(playlist.id)}>
                 <span>{playlist.name}</span>
@@ -368,16 +410,6 @@ export function PlaylistBrowser({
             {lang === 'ru' ? 'Плейлисты появятся здесь после создания.' : 'Playlists will appear here after creation.'}
           </p>
         )}
-        {localSummaries.length > 6 ? (
-          <button
-            type="button"
-            className="playlist-chip playlist-chip-toggle"
-            onClick={() => setArePlaylistChipsExpanded((current) => !current)}
-            aria-expanded={arePlaylistChipsExpanded}
-          >
-            ...
-          </button>
-        ) : null}
       </div>
 
       <PlaylistWaveform tracks={tracks} />

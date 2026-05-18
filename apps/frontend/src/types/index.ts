@@ -95,6 +95,7 @@ export type PlaylistSummary = {
   id: string;
   name: string;
   description: string | null;
+  sortOrder?: number;
   _count: {
     items: number;
   };

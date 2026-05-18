@@ -3,6 +3,7 @@ import { AuthGuard } from '../auth/auth.guards';
 import { AddPlaylistItemDto } from './dto/add-playlist-item.dto';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { ReorderPlaylistDto } from './dto/reorder-playlist.dto';
+import { ReorderPlaylistsDto } from './dto/reorder-playlists.dto';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { PlaylistsService } from './playlists.service';
 
@@ -25,6 +26,11 @@ export class PlaylistsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.playlistsService.findOne(id);
+  }
+
+  @Put('reorder')
+  reorderPlaylists(@Req() request: any, @Body() dto: ReorderPlaylistsDto) {
+    return this.playlistsService.reorderPlaylists(request.user.id, dto.playlistIds);
   }
 
   @Post()

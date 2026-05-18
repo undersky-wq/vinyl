@@ -940,6 +940,54 @@ textarea {
   gap: 10px;
 }
 
+.release-track-form {
+  display: grid;
+  grid-template-columns: 76px minmax(160px, 0.45fr) minmax(220px, 1fr) max-content;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+
+.release-track-form input {
+  min-width: 0;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font: inherit;
+}
+
+.release-track-form input:focus {
+  outline: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.release-track-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 16px;
+  background: #242424;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.release-track-form button:hover:not(:disabled) {
+  background: #303030;
+}
+
+.release-track-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .track-row {
   position: relative;
   display: grid;
@@ -2174,6 +2222,11 @@ textarea {
 
 .playlist-chip:active {
   transform: translateY(1px);
+}
+
+.playlist-chip.dragging {
+  opacity: 0.55;
+  transform: scale(0.98);
 }
 
 .playlist-chip small {
@@ -4503,6 +4556,15 @@ textarea {
 
   .release-heading {
     font-size: 1.6rem;
+  }
+
+  .release-track-form {
+    grid-template-columns: 64px 1fr;
+  }
+
+  .release-track-form input:nth-child(3),
+  .release-track-form button {
+    grid-column: 1 / -1;
   }
 
   .track-row {

@@ -8,6 +8,7 @@ import { DiscogsService } from '../discogs/discogs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateManualReleaseDto, ManualTrackInput } from './dto/create-manual-release.dto';
+import { CreateReleaseTrackDto } from './dto/create-release-track.dto';
 import { QueryReleasesDto } from './dto/query-releases.dto';
 import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
@@ -670,6 +671,67 @@ export class ReleasesService {
       where: { id: trackId },
       data,
     });
+  }
+
+  async createTrack(releaseId: string, dto: CreateReleaseTrackDto) {
+    const title = dto.title?.trim();
+    if (!title) {
+      throw new BadRequestException('Track title is required');
+    }
+
+    const release = await this.prisma.release.findUnique({
+      where: { id: releaseId },
+      select: { id: true },
+    });
+    const trackCount = await this.prisma.track.count({
+      where: { releaseId },
+    });
+
+    if (!release) {
+      throw new NotFoundException('Release not found');
+    }
+
+    const fallbackPosition = `${trackCount + 1}`;
+    return this.prisma.track.create({
+      data: {
+        releaseId,
+        position: dto.position?.trim() || fallbackPosition,
+        title,
+        artists: dto.artist?.trim() ? [dto.artist.trim()] : [],
+      },
+      include: {
+        audioFiles: true,
+        storeLinks: true,
+      },
+    });
+  }
+
+  async deleteTrack(trackId: string) {
+    const track = await this.prisma.track.findUnique({
+      where: { id: trackId },
+      include: {
+        audioFiles: true,
+      },
+    });
+
+    if (!track) {
+      throw new NotFoundException('Track not found');
+    }
+
+    const audioBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || '';
+    await Promise.all(
+      track.audioFiles.flatMap((audioFile) =>
+        [audioFile.storageKey, audioFile.normalizedStorageKey]
+          .filter((key): key is string => Boolean(key))
+          .map((key) => this.storageService.deleteObject(audioBucket, key)),
+      ),
+    );
+
+    await this.prisma.track.delete({
+      where: { id: trackId },
+    });
+
+    return { deleted: true };
   }
 
   private parseManualTracks(rawTracks?: string) {
