@@ -150,6 +150,7 @@ export function PlaylistBrowser({
     initialPlaylistId || initialPlaylist?.id || playlistSummaries[0]?.id || '',
   );
   const [draggedPlaylistId, setDraggedPlaylistId] = useState<string | null>(null);
+  const draggedPlaylistIdRef = useRef<string | null>(null);
   const [isPlaylistOrderDirty, setIsPlaylistOrderDirty] = useState(false);
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [isReorderDirty, setIsReorderDirty] = useState(false);
@@ -295,14 +296,15 @@ export function PlaylistBrowser({
       return;
     }
 
-    const fromIndex = localSummaries.findIndex((playlist) => playlist.id === activePlaylistChipId);
-    const toIndex = localSummaries.findIndex((playlist) => playlist.id === overPlaylistChipId);
+    const currentSummaries = localSummariesRef.current;
+    const fromIndex = currentSummaries.findIndex((playlist) => playlist.id === activePlaylistChipId);
+    const toIndex = currentSummaries.findIndex((playlist) => playlist.id === overPlaylistChipId);
 
     if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
       return;
     }
 
-    const nextSummaries = [...localSummaries];
+    const nextSummaries = [...currentSummaries];
     const [movedPlaylist] = nextSummaries.splice(fromIndex, 1);
     nextSummaries.splice(toIndex, 0, movedPlaylist);
     localSummariesRef.current = nextSummaries;
@@ -407,22 +409,25 @@ export function PlaylistBrowser({
               onDragStart={(event) => {
                 event.dataTransfer.effectAllowed = 'move';
                 event.dataTransfer.setData('text/plain', playlist.id);
+                draggedPlaylistIdRef.current = playlist.id;
                 setDraggedPlaylistId(playlist.id);
               }}
               onDragOver={(event) => {
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
-                const activePlaylistChipId = event.dataTransfer.getData('text/plain') || draggedPlaylistId;
+                const activePlaylistChipId = draggedPlaylistIdRef.current || draggedPlaylistId;
                 if (activePlaylistChipId) {
                   movePlaylist(activePlaylistChipId, playlist.id);
                 }
               }}
               onDrop={(event) => {
                 event.preventDefault();
+                draggedPlaylistIdRef.current = null;
                 setDraggedPlaylistId(null);
                 void savePlaylistOrder();
               }}
               onDragEnd={() => {
+                draggedPlaylistIdRef.current = null;
                 setDraggedPlaylistId(null);
                 void savePlaylistOrder();
               }}
