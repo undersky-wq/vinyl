@@ -456,7 +456,7 @@ export function LibraryScreen({ activeTrackId, onPlayTrack, onOpenProfile, avata
                   </Text>
                   <Text numberOfLines={2} style={styles.releaseTitle}>
                     {item.title}
-                    {item.year ? ` вЂў ${item.year}` : ''}
+                    {item.year ? ` \u2022 ${item.year}` : ''}
                   </Text>
                 </View>
               </View>

@@ -4629,12 +4629,24 @@ textarea {
 
   .track-row__artist {
     color: #8d8d8d;
+    font-size: 0.8rem;
     font-weight: 700;
   }
 
   .track-row__title {
     color: #ffffff;
+    font-size: 0.8rem;
     font-weight: 700;
+  }
+
+  .track-row__position,
+  .track-row__duration {
+    font-size: 0.8rem;
+  }
+
+  .track-meta-pill {
+    font-size: 0.8rem;
+    font-weight: 400;
   }
 
   .track-row__meta-edit,
@@ -4650,8 +4662,15 @@ textarea {
   .track-row .track-playlist-menu__trigger,
   .track-row .track-icon-button--danger {
     justify-self: center;
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .track-row .track-favorite-button svg,
+  .track-row .track-playlist-menu__trigger svg,
+  .track-row .track-icon-button--danger svg {
+    width: 16px;
+    height: 16px;
   }
 
   .library-toolbar--filters-only {

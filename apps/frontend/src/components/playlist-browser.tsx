@@ -15,6 +15,8 @@ type PlaylistBrowserProps = {
   initialPlaylistId?: string;
 };
 
+type PlaylistDropSide = 'before' | 'after';
+
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
   if (durationRaw) {
     return durationRaw;
@@ -292,7 +294,11 @@ export function PlaylistBrowser({
     setIsReorderDirty(true);
   }
 
-  function movePlaylist(activePlaylistChipId: string, overPlaylistChipId: string) {
+  function movePlaylist(
+    activePlaylistChipId: string,
+    overPlaylistChipId: string,
+    side: PlaylistDropSide = 'before',
+  ) {
     if (activePlaylistChipId === overPlaylistChipId) {
       return;
     }
@@ -307,7 +313,9 @@ export function PlaylistBrowser({
 
     const nextSummaries = [...currentSummaries];
     const [movedPlaylist] = nextSummaries.splice(fromIndex, 1);
-    nextSummaries.splice(toIndex, 0, movedPlaylist);
+    const adjustedOverIndex = nextSummaries.findIndex((playlist) => playlist.id === overPlaylistChipId);
+    const insertIndex = side === 'after' ? adjustedOverIndex + 1 : adjustedOverIndex;
+    nextSummaries.splice(insertIndex, 0, movedPlaylist);
     localSummariesRef.current = nextSummaries;
     isPlaylistOrderDirtyRef.current = true;
     setLocalSummaries(nextSummaries);
@@ -326,10 +334,9 @@ export function PlaylistBrowser({
       isPlaylistOrderDirtyRef.current = false;
       setLocalSummaries(updatedSummaries);
       setIsPlaylistOrderDirty(false);
-    } catch {
-      localSummariesRef.current = playlistSummaries;
+    } catch (error) {
+      console.warn('Playlist order save failed', error);
       isPlaylistOrderDirtyRef.current = false;
-      setLocalSummaries(playlistSummaries);
       setIsPlaylistOrderDirty(false);
     }
   }
@@ -418,9 +425,13 @@ export function PlaylistBrowser({
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
                 const activePlaylistChipId = draggedPlaylistIdRef.current || draggedPlaylistId;
-                if (activePlaylistChipId && lastPlaylistDragOverIdRef.current !== playlist.id) {
-                  lastPlaylistDragOverIdRef.current = playlist.id;
-                  movePlaylist(activePlaylistChipId, playlist.id);
+                const rect = event.currentTarget.getBoundingClientRect();
+                const dropSide = event.clientX > rect.left + rect.width / 2 ? 'after' : 'before';
+                const dragOverKey = `${playlist.id}:${dropSide}`;
+
+                if (activePlaylistChipId && lastPlaylistDragOverIdRef.current !== dragOverKey) {
+                  lastPlaylistDragOverIdRef.current = dragOverKey;
+                  movePlaylist(activePlaylistChipId, playlist.id, dropSide);
                 }
               }}
               onDrop={(event) => {

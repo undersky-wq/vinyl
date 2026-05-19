@@ -29,6 +29,7 @@ export class PlaylistsController {
   }
 
   @Put('reorder')
+  @UseGuards(AuthGuard)
   reorderPlaylists(@Req() request: any, @Body() dto: ReorderPlaylistsDto) {
     return this.playlistsService.reorderPlaylists(request.user.id, dto.playlistIds);
   }
