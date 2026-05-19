@@ -9,9 +9,10 @@ import { HomeRelease } from '../types';
 
 type ReleaseCardProps = {
   release: HomeRelease;
+  onOpenRelease?: () => void;
 };
 
-export function ReleaseCard({ release }: ReleaseCardProps) {
+export function ReleaseCard({ release, onOpenRelease }: ReleaseCardProps) {
   const { requireAuth } = useAuth();
   const { playQueue } = usePlayerActions();
   const coverSrc =
@@ -54,6 +55,7 @@ export function ReleaseCard({ release }: ReleaseCardProps) {
           href={`/releases/${release.id}`}
           aria-label={`${release.artist} — ${release.title}`}
           className="cover-link"
+          onClick={onOpenRelease}
         >
           <CoverArtwork src={coverSrc} alt={release.title} />
         </Link>

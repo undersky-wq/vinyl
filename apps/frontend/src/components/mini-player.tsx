@@ -67,10 +67,13 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const [overlayDragProgress, setOverlayDragProgress] = useState<number | null>(null);
   const [isOverlayQueueOpen, setIsOverlayQueueOpen] = useState(false);
+  const [overlayQueueDragY, setOverlayQueueDragY] = useState(0);
   const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
   const [overlayShuffleActive, setOverlayShuffleActive] = useState(isShuffleEnabled);
   const [overlayRepeatActive, setOverlayRepeatActive] = useState(isRepeatEnabled);
   const lastHapticStepRef = useRef(-1);
+  const overlayQueueDragStartYRef = useRef<number | null>(null);
+  const overlayQueueDidDragRef = useRef(false);
 
   const volumeLabel = lang === 'ru' ? 'Громкость' : 'Volume';
   const displayProgress = dragProgress ?? progress;
@@ -162,6 +165,36 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     event.stopPropagation();
     setOverlayRepeatActive((current) => !current);
     toggleRepeat();
+  }
+
+  function startOverlayQueueDrag(clientY: number) {
+    overlayQueueDragStartYRef.current = clientY;
+    overlayQueueDidDragRef.current = false;
+    setOverlayQueueDragY(0);
+  }
+
+  function moveOverlayQueueDrag(clientY: number) {
+    if (overlayQueueDragStartYRef.current === null) {
+      return;
+    }
+
+    const nextDragY = Math.max(0, clientY - overlayQueueDragStartYRef.current);
+    overlayQueueDidDragRef.current = nextDragY > 8;
+    setOverlayQueueDragY(nextDragY);
+  }
+
+  function finishOverlayQueueDrag() {
+    if (overlayQueueDragStartYRef.current === null) {
+      return;
+    }
+
+    const shouldClose = overlayQueueDragY > 86;
+    overlayQueueDragStartYRef.current = null;
+    setOverlayQueueDragY(0);
+
+    if (shouldClose) {
+      setIsOverlayQueueOpen(false);
+    }
   }
 
   if (!currentTrack) {
@@ -499,7 +532,27 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                 <ListMusic size={18} />
               </button>
               {isOverlayQueueOpen ? (
-                <div className="player-queue-menu__popup">
+                <div
+                  className={`player-queue-menu__popup${overlayQueueDragY > 0 ? ' dragging' : ''}`}
+                  style={{ transform: overlayQueueDragY ? `translateY(${overlayQueueDragY}px)` : undefined }}
+                  onClickCapture={(event) => {
+                    if (overlayQueueDidDragRef.current) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      overlayQueueDidDragRef.current = false;
+                    }
+                  }}
+                  onPointerDown={(event) => {
+                    startOverlayQueueDrag(event.clientY);
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  onPointerMove={(event) => moveOverlayQueueDrag(event.clientY)}
+                  onPointerUp={(event) => {
+                    event.currentTarget.releasePointerCapture(event.pointerId);
+                    finishOverlayQueueDrag();
+                  }}
+                  onPointerCancel={finishOverlayQueueDrag}
+                >
                   <div className="player-queue-menu__title">{lang === 'ru' ? 'Сейчас играет' : 'Now playing'}</div>
                   <div className="player-queue-menu__list">
                     {visibleQueue.map((track) => {

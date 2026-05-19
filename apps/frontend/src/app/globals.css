@@ -83,8 +83,8 @@ textarea {
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: auto max-content minmax(360px, 1fr) auto auto;
-  gap: 12px;
+  grid-template-columns: auto minmax(0, max-content) minmax(220px, 1fr) auto auto;
+  gap: 10px;
   align-items: center;
   padding: 14px 18px;
   margin-bottom: 24px;
@@ -131,18 +131,20 @@ textarea {
   display: flex;
   align-items: center;
   gap: 2px;
+  min-width: 0;
 }
 
 .nav-link {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 10px 9px;
+  padding: 10px 8px;
   border-radius: 999px;
   color: #8d8d8d;
   font-size: 1.1rem;
   font-weight: 700;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
 }
 
 .nav-link:hover,
@@ -179,6 +181,37 @@ textarea {
   border: none;
   border-radius: 999px;
   background: #262626;
+}
+
+@media (max-width: 1180px) {
+  .topbar {
+    grid-template-columns: auto minmax(0, max-content) minmax(170px, 1fr) auto auto;
+    gap: 6px;
+    padding-inline: 14px;
+  }
+
+  .brand-link {
+    font-size: 1.72rem;
+  }
+
+  .nav-link {
+    gap: 5px;
+    padding-inline: 6px;
+    font-size: 1rem;
+  }
+
+  .nav-link svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .topbar__search {
+    padding-inline: 14px;
+  }
+
+  .language-chip {
+    padding-inline: 6px;
+  }
 }
 
 .topbar__spacer {
@@ -4612,19 +4645,27 @@ textarea {
   }
 
   .track-row__title-block {
-    display: grid;
-    gap: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
     min-height: 44px;
     padding-right: 6px;
+    overflow: hidden;
   }
 
   .track-row__artist,
   .track-row__title {
-    display: block;
+    display: inline;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .track-row__artist::after {
-    content: '';
+    content: '-';
+    color: #ffffff;
+    margin: 0 0.35em;
   }
 
   .track-row__artist {
@@ -5278,6 +5319,13 @@ textarea {
     box-shadow: 0 -18px 70px rgba(0, 0, 0, 0.52);
     backdrop-filter: blur(18px);
     transform: none;
+    touch-action: pan-y;
+    transition: transform 0.18s ease;
+    will-change: transform;
+  }
+
+  .mobile-player-overlay .player-queue-menu__popup.dragging {
+    transition: none;
   }
 
   .mobile-player-overlay .player-queue-menu__popup::before {

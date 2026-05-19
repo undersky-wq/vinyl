@@ -104,13 +104,42 @@ export function HomeReleaseGrid({
       return;
     }
 
-    const timeout = window.setTimeout(() => {
-      window.scrollTo({ top: restoredState.scrollY, behavior: 'auto' });
-      restoredViewStateRef.current = null;
-    }, 80);
+    const targetState = restoredState;
+    let attempts = 0;
+    let frame = 0;
 
-    return () => window.clearTimeout(timeout);
+    function restoreScrollPosition() {
+      window.scrollTo({ top: targetState.scrollY, behavior: 'auto' });
+
+      attempts += 1;
+      const isCloseEnough = Math.abs(window.scrollY - targetState.scrollY) < 8;
+      const hasEnoughHeight = document.documentElement.scrollHeight >= targetState.scrollY + window.innerHeight;
+
+      if ((isCloseEnough && hasEnoughHeight) || attempts >= 24) {
+        restoredViewStateRef.current = null;
+        return;
+      }
+
+      frame = window.requestAnimationFrame(restoreScrollPosition);
+    }
+
+    frame = window.requestAnimationFrame(restoreScrollPosition);
+
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+    };
   }, []);
+
+  const persistCurrentViewState = useCallback(() => {
+    writeHomeViewState({
+      queryString,
+      releases,
+      hasMore,
+      scrollY: typeof window === 'undefined' ? 0 : window.scrollY,
+    });
+  }, [hasMore, queryString, releases]);
 
   useEffect(() => {
     writeHomeViewState({
@@ -228,7 +257,7 @@ export function HomeReleaseGrid({
     <>
       <section className="release-grid">
         {releases.map((release) => (
-          <ReleaseCard key={release.id} release={release} />
+          <ReleaseCard key={release.id} release={release} onOpenRelease={persistCurrentViewState} />
         ))}
       </section>
 

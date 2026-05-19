@@ -46,6 +46,7 @@ export class PlaylistsService {
         id: true,
         name: true,
         description: true,
+        sortOrder: true,
         createdAt: true,
         updatedAt: true,
         _count: {
