@@ -73,6 +73,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const [overlayRepeatActive, setOverlayRepeatActive] = useState(isRepeatEnabled);
   const lastHapticStepRef = useRef(-1);
   const overlayQueueDragStartYRef = useRef<number | null>(null);
+  const overlayQueueDragYRef = useRef(0);
   const overlayQueueDidDragRef = useRef(false);
 
   const volumeLabel = lang === 'ru' ? 'Громкость' : 'Volume';
@@ -169,6 +170,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
 
   function startOverlayQueueDrag(clientY: number) {
     overlayQueueDragStartYRef.current = clientY;
+    overlayQueueDragYRef.current = 0;
     overlayQueueDidDragRef.current = false;
     setOverlayQueueDragY(0);
   }
@@ -179,7 +181,8 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     }
 
     const nextDragY = Math.max(0, clientY - overlayQueueDragStartYRef.current);
-    overlayQueueDidDragRef.current = nextDragY > 8;
+    overlayQueueDragYRef.current = nextDragY;
+    overlayQueueDidDragRef.current = nextDragY > 6;
     setOverlayQueueDragY(nextDragY);
   }
 
@@ -188,8 +191,9 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       return;
     }
 
-    const shouldClose = overlayQueueDragY > 86;
+    const shouldClose = overlayQueueDragYRef.current > 44;
     overlayQueueDragStartYRef.current = null;
+    overlayQueueDragYRef.current = 0;
     setOverlayQueueDragY(0);
 
     if (shouldClose) {

@@ -4592,23 +4592,31 @@ textarea {
   }
 
   .release-track-form {
-    grid-template-columns: 64px 1fr;
+    grid-template-columns: 44px minmax(0, 0.9fr) minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
   }
 
-  .release-track-form input:nth-child(3),
+  .release-track-form input,
   .release-track-form button {
-    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .release-track-form button {
+    min-height: 38px;
+    padding: 0 10px;
+    white-space: nowrap;
   }
 
   .track-row {
-    grid-template-columns: 44px 32px minmax(0, 1fr) 44px;
+    grid-template-columns: 28px 32px minmax(0, 1fr) 44px;
     gap: 8px 7px;
     padding: 5px 10px 8px 0;
     border-radius: 8px;
   }
 
   .track-row__actions {
-    min-width: 44px;
+    min-width: 28px;
   }
 
   .track-row__duration {
@@ -4625,30 +4633,37 @@ textarea {
     gap: 0;
     justify-items: center;
     padding: 0 4px;
+    white-space: nowrap;
   }
 
   .track-row__empty-action {
-    width: 44px;
-    height: 44px;
+    width: 28px;
+    height: 28px;
   }
 
   .track-row__play-button,
   .track-row .track-upload-button--icon {
-    width: 44px;
-    height: 44px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
+  }
+
+  .track-row__play-button svg,
+  .track-row .track-upload-button--icon svg {
+    width: 15px;
+    height: 15px;
   }
 
   .track-row__position-cell {
     justify-content: flex-start;
-    min-height: 44px;
+    min-height: 32px;
   }
 
   .track-row__title-block {
     display: inline-flex;
     align-items: center;
     gap: 0;
-    min-height: 44px;
+    min-height: 32px;
     padding-right: 6px;
     overflow: hidden;
   }
@@ -5319,7 +5334,9 @@ textarea {
     box-shadow: 0 -18px 70px rgba(0, 0, 0, 0.52);
     backdrop-filter: blur(18px);
     transform: none;
-    touch-action: pan-y;
+    touch-action: none;
+    overscroll-behavior: contain;
+    user-select: none;
     transition: transform 0.18s ease;
     will-change: transform;
   }
