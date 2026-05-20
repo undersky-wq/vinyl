@@ -4629,7 +4629,7 @@ textarea {
   .track-row__meta-actions {
     display: grid;
     grid-column: 1 / -1;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0;
     justify-items: center;
     padding: 0 4px;
@@ -4832,7 +4832,7 @@ textarea {
   }
 
   .library-track {
-    grid-template-columns: 58px minmax(0, 1fr) 28px 28px max-content;
+    grid-template-columns: max-content minmax(0, 1fr) 28px 28px max-content;
     min-height: 32px;
     padding: 4px 0;
     column-gap: 6px;
@@ -4865,7 +4865,7 @@ textarea {
   }
 
   .library-track__index {
-    justify-content: center;
+    justify-content: flex-start;
     height: auto;
     font-size: 0.8rem;
   }
