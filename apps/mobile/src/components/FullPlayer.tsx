@@ -382,6 +382,7 @@ export function FullPlayer({
                       onPress={() => onSelectQueueTrack(queueTrack)}
                     >
                       <Text style={styles.queueNumber}>{index + 1}</Text>
+                      <Image source={{ uri: queueTrack.coverUrl }} style={styles.queueCover} />
                       <View style={styles.queueText}>
                         <Text numberOfLines={1} style={[styles.queueTitle, active && styles.queueActiveText]}>
                           {queueTrack.title}
@@ -612,6 +613,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
     fontWeight: '800',
+  },
+  queueCover: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: colors.panel,
   },
   queueText: {
     flex: 1,

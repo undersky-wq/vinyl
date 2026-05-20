@@ -479,6 +479,92 @@ export class ReleasesService {
     };
   }
 
+  async findLibraryQueue(query: QueryReleasesDto) {
+    const userId = query.userId || 'default-user';
+    const styles = this.splitList(query.style);
+    const keys = this.splitList(query.key);
+    const search = query.search?.trim();
+    const searchReleaseIds = search ? await this.findReleaseIdsBySearch(userId, search) : [];
+    const audioBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
+    const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+
+    const trackWhere: Prisma.TrackWhereInput = {
+      audioFiles: {
+        some: {},
+      },
+      ...(keys.length ? { key: { in: keys } } : {}),
+      release: {
+        is: {
+          collectionItems: {
+            some: {
+              userId,
+            },
+          },
+          ...(styles.length ? { styles: { hasSome: styles } } : {}),
+          ...(search
+            ? {
+                id: {
+                  in: searchReleaseIds,
+                },
+              }
+            : {}),
+        },
+      },
+    };
+
+    const tracks = await this.prisma.track.findMany({
+      where: trackWhere,
+      take: 1200,
+      include: {
+        audioFiles: true,
+        release: true,
+      },
+      orderBy: [
+        {
+          release: {
+            updatedAt: 'desc',
+          },
+        },
+        {
+          position: 'asc',
+        },
+      ],
+    });
+
+    return Promise.all(
+      tracks.map(async (track) => {
+        const audioFile = track.audioFiles[0];
+        const audioUrl = audioFile
+          ? (await this.storageService.getSignedObjectUrl(
+              audioBucket,
+              audioFile.normalizedStorageKey || audioFile.storageKey,
+            )) ||
+            audioFile.normalizedStorageUrl ||
+            audioFile.storageUrl
+          : null;
+        const coverUrl = track.release.coverThumbStorageKey
+          ? (await this.storageService.getSignedObjectUrl(coversBucket, track.release.coverThumbStorageKey)) ||
+            track.release.coverThumbStorageUrl
+          : track.release.coverThumbStorageUrl ||
+            track.release.coverMediumStorageUrl ||
+            track.release.coverStorageUrl ||
+            track.release.coverImageUrl;
+
+        return {
+          id: track.id,
+          title: track.title,
+          artist: track.artists.length ? track.artists.join(', ') : track.release.artist,
+          audioUrl,
+          coverUrl,
+          releaseId: track.releaseId,
+          durationRaw: track.durationRaw,
+          durationSec: track.durationSec,
+          waveformData: track.waveformData,
+        };
+      }),
+    );
+  }
+
   async findOne(id: string, includeAudioUrls = false) {
     const release = await this.prisma.release.findUnique({
       where: { id },

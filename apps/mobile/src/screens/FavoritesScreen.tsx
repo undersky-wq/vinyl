@@ -1,17 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { FlatList, Image, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
-import { getCoverUrl, getFavoriteTracks } from '../lib/api';
+import { getCoverUrl } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Release, Track } from '../types';
 
 type FavoriteTrack = Track & { release: Release };
 
 type FavoritesScreenProps = {
+  activeTrackId: string | null;
+  tracks: FavoriteTrack[];
   onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
   onOpenProfile: () => void;
+  onRefresh: () => Promise<void>;
   avatarUrl?: string | null;
 };
 
@@ -38,8 +41,14 @@ function toPlayerTrack(track: FavoriteTrack): PlayerTrack | null {
   };
 }
 
-export function FavoritesScreen({ onPlayTrack, onOpenProfile, avatarUrl }: FavoritesScreenProps) {
-  const [tracks, setTracks] = useState<FavoriteTrack[]>([]);
+export function FavoritesScreen({
+  activeTrackId,
+  tracks,
+  onPlayTrack,
+  onOpenProfile,
+  onRefresh,
+  avatarUrl,
+}: FavoritesScreenProps) {
   const [query, setQuery] = useState('');
   const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [isLoading, setIsLoading] = useState(false);
@@ -47,17 +56,13 @@ export function FavoritesScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Favor
   async function load() {
     setIsLoading(true);
     try {
-      setTracks(await getFavoriteTracks());
+      await onRefresh();
     } catch {
-      setTracks([]);
+      // Keep the last known favorites visible if refresh fails.
     } finally {
       setIsLoading(false);
     }
   }
-
-  useEffect(() => {
-    void load();
-  }, []);
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleTracks = tracks.filter((track) => {
@@ -124,6 +129,7 @@ export function FavoritesScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Favor
         contentContainerStyle={styles.list}
         renderItem={({ item, index }) => {
           const playerTrack = toPlayerTrack(item);
+          const isActive = playerTrack?.id === activeTrackId;
 
           if (!playerTrack) {
             return null;
@@ -134,10 +140,10 @@ export function FavoritesScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Favor
               <Image source={{ uri: getCoverUrl(item.release) }} style={styles.cover} />
               <Text style={styles.number}>{index + 1}</Text>
               <View style={styles.trackText}>
-                <Text numberOfLines={1} style={styles.artist}>
+                <Text numberOfLines={1} style={[styles.artist, isActive && styles.trackActiveText]}>
                   {playerTrack.artist}
                 </Text>
-                <Text numberOfLines={1} style={styles.trackTitle}>
+                <Text numberOfLines={1} style={[styles.trackTitle, isActive && styles.trackActiveText]}>
                   {playerTrack.title}
                 </Text>
               </View>
@@ -272,6 +278,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '800',
+  },
+  trackActiveText: {
+    color: colors.accent,
   },
   time: {
     color: colors.muted,

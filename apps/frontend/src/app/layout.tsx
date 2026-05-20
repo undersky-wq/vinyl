@@ -6,6 +6,7 @@ import { getCurrentUser, getFavorites } from '../lib/api';
 import { PlayerProvider } from '../providers/player-provider';
 import { AuthProvider } from '../providers/auth-provider';
 import { FavoritesProvider } from '../providers/favorites-provider';
+import { PlaylistsProvider } from '../providers/playlists-provider';
 import { normalizeSiteLang } from '../lib/language';
 
 export const metadata = {
@@ -28,11 +29,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body>
         <AuthProvider initialUser={currentUser}>
           <FavoritesProvider initialFavoriteTrackIds={favoriteTrackIds}>
-            <PlayerProvider>
-              {children}
-              <PlayerChrome lang={lang} />
-              <MobileNav lang={lang} />
-            </PlayerProvider>
+            <PlaylistsProvider>
+              <PlayerProvider>
+                {children}
+                <PlayerChrome lang={lang} />
+                <MobileNav lang={lang} />
+              </PlayerProvider>
+            </PlaylistsProvider>
           </FavoritesProvider>
         </AuthProvider>
       </body>

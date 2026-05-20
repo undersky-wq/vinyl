@@ -49,6 +49,11 @@ export class ReleasesController {
     return this.releasesService.findLibraryFeed(query);
   }
 
+  @Get('library-queue')
+  async findLibraryQueue(@Query() query: QueryReleasesDto) {
+    return this.releasesService.findLibraryQueue(query);
+  }
+
   @Get('suggestions')
   async findSearchSuggestions(@Query() query: QueryReleasesDto) {
     return this.releasesService.findSearchSuggestions(query);

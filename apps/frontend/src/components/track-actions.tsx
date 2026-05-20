@@ -2,10 +2,10 @@
 
 import { Check, Heart, ListMusic, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { addTrackToPlaylist, createPlaylist, getPlaylists, removeTrackFromPlaylist } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { useFavorites } from '../providers/favorites-provider';
+import { usePlaylists } from '../providers/playlists-provider';
 import { Playlist } from '../types';
 
 type FavoriteButtonProps = {
@@ -45,10 +45,6 @@ type TrackPlaylistMenuProps = {
   align?: 'down' | 'up';
 };
 
-function sortPlaylists(playlists: Playlist[]) {
-  return [...playlists].sort((a, b) => a.name.localeCompare(b.name));
-}
-
 export function TrackPlaylistMenu({
   trackId,
   lang,
@@ -56,40 +52,14 @@ export function TrackPlaylistMenu({
   align = 'down',
 }: TrackPlaylistMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playlistName, setPlaylistName] = useState('');
   const [pendingActionKey, setPendingActionKey] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [autoAlign, setAutoAlign] = useState<'down' | 'up'>(align);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const { requireAuth, user } = useAuth();
-  const isInPlaylist = playlists.some((playlist) =>
-    playlist.items.some((item) => item.track.id === trackId),
-  );
-
-  useEffect(() => {
-    if (!user) {
-      setPlaylists([]);
-      return;
-    }
-
-    let ignore = false;
-    getPlaylists()
-      .then((items) => {
-        if (!ignore) {
-          setPlaylists(sortPlaylists(items));
-        }
-      })
-      .catch(() => {
-        if (!ignore) {
-          setStatus(lang === 'ru' ? 'Не удалось загрузить плейлисты.' : 'Failed to load playlists.');
-        }
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, [lang, user?.id]);
+  const { requireAuth } = useAuth();
+  const { createPlaylistWithTrack, isInAnyPlaylist, isLoading, playlists, toggleTrackInPlaylist } = usePlaylists();
+  const isInPlaylist = isInAnyPlaylist(trackId);
 
   useEffect(() => {
     if (!isOpen) {
@@ -142,14 +112,16 @@ export function TrackPlaylistMenu({
     setStatus('');
 
     try {
-      const createdPlaylist = await createPlaylist({
+      const createdPlaylist = await createPlaylistWithTrack({
         name: trimmedName,
         description: lang === 'ru' ? 'Создано из меню трека' : 'Created from track menu',
-        trackIds: [trackId],
+        trackId,
       });
-      setPlaylists((current) => sortPlaylists([createdPlaylist, ...current]));
-      setPlaylistName('');
-      setIsOpen(false);
+
+      if (createdPlaylist) {
+        setPlaylistName('');
+        setIsOpen(false);
+      }
     } catch {
       setStatus(lang === 'ru' ? 'Не удалось создать плейлист.' : 'Failed to create playlist.');
     } finally {
@@ -168,12 +140,7 @@ export function TrackPlaylistMenu({
     setStatus('');
 
     try {
-      const updatedPlaylist = alreadyAdded
-        ? await removeTrackFromPlaylist(playlist.id, trackId)
-        : await addTrackToPlaylist(playlist.id, trackId);
-      setPlaylists((current) =>
-        sortPlaylists(current.map((item) => (item.id === updatedPlaylist.id ? updatedPlaylist : item))),
-      );
+      await toggleTrackInPlaylist(playlist, trackId);
       setIsOpen(false);
     } catch {
       setStatus(
@@ -265,7 +232,13 @@ export function TrackPlaylistMenu({
               })
             ) : (
               <p className="muted">
-                {lang === 'ru' ? 'Плейлистов пока нет.' : 'No playlists yet.'}
+                {isLoading
+                  ? lang === 'ru'
+                    ? 'Загружаем...'
+                    : 'Loading...'
+                  : lang === 'ru'
+                    ? 'Плейлистов пока нет.'
+                    : 'No playlists yet.'}
               </p>
             )}
           </div>

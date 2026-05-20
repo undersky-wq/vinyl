@@ -3,13 +3,17 @@ import { FlatList, Image, Pressable, StatusBar, StyleSheet, Text, TextInput, Vie
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
-import { getCoverUrl, getPlaylists, reorderPlaylists, updatePlaylist } from '../lib/api';
+import { getCoverUrl, reorderPlaylists, updatePlaylist } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Playlist } from '../types';
 
 type PlaylistsScreenProps = {
+  activeTrackId: string | null;
+  playlists: Playlist[];
+  onPlaylistsChange: (playlists: Playlist[]) => void;
   onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
   onOpenProfile: () => void;
+  onRefreshPlaylists: () => Promise<void>;
   avatarUrl?: string | null;
 };
 
@@ -36,8 +40,15 @@ function toPlayerTrack(item: Playlist['items'][number]): PlayerTrack | null {
   };
 }
 
-export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: PlaylistsScreenProps) {
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+export function PlaylistsScreen({
+  activeTrackId,
+  playlists,
+  onPlaylistsChange,
+  onPlayTrack,
+  onOpenProfile,
+  onRefreshPlaylists,
+  avatarUrl,
+}: PlaylistsScreenProps) {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState('');
   const [query, setQuery] = useState('');
   const [lang, setLang] = useState<'ru' | 'en'>('en');
@@ -49,19 +60,21 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
   async function load() {
     setIsLoading(true);
     try {
-      const nextPlaylists = await getPlaylists();
-      setPlaylists(nextPlaylists);
-      setSelectedPlaylistId((current) => current || nextPlaylists[0]?.id || '');
+      await onRefreshPlaylists();
     } catch {
-      setPlaylists([]);
+      // Keep the current playlists visible if refresh fails.
     } finally {
       setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    void load();
-  }, []);
+    setSelectedPlaylistId((current) =>
+      current && playlists.some((playlist) => playlist.id === current)
+        ? current
+        : playlists[0]?.id || '',
+    );
+  }, [playlists]);
 
   const selectedPlaylist = playlists.find((playlist) => playlist.id === selectedPlaylistId) || playlists[0];
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -99,7 +112,7 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
 
     try {
       const updatedPlaylist = await updatePlaylist(editingPlaylistId, { name: nextName });
-      setPlaylists((current) => current.map((playlist) => (playlist.id === updatedPlaylist.id ? updatedPlaylist : playlist)));
+      onPlaylistsChange(playlists.map((playlist) => (playlist.id === updatedPlaylist.id ? updatedPlaylist : playlist)));
     } finally {
       setEditingPlaylistId(null);
       setEditingPlaylistName('');
@@ -121,12 +134,12 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
     const nextPlaylists = [...playlists];
     const [movedPlaylist] = nextPlaylists.splice(fromIndex, 1);
     nextPlaylists.splice(toIndex, 0, movedPlaylist);
-    setPlaylists(nextPlaylists);
+    onPlaylistsChange(nextPlaylists);
 
     try {
       await reorderPlaylists(nextPlaylists.map((playlist) => playlist.id));
     } catch {
-      setPlaylists(playlists);
+      onPlaylistsChange(playlists);
     }
   }
 
@@ -233,6 +246,7 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
         renderItem={({ item, index }) => {
           const playerTrack = item.playerTrack;
           const release = item.item.track.release;
+          const isActive = playerTrack?.id === activeTrackId;
 
           if (!playerTrack || !release) {
             return null;
@@ -243,10 +257,10 @@ export function PlaylistsScreen({ onPlayTrack, onOpenProfile, avatarUrl }: Playl
               <Image source={{ uri: getCoverUrl(release) }} style={styles.cover} />
               <Text style={styles.number}>{index + 1}</Text>
               <View style={styles.trackText}>
-                <Text numberOfLines={1} style={styles.artist}>
+                <Text numberOfLines={1} style={[styles.artist, isActive && styles.trackActiveText]}>
                   {playerTrack.artist}
                 </Text>
-                <Text numberOfLines={1} style={styles.trackTitle}>
+                <Text numberOfLines={1} style={[styles.trackTitle, isActive && styles.trackActiveText]}>
                   {playerTrack.title}
                 </Text>
               </View>
@@ -429,6 +443,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '800',
+  },
+  trackActiveText: {
+    color: colors.accent,
   },
   time: {
     color: colors.muted,

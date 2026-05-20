@@ -16,11 +16,23 @@ import { PlaylistsScreen } from './src/screens/PlaylistsScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReleaseDetailScreen } from './src/screens/ReleaseDetailScreen';
-import { getCurrentUser, getFavorites, getRelease, toggleFavoriteTrack } from './src/lib/api';
+import {
+  addTrackToPlaylist,
+  createPlaylist,
+  getCurrentUser,
+  getFavoriteTracks,
+  getFavorites,
+  getPlaylists,
+  getRelease,
+  removeTrackFromPlaylist,
+  toggleFavoriteTrack,
+} from './src/lib/api';
 import { getLockScreenArtworkUrl } from './src/lib/artwork-cache';
 import { resolveOfflineTrack } from './src/lib/offline-audio';
 import { colors, radius, spacing } from './src/theme';
-import { AuthUser, PlayerTrack, Release, TabKey } from './src/types';
+import { AuthUser, PlayerTrack, Playlist, Release, TabKey, Track } from './src/types';
+
+type FavoriteTrack = Track & { release: Release };
 
 const tabs: Array<{ key: TabKey; label: string; Icon: typeof House }> = [
   { key: 'home', label: 'Home', Icon: House },
@@ -38,6 +50,8 @@ export default function App() {
   const [positionMs, setPositionMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
+  const [favoriteTracks, setFavoriteTracks] = useState<FavoriteTrack[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
@@ -348,17 +362,37 @@ export default function App() {
   useEffect(() => {
     async function loadSession() {
       try {
-        const [nextFavorites, nextUser] = await Promise.all([getFavorites(), getCurrentUser()]);
+        const [nextFavorites, nextUser, nextPlaylists, nextFavoriteTracks] = await Promise.all([
+          getFavorites(),
+          getCurrentUser(),
+          getPlaylists(),
+          getFavoriteTracks(),
+        ]);
         setFavoriteIds(new Set(nextFavorites));
         setCurrentUser(nextUser);
+        setPlaylists(nextPlaylists);
+        setFavoriteTracks(nextFavoriteTracks);
       } catch {
         setFavoriteIds(new Set());
+        setFavoriteTracks([]);
+        setPlaylists([]);
         setCurrentUser(null);
       }
     }
 
     void loadSession();
   }, []);
+
+  async function refreshPersonalLibrary() {
+    const [nextFavorites, nextPlaylists, nextFavoriteTracks] = await Promise.all([
+      getFavorites(),
+      getPlaylists(),
+      getFavoriteTracks(),
+    ]);
+    setFavoriteIds(new Set(nextFavorites));
+    setPlaylists(nextPlaylists);
+    setFavoriteTracks(nextFavoriteTracks);
+  }
 
   async function handleFavorite(trackId: string) {
     setFavoriteIds((current) => {
@@ -382,13 +416,33 @@ export default function App() {
         }
         return next;
       });
+      setFavoriteTracks(await getFavoriteTracks());
     } catch {
       try {
-        setFavoriteIds(new Set(await getFavorites()));
+        await refreshPersonalLibrary();
       } catch {
         // Keep the optimistic UI if the refresh also fails.
       }
     }
+  }
+
+  async function handlePlaylistToggle(playlist: Playlist, trackId: string) {
+    const alreadyAdded = playlist.items.some((item) => item.track.id === trackId);
+
+    try {
+      const updatedPlaylist = alreadyAdded
+        ? await removeTrackFromPlaylist(playlist.id, trackId)
+        : await addTrackToPlaylist(playlist.id, trackId);
+      setPlaylists((current) => current.map((item) => (item.id === updatedPlaylist.id ? updatedPlaylist : item)));
+    } catch {
+      await refreshPersonalLibrary().catch(() => undefined);
+    }
+  }
+
+  async function handleCreatePlaylist(name: string, trackId: string) {
+    const createdPlaylist = await createPlaylist({ name, trackIds: [trackId] });
+    setPlaylists((current) => [createdPlaylist, ...current]);
+    return createdPlaylist;
   }
 
   async function openCurrentTrackRelease() {
@@ -444,8 +498,14 @@ export default function App() {
         <LibraryScreen
           activeTrackId={currentTrack?.id || null}
           avatarUrl={currentUser?.avatarStorageUrl}
+          favoriteIds={favoriteIds}
+          playlists={playlists}
+          onCreatePlaylist={handleCreatePlaylist}
+          onFavoriteTrack={handleFavorite}
           onPlayTrack={playTrack}
+          onPlaylistToggle={handlePlaylistToggle}
           onOpenProfile={() => setActiveTab('profile')}
+          onRefreshPersonalLibrary={refreshPersonalLibrary}
         />
       );
     }
@@ -453,9 +513,15 @@ export default function App() {
     if (activeTab === 'playlists') {
       return (
         <PlaylistsScreen
+          activeTrackId={currentTrack?.id || null}
           avatarUrl={currentUser?.avatarStorageUrl}
+          playlists={playlists}
+          onPlaylistsChange={setPlaylists}
           onPlayTrack={playTrack}
           onOpenProfile={() => setActiveTab('profile')}
+          onRefreshPlaylists={async () => {
+            setPlaylists(await getPlaylists());
+          }}
         />
       );
     }
@@ -463,9 +529,14 @@ export default function App() {
     if (activeTab === 'favorites') {
       return (
         <FavoritesScreen
+          activeTrackId={currentTrack?.id || null}
           avatarUrl={currentUser?.avatarStorageUrl}
+          tracks={favoriteTracks}
           onPlayTrack={playTrack}
           onOpenProfile={() => setActiveTab('profile')}
+          onRefresh={async () => {
+            setFavoriteTracks(await getFavoriteTracks());
+          }}
         />
       );
     }

@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { AuthUser, Playlist, PlaylistSummary, Release, Track } from '../types';
+import { AuthUser, PlayerTrack, Playlist, PlaylistSummary, Release, Track } from '../types';
 
 const configuredApiUrl = Constants.expoConfig?.extra?.apiUrl;
 const API_URL = typeof configuredApiUrl === 'string' ? configuredApiUrl : 'https://mityadima.ru/api';
@@ -143,6 +143,28 @@ export async function getLibraryFeedFiltered(
   }>(
     `/releases/library-feed?${params.toString()}`,
   );
+}
+
+export async function getLibraryQueueFiltered(
+  filters: { styles?: string[]; key?: string | string[]; search?: string } = {},
+) {
+  const params = new URLSearchParams();
+
+  if (filters.styles?.length) {
+    params.set('style', filters.styles.join(','));
+  }
+
+  if (Array.isArray(filters.key) && filters.key.length) {
+    params.set('key', filters.key.join(','));
+  } else if (typeof filters.key === 'string' && filters.key) {
+    params.set('key', filters.key);
+  }
+
+  if (filters.search) {
+    params.set('search', filters.search);
+  }
+
+  return fetchJson<PlayerTrack[]>(`/releases/library-queue?${params.toString()}`);
 }
 
 export async function getPlaylistSummaries() {
