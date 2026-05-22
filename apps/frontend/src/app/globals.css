@@ -311,7 +311,9 @@ textarea {
 
 .mix-card__cover {
   display: block;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
+  line-height: 0;
   border-radius: 12px;
   background: var(--panel-soft);
 }
@@ -319,8 +321,9 @@ textarea {
 .mix-card__cover img {
   display: block;
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   object-fit: cover;
+  border-radius: inherit;
   transition: transform 0.24s ease;
 }
 
@@ -415,6 +418,50 @@ textarea {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.mix-card__share-actions,
+.mix-detail-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mix-share-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  border: none;
+  border-radius: 999px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.075);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.mix-share-button:hover,
+.mix-share-button:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.mix-detail-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.mix-detail-wave {
+  margin-top: 0;
 }
 
 .mix-wave {

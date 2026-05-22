@@ -1,13 +1,15 @@
 'use client';
 
-import { ImagePlus, Play, Plus, Trash2, X } from 'lucide-react';
+import { Copy, ImagePlus, Play, Plus, Share2, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createReleaseTrack,
+  createReleaseTimelineComment,
   deleteReleaseTrack,
   deleteRelease,
   deleteTrackAudio,
+  getReleaseTimelineComments,
   updateReleaseMetadata,
   updateReleaseStyles,
   updateTrackMetadata,
@@ -16,7 +18,7 @@ import {
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayer } from '../providers/player-provider';
-import { Release } from '../types';
+import { Release, TimelineComment } from '../types';
 import { CoverArtwork } from './cover-artwork';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { TrackUploadButton } from './track-upload-button';
@@ -352,6 +354,294 @@ function ReleaseWaveform({
   );
 }
 
+function formatCommentTime(second: number) {
+  const safeSecond = Math.max(0, Math.floor(second));
+  const minutes = Math.floor(safeSecond / 60);
+  const seconds = safeSecond % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function getAvatarInitial(name?: string | null) {
+  return (name || 'U').trim().charAt(0).toUpperCase() || 'U';
+}
+
+function getReleaseShareUrl(releaseId: string) {
+  if (typeof window === 'undefined') {
+    return `/releases/${releaseId}`;
+  }
+
+  return `${window.location.origin}/releases/${releaseId}`;
+}
+
+function MixDetailPanel({
+  release,
+  tracks,
+  currentTrackId,
+  getAudioElement,
+  playQueueAtPercent,
+  seekToPercent,
+  lang,
+}: {
+  release: Release;
+  tracks: ReleasePlayerTrack[];
+  currentTrackId?: string;
+  getAudioElement: () => HTMLAudioElement | null;
+  playQueueAtPercent: (tracks: PlayerTrack[], startIndex: number, percent: number) => void;
+  seekToPercent: (percent: number) => void;
+  lang: SiteLang;
+}) {
+  const { user, requireAuth } = useAuth();
+  const sourceTrack =
+    tracks.find((track) => track.id === currentTrackId) ||
+    tracks.find((track) => track.waveformData.length) ||
+    tracks[0];
+  const peaks = (sourceTrack?.waveformData.length
+    ? sourceTrack.waveformData
+    : buildFallbackWaveform(`${sourceTrack?.artist || ''}-${sourceTrack?.title || ''}`)).slice(0, 180);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [comments, setComments] = useState<TimelineComment[]>([]);
+  const [selectedSecond, setSelectedSecond] = useState<number | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [commentStatus, setCommentStatus] = useState('');
+  const [shareStatus, setShareStatus] = useState('');
+  const [isSavingComment, setIsSavingComment] = useState(false);
+  const isCurrentMixPlaying = tracks.some((track) => track.id === currentTrackId);
+  const durationSec = sourceTrack?.durationSec || 0;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getReleaseTimelineComments(release.id)
+      .then((nextComments) => {
+        if (!cancelled) {
+          setComments(nextComments);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setComments([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [release.id]);
+
+  useEffect(() => {
+    const audio = getAudioElement();
+    if (!isCurrentMixPlaying || !audio) {
+      setProgressPercent(0);
+      return;
+    }
+
+    const syncProgress = () => {
+      if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
+        setProgressPercent(0);
+        return;
+      }
+
+      setProgressPercent((audio.currentTime / audio.duration) * 100);
+    };
+
+    syncProgress();
+    audio.addEventListener('timeupdate', syncProgress);
+    audio.addEventListener('loadedmetadata', syncProgress);
+    audio.addEventListener('seeked', syncProgress);
+
+    return () => {
+      audio.removeEventListener('timeupdate', syncProgress);
+      audio.removeEventListener('loadedmetadata', syncProgress);
+      audio.removeEventListener('seeked', syncProgress);
+    };
+  }, [currentTrackId, getAudioElement, isCurrentMixPlaying]);
+
+  function handleWaveSeek(event: React.MouseEvent<HTMLButtonElement>) {
+    if (!tracks.length) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const percent = ((event.clientX - rect.left) / rect.width) * 100;
+    const normalizedPercent = Math.max(0, Math.min(percent, 100));
+    const nextSecond = durationSec ? Math.round((normalizedPercent / 100) * durationSec) : 0;
+    const audio = getAudioElement();
+
+    setSelectedSecond(nextSecond);
+    setCommentStatus('');
+
+    if (isCurrentMixPlaying && audio && Number.isFinite(audio.duration) && audio.duration > 0) {
+      seekToPercent(normalizedPercent);
+      return;
+    }
+
+    playQueueAtPercent(tracks, 0, normalizedPercent);
+  }
+
+  async function handleSaveComment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!requireAuth()) {
+      return;
+    }
+
+    const text = commentText.trim();
+    if (!text || selectedSecond === null) {
+      return;
+    }
+
+    setIsSavingComment(true);
+    setCommentStatus('');
+    try {
+      const comment = await createReleaseTimelineComment(release.id, {
+        second: selectedSecond,
+        text,
+      });
+      setComments((current) => [...current, comment].sort((a, b) => a.second - b.second));
+      setCommentText('');
+      setSelectedSecond(null);
+    } catch {
+      setCommentStatus(lang === 'ru' ? 'Комментарий не сохранён.' : 'Comment was not saved.');
+    } finally {
+      setIsSavingComment(false);
+    }
+  }
+
+  async function handleCopyLink() {
+    const url = getReleaseShareUrl(release.id);
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareStatus(lang === 'ru' ? 'Ссылка скопирована.' : 'Link copied.');
+    } catch {
+      setShareStatus(url);
+    }
+  }
+
+  async function handleShare() {
+    const url = getReleaseShareUrl(release.id);
+    const title = `${release.artist} - ${release.title}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: title, url });
+        return;
+      } catch {
+        return;
+      }
+    }
+
+    await handleCopyLink();
+  }
+
+  if (!tracks.length) {
+    return null;
+  }
+
+  return (
+    <section className="release-panel mix-detail-panel">
+      <div className="mix-detail-actions">
+        <button type="button" className="mix-share-button" onClick={() => void handleCopyLink()}>
+          <Copy size={15} />
+          Copy link
+        </button>
+        <button type="button" className="mix-share-button" onClick={() => void handleShare()}>
+          <Share2 size={15} />
+          Share
+        </button>
+        {shareStatus ? <span className="muted">{shareStatus}</span> : null}
+      </div>
+
+      <div className="mix-wave mix-detail-wave">
+        <div className="mix-wave__timeline">
+          <button
+            type="button"
+            className="library-wave__bars is-decoded mix-wave__bars"
+            onClick={handleWaveSeek}
+            aria-label="Seek mix waveform"
+          >
+            {peaks.map((peak, index) => (
+              <span
+                className={`library-wave__bar${
+                  (index / Math.max(peaks.length - 1, 1)) * 100 <= progressPercent ? ' is-active' : ''
+                }`}
+                key={`${sourceTrack?.id || 'mix'}-${index}`}
+                style={{ height: `${Math.max(8, Math.round(peak * 100))}%` }}
+              />
+            ))}
+          </button>
+
+          {comments.map((comment) => {
+            const markerPercent = durationSec
+              ? Math.max(0, Math.min((comment.second / durationSec) * 100, 100))
+              : 0;
+
+            return (
+              <span
+                className="mix-comment-marker"
+                key={comment.id}
+                style={{ left: `${markerPercent}%` }}
+                title={`${comment.user.displayName}: ${comment.text}`}
+              >
+                {comment.user.avatarStorageUrl ? (
+                  <img src={comment.user.avatarStorageUrl} alt={comment.user.displayName} />
+                ) : (
+                  getAvatarInitial(comment.user.displayName)
+                )}
+              </span>
+            );
+          })}
+        </div>
+        <span className="library-wave__duration">
+          {formatTrackDuration(sourceTrack?.durationRaw, sourceTrack?.durationSec)}
+        </span>
+
+        <form className="mix-comment-composer" onSubmit={handleSaveComment}>
+          <span className="mix-comment-composer__avatar">
+            {user?.avatarStorageUrl ? (
+              <img src={user.avatarStorageUrl} alt={user.displayName} />
+            ) : (
+              getAvatarInitial(user?.displayName)
+            )}
+          </span>
+          <span className="mix-comment-composer__time">
+            {selectedSecond === null ? '--:--' : formatCommentTime(selectedSecond)}
+          </span>
+          <input
+            value={commentText}
+            onChange={(event) => setCommentText(event.target.value)}
+            placeholder={lang === 'ru' ? 'Комментарий на таймлайне...' : 'Comment on the timeline...'}
+            maxLength={280}
+          />
+          <button type="submit" disabled={selectedSecond === null || !commentText.trim() || isSavingComment}>
+            {isSavingComment ? '...' : lang === 'ru' ? 'Post' : 'Post'}
+          </button>
+        </form>
+        {commentStatus ? <p className="mix-comment-status">{commentStatus}</p> : null}
+
+        {comments.length ? (
+          <div className="mix-comments" aria-label="Timeline comments">
+            {comments.map((comment) => (
+              <article className="mix-comment" key={comment.id}>
+                <span className="mix-comment__avatar">
+                  {comment.user.avatarStorageUrl ? (
+                    <img src={comment.user.avatarStorageUrl} alt={comment.user.displayName} />
+                  ) : (
+                    getAvatarInitial(comment.user.displayName)
+                  )}
+                </span>
+                <div>
+                  <strong>{comment.user.displayName}</strong>
+                  <span>{formatCommentTime(comment.second)}</span>
+                  <p>{comment.text}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   const { currentTrack, playQueue, playQueueAtPercent, seekToPercent, getAudioElement } = usePlayer();
   const { user, requireAuth } = useAuth();
@@ -475,6 +765,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
         audioUrl,
         coverUrl: coverSrc,
         releaseId: release.id,
+        isPublic: Boolean(release.isMix),
         durationRaw: track.durationRaw ?? null,
         durationSec: track.durationSec ?? null,
         waveformData: Array.isArray(track.waveformData)
@@ -891,6 +1182,18 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
           ) : null}
         </div>
       </div>
+
+      {release.isMix && playableTracks.length ? (
+        <MixDetailPanel
+          release={release}
+          tracks={playableTracks}
+          currentTrackId={currentTrack?.id}
+          getAudioElement={getAudioElement}
+          playQueueAtPercent={playQueueAtPercent}
+          seekToPercent={seekToPercent}
+          lang={lang}
+        />
+      ) : null}
 
       <div className="release-panel">
         {isAdmin ? (

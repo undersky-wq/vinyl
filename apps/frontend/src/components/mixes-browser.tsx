@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { LoaderCircle, Pencil, Play, Plus, Save, Trash2, UploadCloud, X } from 'lucide-react';
+import { Copy, LoaderCircle, Pencil, Play, Plus, Save, Share2, Trash2, UploadCloud, X } from 'lucide-react';
 import {
   createManualRelease,
-  createReleaseTimelineComment,
   deleteRelease,
   getReleaseTimelineComments,
   updateReleaseMetadata,
@@ -121,10 +120,17 @@ function getAvatarInitial(name?: string | null) {
   return (name || 'U').trim().charAt(0).toUpperCase() || 'U';
 }
 
+function getMixShareUrl(releaseId: string) {
+  if (typeof window === 'undefined') {
+    return `/releases/${releaseId}`;
+  }
+
+  return `${window.location.origin}/releases/${releaseId}`;
+}
+
 function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerTrack[] }) {
   const { currentTrack } = usePlayerTransport();
   const { getAudioElement, playQueueAtPercent, seekToPercent } = usePlayerActions();
-  const { user, requireAuth } = useAuth();
   const sourceTrack = tracks.find((track) => track.id === currentTrack?.id) || tracks[0];
   const sourcePeaks = sourceTrack?.waveformData?.length
     ? sourceTrack.waveformData
@@ -136,10 +142,6 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
   });
   const [progressPercent, setProgressPercent] = useState(0);
   const [comments, setComments] = useState<TimelineComment[]>([]);
-  const [selectedSecond, setSelectedSecond] = useState<number | null>(null);
-  const [commentText, setCommentText] = useState('');
-  const [commentStatus, setCommentStatus] = useState('');
-  const [isSavingComment, setIsSavingComment] = useState(false);
   const isCurrentMixPlaying = tracks.some((track) => track.id === currentTrack?.id);
   const durationSec = sourceTrack?.durationSec || 0;
 
@@ -198,11 +200,7 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
 
     const rect = event.currentTarget.getBoundingClientRect();
     const percent = Math.max(0, Math.min(((event.clientX - rect.left) / rect.width) * 100, 100));
-    const nextSecond = durationSec ? Math.round((percent / 100) * durationSec) : 0;
     const audio = getAudioElement();
-
-    setSelectedSecond(nextSecond);
-    setCommentStatus('');
 
     if (isCurrentMixPlaying && audio && Number.isFinite(audio.duration) && audio.duration > 0) {
       seekToPercent(percent);
@@ -210,35 +208,6 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
     }
 
     playQueueAtPercent(tracks, 0, percent);
-  }
-
-  async function handleSaveComment(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!requireAuth()) {
-      return;
-    }
-
-    const text = commentText.trim();
-    if (!text || selectedSecond === null) {
-      return;
-    }
-
-    setIsSavingComment(true);
-    setCommentStatus('');
-    try {
-      const comment = await createReleaseTimelineComment(release.id, {
-        second: selectedSecond,
-        text,
-      });
-      setComments((current) => [...current, comment].sort((a, b) => a.second - b.second));
-      setCommentText('');
-      setSelectedSecond(null);
-    } catch {
-      setCommentStatus('Comment was not saved.');
-    } finally {
-      setIsSavingComment(false);
-    }
   }
 
   if (!tracks.length) {
@@ -291,25 +260,6 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
         {formatDuration(sourceTrack?.durationRaw, sourceTrack?.durationSec)}
       </span>
 
-      <form className="mix-comment-composer" onSubmit={handleSaveComment}>
-        <span className="mix-comment-composer__avatar">
-          {user?.avatarStorageUrl ? <img src={user.avatarStorageUrl} alt={user.displayName} /> : getAvatarInitial(user?.displayName)}
-        </span>
-        <span className="mix-comment-composer__time">
-          {selectedSecond === null ? '--:--' : formatCommentTime(selectedSecond)}
-        </span>
-        <input
-          value={commentText}
-          onChange={(event) => setCommentText(event.target.value)}
-          placeholder="Comment on the timeline..."
-          maxLength={280}
-        />
-        <button type="submit" disabled={selectedSecond === null || !commentText.trim() || isSavingComment}>
-          {isSavingComment ? '...' : 'Post'}
-        </button>
-      </form>
-      {commentStatus ? <p className="mix-comment-status">{commentStatus}</p> : null}
-
       {comments.length ? (
         <div className="mix-comments" aria-label="Timeline comments">
           {comments.map((comment) => (
@@ -344,6 +294,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<MixFormState>(() => getInitialForm());
   const [status, setStatus] = useState('');
+  const [shareStatus, setShareStatus] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const mixes = useMemo(
     () =>
@@ -467,6 +418,31 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
     }
   }
 
+  async function handleCopyLink(release: Release) {
+    const url = getMixShareUrl(release.id);
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareStatus(lang === 'ru' ? 'Ссылка скопирована.' : 'Link copied.');
+    } catch {
+      setShareStatus(url);
+    }
+  }
+
+  async function handleShare(release: Release) {
+    const url = getMixShareUrl(release.id);
+    const title = `${release.artist} - ${release.title}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: title, url });
+        return;
+      } catch {
+        return;
+      }
+    }
+
+    await handleCopyLink(release);
+  }
+
   if (!mixes.length && !isAdmin) {
     return (
       <section className="mixes-empty">
@@ -508,6 +484,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
           ) : null}
 
           {status ? <p className="muted">{status}</p> : null}
+          {shareStatus ? <p className="muted mix-share-status">{shareStatus}</p> : null}
         </section>
       ) : null}
 
@@ -582,6 +559,17 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
               ) : null}
 
               <MixWaveform release={release} tracks={tracks} />
+
+              <div className="mix-card__share-actions">
+                <button type="button" className="mix-share-button" onClick={() => void handleCopyLink(release)}>
+                  <Copy size={15} />
+                  Copy link
+                </button>
+                <button type="button" className="mix-share-button" onClick={() => void handleShare(release)}>
+                  <Share2 size={15} />
+                  Share
+                </button>
+              </div>
             </div>
           </article>
         ))}
