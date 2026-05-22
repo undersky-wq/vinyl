@@ -543,8 +543,8 @@ textarea {
   align-items: center;
   justify-content: space-between;
   color: #8d8d8d;
-  font-size: 0.84rem;
-  font-weight: 800;
+  font-size: 1rem;
+  font-weight: inherit;
   font-variant-numeric: tabular-nums;
 }
 
@@ -5813,8 +5813,14 @@ textarea {
 
   .mix-card__play,
   .mix-card__styles,
-  .mix-wave {
+  .mix-card .mix-wave {
     display: none;
+  }
+
+  .mix-detail-wave {
+    display: grid;
+    width: 100%;
+    margin-top: 0;
   }
 
   .mix-admin-form {
@@ -5835,14 +5841,15 @@ textarea {
 
   .mix-card__title {
     display: block;
-    font-size: 0.8rem;
     line-height: 1.15;
   }
 
   .mix-card__title span {
     display: block;
     overflow: hidden;
-    color: var(--muted);
+    color: #8d8d8d;
+    font-size: 0.95rem;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -5855,9 +5862,34 @@ textarea {
   .mix-card__title strong {
     display: block;
     overflow: hidden;
+    margin-top: 2px;
     color: var(--text);
+    font-size: 1rem;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .mix-card__share-actions {
+    gap: 8px;
+  }
+
+  .mix-card__share-actions .mix-share-button {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+    gap: 0;
+    font-size: 0;
+  }
+
+  .mix-card__share-actions .mix-share-button svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .mix-card__year {
+    display: none;
   }
 
   .mix-card__title em {
