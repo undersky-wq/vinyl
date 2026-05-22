@@ -538,18 +538,6 @@ function MixDetailPanel({
 
   return (
     <section className="release-panel mix-detail-panel">
-      <div className="mix-detail-actions">
-        <button type="button" className="mix-share-button" onClick={() => void handleCopyLink()}>
-          <Copy size={15} />
-          Copy link
-        </button>
-        <button type="button" className="mix-share-button" onClick={() => void handleShare()}>
-          <Share2 size={15} />
-          Share
-        </button>
-        {shareStatus ? <span className="muted">{shareStatus}</span> : null}
-      </div>
-
       <div className="mix-wave mix-detail-wave">
         <div className="mix-wave__timeline">
           <button
@@ -593,6 +581,18 @@ function MixDetailPanel({
         <span className="library-wave__duration">
           {formatTrackDuration(sourceTrack?.durationRaw, sourceTrack?.durationSec)}
         </span>
+
+        <div className="mix-detail-actions">
+          <button type="button" className="mix-share-button" onClick={() => void handleCopyLink()}>
+            <Copy size={15} />
+            Copy link
+          </button>
+          <button type="button" className="mix-share-button" onClick={() => void handleShare()}>
+            <Share2 size={15} />
+            Share
+          </button>
+          {shareStatus ? <span className="muted">{shareStatus}</span> : null}
+        </div>
 
         <form className="mix-comment-composer" onSubmit={handleSaveComment}>
           <span className="mix-comment-composer__avatar">
@@ -1195,6 +1195,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
         />
       ) : null}
 
+      {!release.isMix ? (
       <div className="release-panel">
         {isAdmin ? (
           <form className="release-track-form" onSubmit={handleCreateTrack}>
@@ -1381,6 +1382,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
           )}
         </div>
       </div>
+      ) : null}
 
       {isLightboxOpen ? (
         <div

@@ -531,27 +531,31 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
                 </div>
               ) : null}
 
-              {release.styles.length && editingId !== release.id ? (
-                <div className="mix-card__styles">
-                  {release.styles.slice(0, 8).map((style) => (
-                    <span className="chip mix-card__style" key={style}>
-                      {style}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-
               <MixWaveform release={release} tracks={tracks} />
 
-              <div className="mix-card__share-actions">
-                <button type="button" className="mix-share-button" onClick={() => void handleCopyLink(release)}>
-                  <Copy size={15} />
-                  Copy link
-                </button>
-                <button type="button" className="mix-share-button" onClick={() => void handleShare(release)}>
-                  <Share2 size={15} />
-                  Share
-                </button>
+              <div className="mix-card__footer">
+                {release.styles.length && editingId !== release.id ? (
+                  <div className="mix-card__styles">
+                    {release.styles.slice(0, 8).map((style) => (
+                      <span className="chip mix-card__style" key={style}>
+                        {style}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span />
+                )}
+
+                <div className="mix-card__share-actions">
+                  <button type="button" className="mix-share-button" onClick={() => void handleCopyLink(release)}>
+                    <Copy size={15} />
+                    Copy link
+                  </button>
+                  <button type="button" className="mix-share-button" onClick={() => void handleShare(release)}>
+                    <Share2 size={15} />
+                    Share
+                  </button>
+                </div>
               </div>
             </div>
           </article>

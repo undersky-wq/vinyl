@@ -111,6 +111,7 @@ export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps
         </Link>
         <Link href="/mixes" className={getNavClass(active === 'mixes')}>
           <AudioLines size={19} />
+          <span className="topbar__mix-label-fixed">{lang === 'ru' ? 'Миксы' : 'Mixes'}</span>
           <span>{lang === 'ru' ? 'РњРёРєСЃС‹' : 'Mixes'}</span>
         </Link>
         <Link href="/favorites" className={getNavClass(active === 'favorites')}>

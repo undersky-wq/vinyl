@@ -335,6 +335,7 @@ textarea {
 .mix-card__body {
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 16px;
   align-content: start;
   min-width: 0;
@@ -360,51 +361,53 @@ textarea {
 }
 
 .mix-card__title {
-  display: inline-flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.45em;
+  display: grid;
+  align-content: center;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  color: var(--text);
-  font-size: 1.45rem;
-  font-weight: 800;
-  line-height: 1.12;
+  line-height: 1.25;
 }
 
 .mix-card__title span {
-  color: var(--muted);
+  overflow: hidden;
+  color: #8d8d8d;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mix-card__title strong {
-  color: var(--text);
-}
-
-.mix-card__title span::after {
-  content: '-';
-  margin-left: 0.45em;
-  color: var(--text);
+  overflow: hidden;
+  margin-top: 4px;
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mix-card__title em {
-  color: var(--muted);
+  color: #8d8d8d;
   font-style: normal;
-  font-size: 0.86em;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.mix-card__title em::before {
+  content: ' • ';
 }
 
 .mix-card__styles {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding-top: 2px;
+  min-width: 0;
 }
 
 .mix-card__style {
-  padding: 7px 11px;
-  font-size: 0.82rem;
-  font-weight: 500;
+  flex: 0 0 auto;
 }
 
 .mix-card__edit {
@@ -428,7 +431,6 @@ textarea {
 
 .mix-card__share-actions,
 .mix-detail-actions {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -440,25 +442,33 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 34px;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0 12px;
-  background: rgba(255, 255, 255, 0.075);
-  color: var(--text);
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
   font: inherit;
-  font-size: 0.84rem;
-  font-weight: 800;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.18s ease;
 }
 
 .mix-share-button:hover,
 .mix-share-button:focus-visible {
-  background: rgba(255, 255, 255, 0.14);
-  color: #ffffff;
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
   outline: none;
   transform: translateY(-1px);
+}
+
+.mix-card__footer {
+  grid-column: 1 / -1;
+  align-self: end;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
 }
 
 .mix-detail-panel {
@@ -871,6 +881,10 @@ textarea {
 .muted {
   margin: 0;
   color: var(--muted);
+}
+
+.topbar__nav a[href='/mixes'] .topbar__mix-label-fixed + span {
+  display: none;
 }
 
 .filters {
