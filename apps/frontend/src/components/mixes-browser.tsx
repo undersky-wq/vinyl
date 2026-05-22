@@ -141,6 +141,7 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
     pixelsPerBar: 5,
   });
   const [progressPercent, setProgressPercent] = useState(0);
+  const [elapsedSecond, setElapsedSecond] = useState(0);
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const isCurrentMixPlaying = tracks.some((track) => track.id === currentTrack?.id);
   const durationSec = sourceTrack?.durationSec || 0;
@@ -169,16 +170,19 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
     const audio = getAudioElement();
     if (!isCurrentMixPlaying || !audio) {
       setProgressPercent(0);
+      setElapsedSecond(0);
       return;
     }
 
     const sync = () => {
       if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
         setProgressPercent(0);
+        setElapsedSecond(0);
         return;
       }
 
       setProgressPercent((audio.currentTime / audio.duration) * 100);
+      setElapsedSecond(Math.floor(audio.currentTime));
     };
 
     sync();
@@ -252,17 +256,17 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
                 getAvatarInitial(comment.user.displayName)
               )}
               <span className="mix-comment-marker__tip" role="tooltip">
-                <strong>{comment.user.displayName}</strong>
-                <span>{formatCommentTime(comment.second)}</span>
+                <strong>{comment.user.displayName}:</strong>
                 <span className="mix-comment-marker__text">{comment.text}</span>
               </span>
             </span>
           );
         })}
       </div>
-      <span className="library-wave__duration">
-        {formatDuration(sourceTrack?.durationRaw, sourceTrack?.durationSec)}
-      </span>
+      <div className="mix-wave__time-row">
+        <span>{formatCommentTime(elapsedSecond)}</span>
+        <span>{formatDuration(sourceTrack?.durationRaw, sourceTrack?.durationSec)}</span>
+      </div>
     </div>
   );
 }

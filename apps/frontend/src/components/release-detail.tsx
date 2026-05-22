@@ -378,6 +378,7 @@ function MixDetailPanel({
   tracks,
   currentTrackId,
   getAudioElement,
+  playQueue,
   playQueueAtPercent,
   seekToPercent,
   lang,
@@ -386,6 +387,7 @@ function MixDetailPanel({
   tracks: ReleasePlayerTrack[];
   currentTrackId?: string;
   getAudioElement: () => HTMLAudioElement | null;
+  playQueue: (tracks: PlayerTrack[], startIndex: number) => void;
   playQueueAtPercent: (tracks: PlayerTrack[], startIndex: number, percent: number) => void;
   seekToPercent: (percent: number) => void;
   lang: SiteLang;
@@ -399,6 +401,7 @@ function MixDetailPanel({
     ? sourceTrack.waveformData
     : buildFallbackWaveform(`${sourceTrack?.artist || ''}-${sourceTrack?.title || ''}`)).slice(0, 180);
   const [progressPercent, setProgressPercent] = useState(0);
+  const [elapsedSecond, setElapsedSecond] = useState(0);
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const [selectedSecond, setSelectedSecond] = useState<number | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -432,16 +435,19 @@ function MixDetailPanel({
     const audio = getAudioElement();
     if (!isCurrentMixPlaying || !audio) {
       setProgressPercent(0);
+      setElapsedSecond(0);
       return;
     }
 
     const syncProgress = () => {
       if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
         setProgressPercent(0);
+        setElapsedSecond(0);
         return;
       }
 
       setProgressPercent((audio.currentTime / audio.duration) * 100);
+      setElapsedSecond(Math.floor(audio.currentTime));
     };
 
     syncProgress();
@@ -538,6 +544,15 @@ function MixDetailPanel({
 
   return (
     <section className="release-panel mix-detail-panel">
+      <button
+        type="button"
+        className="mix-detail-play"
+        onClick={() => playQueue(tracks, 0)}
+        aria-label={lang === 'ru' ? 'Воспроизвести микс' : 'Play mix'}
+      >
+        <Play size={22} fill="currentColor" />
+      </button>
+
       <div className="mix-wave mix-detail-wave">
         <div className="mix-wave__timeline">
           <button
@@ -578,9 +593,10 @@ function MixDetailPanel({
             );
           })}
         </div>
-        <span className="library-wave__duration">
-          {formatTrackDuration(sourceTrack?.durationRaw, sourceTrack?.durationSec)}
-        </span>
+        <div className="mix-wave__time-row">
+          <span>{formatCommentTime(elapsedSecond)}</span>
+          <span>{formatTrackDuration(sourceTrack?.durationRaw, sourceTrack?.durationSec)}</span>
+        </div>
 
         <div className="mix-detail-actions">
           <button type="button" className="mix-share-button" onClick={() => void handleCopyLink()}>
@@ -1189,6 +1205,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
           tracks={playableTracks}
           currentTrackId={currentTrack?.id}
           getAudioElement={getAudioElement}
+          playQueue={playQueue}
           playQueueAtPercent={playQueueAtPercent}
           seekToPercent={seekToPercent}
           lang={lang}

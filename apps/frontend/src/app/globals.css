@@ -497,6 +497,27 @@ textarea {
   gap: 12px;
 }
 
+.mix-detail-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #050505;
+  cursor: pointer;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.mix-detail-play:hover,
+.mix-detail-play:focus-visible {
+  color: rgba(5, 5, 5, 0.58);
+  outline: none;
+  transform: scale(0.95);
+}
+
 .mix-detail-wave {
   margin-top: 0;
 }
@@ -504,9 +525,7 @@ textarea {
 .mix-wave {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 10px;
-  align-items: end;
+  gap: 6px;
   margin-top: 10px;
 }
 
@@ -517,6 +536,16 @@ textarea {
 
 .mix-wave__bars {
   height: 96px;
+}
+
+.mix-wave__time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #8d8d8d;
+  font-size: 0.84rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .mix-comment-marker {
@@ -545,10 +574,11 @@ textarea {
   left: 50%;
   top: calc(100% + 10px);
   z-index: 20;
-  display: grid;
+  display: flex;
+  align-items: baseline;
   min-width: 190px;
   max-width: min(280px, 70vw);
-  gap: 3px;
+  gap: 5px;
   padding: 10px 12px;
   border-radius: 14px;
   background: #242424;
@@ -580,20 +610,16 @@ textarea {
 }
 
 .mix-comment-marker__tip strong {
-  color: #ffffff;
-  font-size: 0.82rem;
-}
-
-.mix-comment-marker__tip span {
-  color: var(--player-accent);
-  font-size: 0.72rem;
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.84rem;
   font-weight: 800;
 }
 
 .mix-comment-marker__text {
-  display: block;
-  margin-top: 1px;
-  color: var(--muted);
+  display: inline;
+  min-width: 0;
+  color: var(--text);
   font-size: 0.84rem;
   font-weight: 700;
 }
