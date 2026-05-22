@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateManualReleaseDto, ManualTrackInput } from './dto/create-manual-release.dto';
 import { CreateReleaseTrackDto } from './dto/create-release-track.dto';
+import { CreateTimelineCommentDto } from './dto/create-timeline-comment.dto';
 import { QueryReleasesDto } from './dto/query-releases.dto';
 import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
@@ -589,6 +590,78 @@ export class ReleasesService {
     return this.signReleaseUrls(release, includeAudioUrls);
   }
 
+  async findTimelineComments(releaseId: string) {
+    const release = await this.prisma.release.findUnique({
+      where: { id: releaseId },
+      select: { id: true },
+    });
+
+    if (!release) {
+      throw new NotFoundException('Release not found');
+    }
+
+    const comments = await this.prisma.timelineComment.findMany({
+      where: { releaseId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarStorageKey: true,
+            avatarStorageUrl: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          second: 'asc',
+        },
+        {
+          createdAt: 'asc',
+        },
+      ],
+    });
+
+    return Promise.all(comments.map((comment) => this.signTimelineComment(comment)));
+  }
+
+  async createTimelineComment(releaseId: string, user: User, dto: CreateTimelineCommentDto) {
+    const release = await this.prisma.release.findUnique({
+      where: { id: releaseId },
+      select: { id: true },
+    });
+
+    if (!release) {
+      throw new NotFoundException('Release not found');
+    }
+
+    const text = dto.text.trim();
+    if (!text) {
+      throw new BadRequestException('Comment text is required');
+    }
+
+    const comment = await this.prisma.timelineComment.create({
+      data: {
+        releaseId,
+        userId: user.id,
+        second: Math.max(0, Math.floor(dto.second)),
+        text: text.slice(0, 280),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarStorageKey: true,
+            avatarStorageUrl: true,
+          },
+        },
+      },
+    });
+
+    return this.signTimelineComment(comment);
+  }
+
   async deleteRelease(id: string) {
     const release = await this.prisma.release.findUnique({
       where: { id },
@@ -707,6 +780,10 @@ export class ReleasesService {
         throw new BadRequestException('Release title is required');
       }
       data.title = title;
+    }
+
+    if ('year' in dto) {
+      data.year = dto.year ?? null;
     }
 
     const updatedRelease = await this.prisma.release.update({
@@ -1125,6 +1202,31 @@ export class ReleasesService {
               })),
         })),
       ),
+    };
+  }
+
+  private async signTimelineComment<
+    T extends {
+      user: {
+        avatarStorageKey?: string | null;
+        avatarStorageUrl?: string | null;
+      };
+    },
+  >(comment: T) {
+    const avatarBucket =
+      this.configService.get<string>('SELECTEL_S3_BUCKET_AVATARS')?.trim() ||
+      this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS')?.trim() ||
+      'covers';
+
+    return {
+      ...comment,
+      user: {
+        ...comment.user,
+        avatarStorageUrl: comment.user.avatarStorageKey
+          ? (await this.storageService.getSignedObjectUrl(avatarBucket, comment.user.avatarStorageKey)) ||
+            comment.user.avatarStorageUrl
+          : comment.user.avatarStorageUrl,
+      },
     };
   }
 }

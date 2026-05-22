@@ -33,6 +33,7 @@ model User {
   playlists       Playlist[]
   sessions        Session[]
   favoriteTracks  FavoriteTrack[]
+  timelineComments TimelineComment[]
 }
 
 model Session {
@@ -77,6 +78,21 @@ model Release {
   tracks            Track[]
   collectionItems   CollectionItem[]
   images            Image[]
+  timelineComments  TimelineComment[]
+}
+
+model TimelineComment {
+  id        String   @id @default(cuid())
+  releaseId String
+  userId    String
+  second    Int
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  release   Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([releaseId, second])
 }
 
 model Track {

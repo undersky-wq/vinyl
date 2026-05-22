@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Heart, House, Library, ListMusic, Search, UserRound } from 'lucide-react';
+import { AudioLines, Heart, House, Library, ListMusic, Search, UserRound } from 'lucide-react';
 import { getSearchSuggestions } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
@@ -13,7 +13,7 @@ import { LanguageSwitcher } from './language-switcher';
 type TopbarProps = {
   lang: SiteLang;
   search?: string;
-  active?: 'home' | 'library' | 'playlists' | 'favorites' | 'upload' | 'profile';
+  active?: 'home' | 'library' | 'playlists' | 'mixes' | 'favorites' | 'upload' | 'profile';
   hideSearch?: boolean;
 };
 
@@ -108,6 +108,10 @@ export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps
         <Link href="/playlists" className={getNavClass(active === 'playlists')}>
           <ListMusic size={19} />
           <span>{lang === 'ru' ? 'Плейлисты' : 'Playlists'}</span>
+        </Link>
+        <Link href="/mixes" className={getNavClass(active === 'mixes')}>
+          <AudioLines size={19} />
+          <span>{lang === 'ru' ? 'РњРёРєСЃС‹' : 'Mixes'}</span>
         </Link>
         <Link href="/favorites" className={getNavClass(active === 'favorites')}>
           <Heart size={19} />

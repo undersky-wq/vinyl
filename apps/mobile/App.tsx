@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { Heart, House, Library, ListMusic } from 'lucide-react-native';
+import { AudioLines, Heart, House, Library, ListMusic } from 'lucide-react-native';
 import TrackPlayer, {
   AppKilledPlaybackBehavior,
   Capability,
@@ -13,6 +13,7 @@ import { FullPlayer } from './src/components/FullPlayer';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
 import { PlaylistsScreen } from './src/screens/PlaylistsScreen';
+import { MixesScreen } from './src/screens/MixesScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReleaseDetailScreen } from './src/screens/ReleaseDetailScreen';
@@ -38,6 +39,7 @@ const tabs: Array<{ key: TabKey; label: string; Icon: typeof House }> = [
   { key: 'home', label: 'Home', Icon: House },
   { key: 'library', label: 'Library', Icon: Library },
   { key: 'playlists', label: 'Playlists', Icon: ListMusic },
+  { key: 'mixes', label: 'Mixes', Icon: AudioLines },
   { key: 'favorites', label: 'Likes', Icon: Heart },
 ];
 
@@ -522,6 +524,17 @@ export default function App() {
           onRefreshPlaylists={async () => {
             setPlaylists(await getPlaylists());
           }}
+        />
+      );
+    }
+
+    if (activeTab === 'mixes') {
+      return (
+        <MixesScreen
+          avatarUrl={currentUser?.avatarStorageUrl}
+          activeTrackId={currentTrack?.id || null}
+          onOpenProfile={() => setActiveTab('profile')}
+          onPlayTrack={playTrack}
         />
       );
     }

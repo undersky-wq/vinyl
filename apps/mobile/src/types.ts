@@ -72,4 +72,4 @@ export type PlayerTrack = {
   waveformData?: number[] | null;
 };
 
-export type TabKey = 'home' | 'library' | 'playlists' | 'favorites' | 'profile';
+export type TabKey = 'home' | 'library' | 'playlists' | 'mixes' | 'favorites' | 'profile';

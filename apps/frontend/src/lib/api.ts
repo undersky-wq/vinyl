@@ -8,6 +8,7 @@ import {
   ProfileStats,
   Release,
   SearchSuggestion,
+  TimelineComment,
   Track,
   UserProfile,
 } from '../types';
@@ -162,6 +163,32 @@ export async function getRelease(id: string, cookieHeader?: string) {
   return fetchJson<Release>(`/releases/${id}`, {
     headers: cookieHeader ? { cookie: cookieHeader } : undefined,
   });
+}
+
+export async function getReleaseTimelineComments(releaseId: string, cookieHeader?: string) {
+  return fetchJson<TimelineComment[]>(`/releases/${releaseId}/comments`, {
+    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+  });
+}
+
+export async function createReleaseTimelineComment(
+  releaseId: string,
+  input: { second: number; text: string },
+) {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/comments`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Comment creation failed'));
+  }
+
+  return parseJsonResponse<TimelineComment>(response);
 }
 
 export async function getSearchSuggestions(search: string) {
@@ -484,7 +511,7 @@ export async function updateReleaseStyles(releaseId: string, styles: string[]) {
 
 export async function updateReleaseMetadata(
   releaseId: string,
-  input: { artist?: string; title?: string },
+  input: { artist?: string; title?: string; year?: number | null },
 ) {
   const response = await fetch(`${API_URL}/releases/${releaseId}/metadata`, {
     method: 'PATCH',

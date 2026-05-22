@@ -16,10 +16,11 @@ import {
 } from '@nestjs/common';
 import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { AdminGuard } from '../auth/auth.guards';
+import { AdminGuard, AuthGuard } from '../auth/auth.guards';
 import { AuthService } from '../auth/auth.service';
 import { CreateReleaseTrackDto } from './dto/create-release-track.dto';
 import { CreateManualReleaseDto } from './dto/create-manual-release.dto';
+import { CreateTimelineCommentDto } from './dto/create-timeline-comment.dto';
 import { QueryReleasesDto } from './dto/query-releases.dto';
 import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
 import { UpdateReleaseStylesDto } from './dto/update-release-styles.dto';
@@ -86,6 +87,21 @@ export class ReleasesController {
   async findOne(@Req() request: any, @Param('id') id: string) {
     const user = await this.authService.getUserFromRequest(request);
     return this.releasesService.findOne(id, Boolean(user));
+  }
+
+  @Get(':id/comments')
+  async findTimelineComments(@Param('id') id: string) {
+    return this.releasesService.findTimelineComments(id);
+  }
+
+  @Post(':id/comments')
+  @UseGuards(AuthGuard)
+  async createTimelineComment(
+    @Req() request: any,
+    @Param('id') id: string,
+    @Body() dto: CreateTimelineCommentDto,
+  ) {
+    return this.releasesService.createTimelineComment(id, request.user, dto);
   }
 
   @Delete(':id')

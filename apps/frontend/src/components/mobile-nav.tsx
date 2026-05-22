@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Heart, House, Library, ListMusic } from 'lucide-react';
+import { AudioLines, Heart, House, Library, ListMusic } from 'lucide-react';
 import { SiteLang } from '../lib/language';
 
 export function MobileNav({ lang }: { lang: SiteLang }) {
@@ -26,6 +26,13 @@ export function MobileNav({ lang }: { lang: SiteLang }) {
         aria-label={lang === 'ru' ? 'Плейлисты' : 'Playlists'}
       >
         <ListMusic size={23} />
+      </Link>
+      <Link
+        href="/mixes"
+        className={pathname === '/mixes' ? 'active' : ''}
+        aria-label={lang === 'ru' ? 'РњРёРєСЃС‹' : 'Mixes'}
+      >
+        <AudioLines size={23} />
       </Link>
       <Link
         href="/favorites"
