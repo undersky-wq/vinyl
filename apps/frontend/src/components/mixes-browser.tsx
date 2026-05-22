@@ -245,13 +245,17 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
               className="mix-comment-marker"
               key={comment.id}
               style={{ left: `${markerPercent}%` }}
-              title={`${comment.user.displayName}: ${comment.text}`}
             >
               {comment.user.avatarStorageUrl ? (
                 <img src={comment.user.avatarStorageUrl} alt={comment.user.displayName} />
               ) : (
                 getAvatarInitial(comment.user.displayName)
               )}
+              <span className="mix-comment-marker__tip" role="tooltip">
+                <strong>{comment.user.displayName}</strong>
+                <span>{formatCommentTime(comment.second)}</span>
+                <span className="mix-comment-marker__text">{comment.text}</span>
+              </span>
             </span>
           );
         })}
@@ -259,27 +263,6 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
       <span className="library-wave__duration">
         {formatDuration(sourceTrack?.durationRaw, sourceTrack?.durationSec)}
       </span>
-
-      {comments.length ? (
-        <div className="mix-comments" aria-label="Timeline comments">
-          {comments.map((comment) => (
-            <article className="mix-comment" key={comment.id}>
-              <span className="mix-comment__avatar">
-                {comment.user.avatarStorageUrl ? (
-                  <img src={comment.user.avatarStorageUrl} alt={comment.user.displayName} />
-                ) : (
-                  getAvatarInitial(comment.user.displayName)
-                )}
-              </span>
-              <div>
-                <strong>{comment.user.displayName}</strong>
-                <span>{formatCommentTime(comment.second)}</span>
-                <p>{comment.text}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

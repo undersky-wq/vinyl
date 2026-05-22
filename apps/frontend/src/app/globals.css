@@ -300,10 +300,11 @@ textarea {
 }
 
 .mix-card {
+  --mix-cover-size: 280px;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: var(--mix-cover-size) minmax(0, 1fr);
   gap: 24px;
-  align-items: stretch;
+  align-items: start;
   padding: 18px;
   border-radius: 14px;
   background: var(--panel);
@@ -336,6 +337,8 @@ textarea {
   grid-template-columns: 58px minmax(0, 1fr);
   gap: 16px;
   align-content: start;
+  min-width: 0;
+  min-height: var(--mix-cover-size);
 }
 
 .mix-card__play {
@@ -359,8 +362,11 @@ textarea {
 .mix-card__title {
   display: inline-flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 0.45em;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--text);
   font-size: 1.45rem;
   font-weight: 800;
@@ -501,6 +507,64 @@ textarea {
   transform: translate(-50%, -50%);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34);
   pointer-events: auto;
+}
+
+.mix-comment-marker__tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  z-index: 20;
+  display: grid;
+  min-width: 190px;
+  max-width: min(280px, 70vw);
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #242424;
+  color: var(--text);
+  line-height: 1.25;
+  text-align: left;
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  pointer-events: none;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.44);
+}
+
+.mix-comment-marker__tip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 10px;
+  height: 10px;
+  background: #242424;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.mix-comment-marker:hover .mix-comment-marker__tip,
+.mix-comment-marker:focus-visible .mix-comment-marker__tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.mix-comment-marker__tip strong {
+  color: #ffffff;
+  font-size: 0.82rem;
+}
+
+.mix-comment-marker__tip span {
+  color: var(--player-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.mix-comment-marker__text {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .mix-comment-marker img,
@@ -4716,7 +4780,8 @@ textarea {
   }
 
   .mix-card {
-    grid-template-columns: 220px minmax(0, 1fr);
+    --mix-cover-size: 220px;
+    grid-template-columns: var(--mix-cover-size) minmax(0, 1fr);
     gap: 18px;
   }
 
@@ -5680,6 +5745,7 @@ textarea {
 
   .mix-card__body {
     display: block;
+    min-height: 0;
     padding-top: 7px;
   }
 
