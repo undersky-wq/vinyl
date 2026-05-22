@@ -71,6 +71,7 @@ export type PlayerTrack = {
   durationRaw?: string | null;
   durationSec?: number | null;
   waveformData?: number[] | null;
+  isPublic?: boolean;
 };
 
 export type TabKey = 'home' | 'library' | 'playlists' | 'mixes' | 'favorites' | 'profile';

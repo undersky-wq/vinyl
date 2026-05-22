@@ -31,6 +31,7 @@ function toPlayerTrack(release: Release, track: Track): PlayerTrack | null {
     audioUrl,
     coverUrl: getCoverUrl(release),
     releaseId: release.id,
+    isPublic: true,
     durationRaw: track.durationRaw,
     durationSec: track.durationSec,
     waveformData: track.waveformData,

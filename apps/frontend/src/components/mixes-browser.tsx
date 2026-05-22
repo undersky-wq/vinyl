@@ -87,6 +87,7 @@ function toPlayerTrack(release: Release, track: Track): MixPlayerTrack | null {
     audioUrl,
     coverUrl: getCoverUrl(release),
     releaseId: release.id,
+    isPublic: true,
     durationRaw: track.durationRaw,
     durationSec: track.durationSec,
     waveformData: Array.isArray(track.waveformData)

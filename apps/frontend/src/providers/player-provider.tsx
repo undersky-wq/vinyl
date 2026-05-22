@@ -18,6 +18,7 @@ export type PlayerTrack = {
   coverUrl: string;
   releaseId?: string;
   waveformData?: number[];
+  isPublic?: boolean;
 };
 
 type PlayerContextType = {
@@ -569,12 +570,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [currentTrack]);
 
   const playQueue = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
-    if (!requireAuth()) {
+    const playableTracks = tracks.filter((track) => Boolean(track.audioUrl));
+    if (!playableTracks.length) {
       return;
     }
 
-    const playableTracks = tracks.filter((track) => Boolean(track.audioUrl));
-    if (!playableTracks.length) {
+    if (!playableTracks.every((track) => track.isPublic) && !requireAuth()) {
       return;
     }
 
@@ -601,10 +602,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const playQueueAtPercent = (tracks: PlayerTrack[], startIndex: number, percent: number) => {
-    if (!requireAuth()) {
-      return;
-    }
-
     pendingSeekPercentRef.current = Math.max(0, Math.min(percent, 100));
     playQueue(tracks, startIndex);
   };
@@ -713,7 +710,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const togglePlayback = () => {
-    if (!requireAuth()) {
+    if (!currentTrackRef.current?.isPublic && !requireAuth()) {
       return;
     }
 
