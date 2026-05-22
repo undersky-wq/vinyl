@@ -16,6 +16,8 @@ import { AudioService } from './audio.service';
 import { UploadAudioBodyDto } from './dto/upload-audio.dto';
 import { AdminGuard } from '../auth/auth.guards';
 
+const MAX_AUDIO_UPLOAD_BYTES = 500 * 1024 * 1024;
+
 @Controller('audio')
 export class AudioController {
   constructor(private readonly audioService: AudioService) {}
@@ -26,7 +28,7 @@ export class AudioController {
     FileInterceptor('file', {
       storage: memoryStorage(),
       limits: {
-        fileSize: 100 * 1024 * 1024,
+        fileSize: MAX_AUDIO_UPLOAD_BYTES,
       },
     }),
   )

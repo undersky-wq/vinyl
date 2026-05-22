@@ -27,6 +27,8 @@ import { UpdateReleaseStylesDto } from './dto/update-release-styles.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
 import { ReleasesService } from './releases.service';
 
+const MAX_AUDIO_UPLOAD_BYTES = 500 * 1024 * 1024;
+
 @Controller('releases')
 export class ReleasesController {
   constructor(
@@ -66,7 +68,7 @@ export class ReleasesController {
     AnyFilesInterceptor({
       storage: memoryStorage(),
       limits: {
-        fileSize: 100 * 1024 * 1024,
+        fileSize: MAX_AUDIO_UPLOAD_BYTES,
         files: 24,
       },
     }),
