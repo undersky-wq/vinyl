@@ -13,6 +13,7 @@ export default async function MixesPage() {
   const query = new URLSearchParams();
   query.set('limit', String(MIXES_PAGE_SIZE));
   query.set('offset', '0');
+  query.set('isMix', 'true');
 
   const feed = await getLibraryReleasesFeed(query, cookieHeader);
 

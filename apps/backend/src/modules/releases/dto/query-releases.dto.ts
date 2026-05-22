@@ -32,6 +32,10 @@ export class QueryReleasesDto {
 
   @IsOptional()
   @IsBooleanString()
+  isMix?: string;
+
+  @IsOptional()
+  @IsBooleanString()
   summary?: string;
 
   @IsOptional()

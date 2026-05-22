@@ -24,6 +24,7 @@ export type Release = {
   year: number | null;
   country: string | null;
   styles: string[];
+  isMix?: boolean;
   coverStorageUrl: string | null;
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;

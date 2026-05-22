@@ -45,7 +45,7 @@ export function MixesScreen({ activeTrackId, onPlayTrack, onOpenProfile, avatarU
   async function load() {
     setIsLoading(true);
     try {
-      const feed = await getLibraryFeedFiltered(PAGE_SIZE, 0);
+      const feed = await getLibraryFeedFiltered(PAGE_SIZE, 0, { isMix: true });
       setReleases(feed.releases.filter((release) => release.tracks.some((track) => track.audioFiles.some((file) => file.storageUrl))));
     } finally {
       setIsLoading(false);

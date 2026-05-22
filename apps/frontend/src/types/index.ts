@@ -31,6 +31,7 @@ export type Release = {
   country?: string | null;
   genres: string[];
   styles: string[];
+  isMix?: boolean;
   coverStorageUrl: string | null;
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;
@@ -50,6 +51,7 @@ export type HomeRelease = {
   title: string;
   year: number | null;
   styles: string[];
+  isMix?: boolean;
   coverStorageUrl: string | null;
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;
@@ -67,6 +69,7 @@ export type HomeReleaseApi = {
   title: string;
   year: number | null;
   styles: string[];
+  isMix?: boolean;
   coverStorageUrl: string | null;
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;

@@ -378,6 +378,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
     payload.append('year', createForm.year.trim());
     payload.append('country', '');
     payload.append('styles', createForm.styles.trim());
+    payload.append('isMix', 'true');
     payload.append(
       'tracks',
       JSON.stringify([

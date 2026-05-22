@@ -67,6 +67,7 @@ export class ReleasesService {
         country: body.country?.trim() || null,
         genres: [],
         styles,
+        isMix: body.isMix === 'true',
         collectionItems: {
           create: collectionUserIds.map((userId) => ({ userId })),
         },
@@ -133,6 +134,7 @@ export class ReleasesService {
           userId,
         },
       },
+      isMix: query.isMix === 'true',
       ...(genres.length ? { genres: { hasSome: genres } } : {}),
       ...(styles.length ? { styles: { hasSome: styles } } : {}),
       ...(search
@@ -175,6 +177,7 @@ export class ReleasesService {
             year: true,
             genres: true,
             styles: true,
+            isMix: true,
             coverImageUrl: true,
             coverStorageKey: true,
             coverStorageUrl: true,
@@ -227,6 +230,7 @@ export class ReleasesService {
             userId,
           },
         },
+        isMix: query.isMix === 'true',
       },
       select: {
         styles: true,
@@ -393,6 +397,7 @@ export class ReleasesService {
           userId,
         },
       },
+      isMix: query.isMix === 'true',
       ...(styles.length ? { styles: { hasSome: styles } } : {}),
       ...(search
         ? {
@@ -441,6 +446,7 @@ export class ReleasesService {
               userId,
             },
           },
+          isMix: query.isMix === 'true',
           tracks: {
             some: {
               audioFiles: {
@@ -501,6 +507,7 @@ export class ReleasesService {
               userId,
             },
           },
+          isMix: query.isMix === 'true',
           ...(styles.length ? { styles: { hasSome: styles } } : {}),
           ...(search
             ? {

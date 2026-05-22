@@ -109,7 +109,7 @@ export async function getLibraryFeed(limit = 20, offset = 0) {
 export async function getLibraryFeedFiltered(
   limit = 20,
   offset = 0,
-  filters: { styles?: string[]; artist?: string; key?: string | string[]; search?: string } = {},
+  filters: { styles?: string[]; artist?: string; key?: string | string[]; search?: string; isMix?: boolean } = {},
 ) {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -132,6 +132,10 @@ export async function getLibraryFeedFiltered(
 
   if (filters.search) {
     params.set('search', filters.search);
+  }
+
+  if (typeof filters.isMix === 'boolean') {
+    params.set('isMix', filters.isMix ? 'true' : 'false');
   }
 
   return fetchJson<{

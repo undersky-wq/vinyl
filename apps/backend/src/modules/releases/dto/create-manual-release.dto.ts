@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsBooleanString, IsOptional, IsString } from 'class-validator';
 
 export type ManualTrackInput = {
   position?: string;
@@ -26,6 +26,10 @@ export class CreateManualReleaseDto {
   @IsOptional()
   @IsString()
   styles?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  isMix?: string;
 
   @IsString()
   tracks!: string;

@@ -65,6 +65,7 @@ model Release {
   country           String?
   genres            String[]
   styles            String[]
+  isMix             Boolean          @default(false)
   notes             String?
   coverImageUrl     String?
   coverStorageKey   String?
