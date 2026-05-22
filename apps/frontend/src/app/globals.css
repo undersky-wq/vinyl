@@ -301,6 +301,7 @@ textarea {
 
 .mix-card {
   --mix-cover-size: 280px;
+  position: relative;
   display: grid;
   grid-template-columns: var(--mix-cover-size) minmax(0, 1fr);
   gap: 24px;
@@ -360,12 +361,23 @@ textarea {
   transform: scale(1.05);
 }
 
+.mix-card__year {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  color: #8d8d8d;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
 .mix-card__title {
   display: grid;
   align-content: center;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
+  padding-right: 86px;
   line-height: 1.25;
 }
 
@@ -389,13 +401,18 @@ textarea {
 }
 
 .mix-card__title em {
+  display: inline;
   color: #8d8d8d;
   font-style: normal;
-  font-size: 1.2rem;
-  font-weight: 700;
+  font: inherit;
 }
 
 .mix-card__title em::before {
+  content: ' • ';
+}
+
+.mix-card__title em::after {
+  display: none;
   content: ' • ';
 }
 
@@ -404,6 +421,10 @@ textarea {
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
+}
+
+.mix-card__title em::before {
+  content: ' • ';
 }
 
 .mix-card__style {

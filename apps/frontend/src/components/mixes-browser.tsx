@@ -493,9 +493,10 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
                 <Link href={`/releases/${release.id}`} className="mix-card__title">
                   <span>{release.artist}</span>
                   <strong>{release.title}</strong>
-                  {release.year ? <em>{release.year}</em> : null}
                 </Link>
               )}
+
+              {release.year && editingId !== release.id ? <span className="mix-card__year">{release.year}</span> : null}
 
               {isAdmin ? (
                 <div className="mix-card__admin-actions">
