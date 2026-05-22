@@ -382,6 +382,10 @@ export class AudioService {
       fileName: file.originalname,
     });
     const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
+    const existingAudioFiles = await this.prisma.audioFile.findMany({
+      where: { trackId: track.id },
+      orderBy: { createdAt: 'asc' },
+    });
     const url = await this.storageService.uploadObject({
       bucket,
       key,
@@ -410,6 +414,64 @@ export class AudioService {
         waveformData,
       },
     });
+
+    const reusableAudioFile =
+      existingAudioFiles.find((audioFile) => audioFile.storageKey === key) || existingAudioFiles[0];
+
+    if (reusableAudioFile) {
+      const staleAudioFiles = existingAudioFiles.filter(
+        (audioFile) => audioFile.id !== reusableAudioFile.id,
+      );
+      const staleStorageKeys = new Set(
+        existingAudioFiles
+          .flatMap((audioFile) => [
+            audioFile.storageKey,
+            audioFile.normalizedStorageKey,
+          ])
+          .filter((storageKey): storageKey is string => Boolean(storageKey) && storageKey !== key),
+      );
+
+      if (staleAudioFiles.length) {
+        await this.prisma.audioFile.deleteMany({
+          where: {
+            id: {
+              in: staleAudioFiles.map((audioFile) => audioFile.id),
+            },
+          },
+        });
+      }
+
+      const updatedAudioFile = await this.prisma.audioFile.update({
+        where: { id: reusableAudioFile.id },
+        data: {
+          userId,
+          trackId: track.id,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          sizeBytes: file.size,
+          storageKey: key,
+          storageUrl: url,
+          normalizedStorageKey: null,
+          normalizedStorageUrl: null,
+          normalizedMimeType: null,
+          normalizedSizeBytes: null,
+          normalizedAt: null,
+          acquiredLegally: true,
+        },
+      });
+
+      await Promise.all(
+        [...staleStorageKeys].map(async (storageKey) => {
+          try {
+            await this.storageService.deleteObject(bucket, storageKey);
+          } catch {
+            // A missing stale object should not block replacing the current track audio.
+          }
+        }),
+      );
+
+      return updatedAudioFile;
+    }
 
     return this.prisma.audioFile.create({
       data: {
