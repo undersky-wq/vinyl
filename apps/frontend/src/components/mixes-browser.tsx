@@ -49,7 +49,13 @@ function getInitialForm(release?: Release): MixFormState {
 }
 
 function getCoverUrl(release: Release) {
-  return release.coverMediumStorageUrl || release.coverStorageUrl || release.coverImageUrl || '/icon.png';
+  return (
+    release.coverThumbStorageUrl ||
+    release.coverMediumStorageUrl ||
+    release.coverStorageUrl ||
+    release.coverImageUrl ||
+    '/icon.png'
+  );
 }
 
 function getTrackArtist(track: Track, release: Release) {

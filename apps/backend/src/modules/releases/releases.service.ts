@@ -594,7 +594,7 @@ export class ReleasesService {
       return null;
     }
 
-    return this.signReleaseUrls(release, includeAudioUrls);
+    return this.signReleaseUrls(release, includeAudioUrls || release.isMix);
   }
 
   async findTimelineComments(releaseId: string) {

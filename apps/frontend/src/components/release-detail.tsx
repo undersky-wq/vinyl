@@ -768,6 +768,9 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       }
 
       const audioUrl = track.audioFiles?.find((file) => file.storageUrl)?.storageUrl || '';
+      if (!audioUrl) {
+        return null;
+      }
 
       const trackText = trackTextById[track.id] || {
         artist: getTrackArtist(track, release.artist),
