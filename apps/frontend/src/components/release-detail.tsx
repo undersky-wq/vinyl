@@ -1320,7 +1320,10 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
               const isCurrentTrack = currentTrack?.id === track.id;
 
               return (
-              <div className={`track-row${isCurrentTrack ? ' active' : ''}`} key={track.id}>
+              <div
+                className={`track-row${isCurrentTrack ? ' active' : ''}${isAdmin ? ' is-admin' : ' is-user'}`}
+                key={track.id}
+              >
                 <div className="track-row__actions track-row__actions--leading">
                   {audioFile ? (
                     <button

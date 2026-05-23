@@ -5197,7 +5197,7 @@ textarea {
 
   .release-heading {
     display: grid;
-    gap: 4px;
+    gap: 6px;
     margin: 0;
     font-size: 1rem;
     line-height: 1.12;
@@ -5223,7 +5223,7 @@ textarea {
   }
 
   .release-heading__meta {
-    margin-top: 4px;
+    margin-top: 10px;
     color: #8d8d8d;
     font-size: 0.8125rem;
     font-weight: 700;
@@ -5231,7 +5231,7 @@ textarea {
 
   .tag-list {
     gap: 8px;
-    margin: 17px 0 17px;
+    margin: 16px 0 12px;
   }
 
   .tag-pill {
@@ -5304,6 +5304,29 @@ textarea {
     justify-items: center;
     padding: 0 4px;
     white-space: nowrap;
+  }
+
+  .track-row.is-user {
+    grid-template-columns: 38px 28px minmax(0, 1fr) auto 42px;
+  }
+
+  .track-row.is-user .track-row__meta-actions {
+    display: inline-flex;
+    grid-column: 4;
+    grid-row: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0;
+  }
+
+  .track-row.is-user .track-row__duration {
+    grid-column: 5;
+    grid-row: 1;
+  }
+
+  .track-row.is-user .track-row__meta-edit {
+    display: none;
   }
 
   .track-row__empty-action {
@@ -5962,7 +5985,38 @@ textarea {
   .mix-detail-wave {
     display: grid;
     width: 100%;
-    margin-top: 0;
+    gap: 8px;
+    margin-top: -4px;
+  }
+
+  .mix-detail-panel {
+    gap: 10px;
+  }
+
+  .mix-detail-play {
+    width: 58px;
+    height: 58px;
+    margin-top: -4px;
+    background: var(--player-accent);
+    color: #111111;
+  }
+
+  .mix-detail-wave .mix-wave__bars {
+    height: 82px;
+    opacity: 1;
+  }
+
+  .mix-detail-wave .library-wave__bar {
+    background: rgba(255, 255, 255, 0.38);
+  }
+
+  .mix-detail-wave .library-wave__bar.is-active {
+    background: var(--player-accent);
+  }
+
+  .mix-detail-wave .mix-wave__time-row {
+    font-size: 0.8125rem;
+    font-weight: 800;
   }
 
   .mix-admin-form {
