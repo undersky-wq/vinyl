@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, ImagePlus, Play, Plus, Share2, Trash2, X } from 'lucide-react';
+import { ChevronLeft, Copy, ImagePlus, Play, Plus, Share2, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -1079,6 +1079,21 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
 
   return (
     <div className="release-page">
+      <div className="release-mobile-backbar">
+        <button
+          type="button"
+          className="release-mobile-backbar__button"
+          onClick={() => router.back()}
+          aria-label={lang === 'ru' ? 'Назад' : 'Back'}
+        >
+          <ChevronLeft size={23} />
+        </button>
+        <div className="release-mobile-backbar__text">
+          <strong>{releaseText.title}</strong>
+          <span>{releaseText.artist}</span>
+        </div>
+      </div>
+
       <div className="release-header">
         <div className="release-cover-shell">
         <button

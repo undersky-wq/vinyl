@@ -18,7 +18,7 @@ export default async function ReleasePage({ params }: { params: Promise<{ id: st
   const release = await getRelease(id, cookieHeader);
 
   return (
-    <main className="page-shell">
+    <main className="page-shell release-page-shell">
       <Topbar lang={lang} />
       <ReleaseDetail release={release} lang={lang} />
     </main>

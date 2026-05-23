@@ -1194,6 +1194,10 @@ textarea {
   gap: 24px;
 }
 
+.release-mobile-backbar {
+  display: none;
+}
+
 .release-header {
   display: grid;
   grid-template-columns: minmax(220px, 340px) 1fr;
@@ -4954,6 +4958,14 @@ textarea {
     padding: 10px var(--page-gutter) 154px;
   }
 
+  .release-page-shell {
+    padding-top: 0;
+  }
+
+  .release-page-shell > .topbar {
+    display: none;
+  }
+
   .topbar {
     position: sticky;
     top: 8px;
@@ -5115,16 +5127,133 @@ textarea {
   }
 
   .release-header {
-    gap: 14px;
+    display: block;
+    gap: 17px;
+  }
+
+  .release-mobile-backbar {
+    position: sticky;
+    top: max(0px, calc(env(safe-area-inset-top) - 3px));
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 62px;
+    margin: 0 0 17px;
+    padding: 10px;
+    border-radius: 24px;
+    background: rgba(24, 24, 24, 0.96);
+    backdrop-filter: blur(18px);
+  }
+
+  .release-mobile-backbar__button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 999px;
+    background: var(--panel-soft);
+    color: var(--text);
+  }
+
+  .release-mobile-backbar__text {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .release-mobile-backbar__text strong,
+  .release-mobile-backbar__text span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .release-mobile-backbar__text strong {
+    color: var(--text);
+    font-size: 0.9375rem;
+    font-weight: 900;
+  }
+
+  .release-mobile-backbar__text span {
+    color: #8d8d8d;
+    font-size: 0.8125rem;
+    font-weight: 700;
   }
 
   .release-panel {
-    padding: 14px;
-    border-radius: 14px;
+    margin-top: 17px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .release-title-row {
+    display: block;
   }
 
   .release-heading {
-    font-size: 1.6rem;
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.12;
+  }
+
+  .release-heading__artist {
+    display: block;
+    color: #8d8d8d;
+    font-size: 0.9375rem;
+    font-weight: 700;
+  }
+
+  .release-heading__dash {
+    display: none;
+  }
+
+  .release-heading__title {
+    display: block;
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 900;
+    letter-spacing: -0.025em;
+  }
+
+  .release-heading__meta {
+    margin-top: 4px;
+    color: #8d8d8d;
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+
+  .tag-list {
+    gap: 8px;
+    margin: 17px 0 17px;
+  }
+
+  .tag-pill {
+    min-height: 32px;
+    padding: 8px 13px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--panel);
+    color: #8d8d8d;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  .tag-pill--editable {
+    gap: 6px;
+  }
+
+  .release-delete-button {
+    position: absolute;
+    top: 12px;
+    right: 12px;
   }
 
   .release-track-form {
@@ -5145,20 +5274,25 @@ textarea {
   }
 
   .track-row {
-    grid-template-columns: 28px 32px minmax(0, 1fr) 44px;
-    gap: 8px 7px;
-    padding: 5px 10px 8px 0;
-    border-radius: 8px;
+    grid-template-columns: 38px 28px minmax(0, 1fr) auto 42px;
+    gap: 9px;
+    min-height: 58px;
+    align-items: center;
+    padding: 0 8px;
+    border-radius: 16px;
   }
 
   .track-row__actions {
-    min-width: 28px;
+    min-width: 38px;
   }
 
   .track-row__duration {
     position: static;
     grid-column: auto;
-    min-width: 44px;
+    min-width: 42px;
+    color: #8d8d8d;
+    font-size: 0.75rem;
+    font-weight: 800;
     text-align: right;
   }
 
@@ -5173,40 +5307,42 @@ textarea {
   }
 
   .track-row__empty-action {
-    width: 28px;
-    height: 28px;
+    width: 38px;
+    height: 38px;
   }
 
   .track-row__play-button,
   .track-row .track-upload-button--icon {
-    width: 28px;
-    height: 28px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
+    background: #ffffff;
+    color: #111111;
   }
 
   .track-row__play-button svg,
   .track-row .track-upload-button--icon svg {
-    width: 15px;
-    height: 15px;
+    width: 16px;
+    height: 16px;
   }
 
   .track-row__position-cell {
-    justify-content: flex-start;
-    min-height: 32px;
+    justify-content: center;
+    min-height: 38px;
   }
 
   .track-row__title-block {
-    display: inline-flex;
-    align-items: center;
-    gap: 0;
-    min-height: 32px;
-    padding-right: 6px;
+    display: grid;
+    gap: 2px;
+    min-height: 38px;
+    align-content: center;
+    padding-right: 0;
     overflow: hidden;
   }
 
   .track-row__artist,
   .track-row__title {
-    display: inline;
+    display: block;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -5214,30 +5350,32 @@ textarea {
   }
 
   .track-row__artist::after {
-    content: '-';
-    color: #ffffff;
-    margin: 0 0.35em;
+    content: '';
+    margin: 0;
   }
 
   .track-row__artist {
     color: #8d8d8d;
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
     font-weight: 700;
   }
 
   .track-row__title {
     color: #ffffff;
-    font-size: 0.8rem;
-    font-weight: 700;
+    font-size: 0.875rem;
+    font-weight: 900;
   }
 
-  .track-row__position,
-  .track-row__duration {
-    font-size: 0.8rem;
+  .track-row__position {
+    min-width: 28px;
+    color: #8d8d8d;
+    font-size: 0.8125rem;
+    font-weight: 800;
+    text-align: center;
   }
 
   .track-meta-pill {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 400;
   }
 
