@@ -22,6 +22,7 @@ import { Release, TimelineComment } from '../types';
 import { CoverArtwork } from './cover-artwork';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { TrackUploadButton } from './track-upload-button';
+import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
 type ReleaseDetailProps = {
   lang: SiteLang;
@@ -403,6 +404,8 @@ function MixDetailPanel({
   const [progressPercent, setProgressPercent] = useState(0);
   const [elapsedSecond, setElapsedSecond] = useState(0);
   const [comments, setComments] = useState<TimelineComment[]>([]);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [isWaveDragging, setIsWaveDragging] = useState(false);
   const [selectedSecond, setSelectedSecond] = useState<number | null>(null);
   const [commentText, setCommentText] = useState('');
   const [commentStatus, setCommentStatus] = useState('');
@@ -462,26 +465,64 @@ function MixDetailPanel({
     };
   }, [currentTrackId, getAudioElement, isCurrentMixPlaying]);
 
-  function handleWaveSeek(event: React.MouseEvent<HTMLButtonElement>) {
+  function getWavePercent(event: React.PointerEvent<HTMLButtonElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return Math.max(0, Math.min(((event.clientX - rect.left) / rect.width) * 100, 100));
+  }
+
+  function updateWaveSelection(percent: number) {
+    const nextSecond = durationSec ? Math.round((percent / 100) * durationSec) : 0;
+    const nearest = getNearestTimelineComment(comments, percent, durationSec);
+
+    setSelectedSecond(nextSecond);
+    setActiveCommentId(nearest?.id || null);
+    setCommentStatus('');
+  }
+
+  function commitWaveSeek(percent: number) {
     if (!tracks.length) {
       return;
     }
 
-    const rect = event.currentTarget.getBoundingClientRect();
-    const percent = ((event.clientX - rect.left) / rect.width) * 100;
-    const normalizedPercent = Math.max(0, Math.min(percent, 100));
-    const nextSecond = durationSec ? Math.round((normalizedPercent / 100) * durationSec) : 0;
     const audio = getAudioElement();
 
-    setSelectedSecond(nextSecond);
-    setCommentStatus('');
-
     if (isCurrentMixPlaying && audio && Number.isFinite(audio.duration) && audio.duration > 0) {
-      seekToPercent(normalizedPercent);
+      seekToPercent(percent);
       return;
     }
 
-    playQueueAtPercent(tracks, 0, normalizedPercent);
+    playQueueAtPercent(tracks, 0, percent);
+  }
+
+  function handleWavePointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const percent = getWavePercent(event);
+    setIsWaveDragging(true);
+    updateWaveSelection(percent);
+  }
+
+  function handleWavePointerMove(event: React.PointerEvent<HTMLButtonElement>) {
+    if (!isWaveDragging) {
+      const percent = getWavePercent(event);
+      const nearest = getNearestTimelineComment(comments, percent, durationSec);
+      setActiveCommentId(nearest?.id || null);
+      return;
+    }
+
+    updateWaveSelection(getWavePercent(event));
+  }
+
+  function handleWavePointerUp(event: React.PointerEvent<HTMLButtonElement>) {
+    const percent = getWavePercent(event);
+    updateWaveSelection(percent);
+    commitWaveSeek(percent);
+    setIsWaveDragging(false);
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
+  function handleWavePointerCancel() {
+    setIsWaveDragging(false);
+    setActiveCommentId(null);
   }
 
   async function handleSaveComment(event: FormEvent<HTMLFormElement>) {
@@ -558,7 +599,15 @@ function MixDetailPanel({
           <button
             type="button"
             className="library-wave__bars is-decoded mix-wave__bars"
-            onClick={handleWaveSeek}
+            onPointerDown={handleWavePointerDown}
+            onPointerMove={handleWavePointerMove}
+            onPointerUp={handleWavePointerUp}
+            onPointerLeave={() => {
+              if (!isWaveDragging) {
+                setActiveCommentId(null);
+              }
+            }}
+            onPointerCancel={handleWavePointerCancel}
             aria-label="Seek mix waveform"
           >
             {peaks.map((peak, index) => (
@@ -572,26 +621,11 @@ function MixDetailPanel({
             ))}
           </button>
 
-          {comments.map((comment) => {
-            const markerPercent = durationSec
-              ? Math.max(0, Math.min((comment.second / durationSec) * 100, 100))
-              : 0;
-
-            return (
-              <span
-                className="mix-comment-marker"
-                key={comment.id}
-                style={{ left: `${markerPercent}%` }}
-                title={`${comment.user.displayName}: ${comment.text}`}
-              >
-                {comment.user.avatarStorageUrl ? (
-                  <img src={comment.user.avatarStorageUrl} alt={comment.user.displayName} />
-                ) : (
-                  getAvatarInitial(comment.user.displayName)
-                )}
-              </span>
-            );
-          })}
+          <TimelineCommentMarkers
+            comments={comments}
+            durationSec={durationSec}
+            activeCommentId={activeCommentId}
+          />
         </div>
         <div className="mix-wave__time-row">
           <span>{formatCommentTime(elapsedSecond)}</span>

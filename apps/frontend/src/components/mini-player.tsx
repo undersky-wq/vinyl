@@ -15,10 +15,13 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { getReleaseTimelineComments } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useResponsiveWaveform } from '../lib/waveform';
 import { usePlayer } from '../providers/player-provider';
+import { TimelineComment } from '../types';
 import { FavoriteButton } from './track-actions';
+import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
 type MiniPlayerProps = {
   lang: SiteLang;
@@ -71,6 +74,8 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
   const [overlayShuffleActive, setOverlayShuffleActive] = useState(isShuffleEnabled);
   const [overlayRepeatActive, setOverlayRepeatActive] = useState(isRepeatEnabled);
+  const [comments, setComments] = useState<TimelineComment[]>([]);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const lastHapticStepRef = useRef(-1);
   const overlayQueueDragStartYRef = useRef<number | null>(null);
   const overlayQueueDragYRef = useRef(0);
@@ -88,6 +93,30 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     maxBars: 90,
     pixelsPerBar: 5,
   });
+
+  useEffect(() => {
+    if (!currentTrack?.releaseId) {
+      setComments([]);
+      return;
+    }
+
+    let cancelled = false;
+    getReleaseTimelineComments(currentTrack.releaseId)
+      .then((nextComments) => {
+        if (!cancelled) {
+          setComments(nextComments);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setComments([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack?.releaseId]);
 
   useEffect(() => {
     if (!isFullPlayerOpen) {
@@ -142,6 +171,11 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(4);
     }
+  }
+
+  function previewTimelineComment(nextProgress: number) {
+    const nearest = getNearestTimelineComment(comments, nextProgress, duration);
+    setActiveCommentId(nearest?.id || null);
   }
 
   function handlePreviousTrack() {
@@ -449,6 +483,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                 event.currentTarget.setPointerCapture(event.pointerId);
                 const nextProgress = getPointerProgress(event);
                 setOverlayDragProgress(nextProgress);
+                previewTimelineComment(nextProgress);
                 vibrateOnStep(nextProgress);
               }}
               onPointerMove={(event) => {
@@ -458,17 +493,20 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
 
                 const nextProgress = getPointerProgress(event);
                 setOverlayDragProgress(nextProgress);
+                previewTimelineComment(nextProgress);
                 vibrateOnStep(nextProgress);
               }}
               onPointerUp={(event) => {
                 const nextProgress = getPointerProgress(event);
                 seekToPercent(nextProgress);
                 setOverlayDragProgress(null);
+                setActiveCommentId(null);
                 lastHapticStepRef.current = -1;
                 event.currentTarget.releasePointerCapture(event.pointerId);
               }}
               onPointerCancel={() => {
                 setOverlayDragProgress(null);
+                setActiveCommentId(null);
                 lastHapticStepRef.current = -1;
               }}
               aria-label={lang === 'ru' ? 'Перемотка трека' : 'Seek track'}
@@ -480,6 +518,11 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                   style={{ height: `${Math.max(10, Math.round(peak * 100))}%` }}
                 />
               ))}
+              <TimelineCommentMarkers
+                comments={comments}
+                durationSec={duration}
+                activeCommentId={activeCommentId}
+              />
             </button>
             <span>{formatTime(duration)}</span>
           </div>

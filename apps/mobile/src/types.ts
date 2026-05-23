@@ -74,4 +74,18 @@ export type PlayerTrack = {
   isPublic?: boolean;
 };
 
+export type TimelineComment = {
+  id: string;
+  releaseId: string;
+  userId: string;
+  second: number;
+  text: string;
+  createdAt: string;
+  user: {
+    id: string;
+    displayName: string;
+    avatarStorageUrl?: string | null;
+  };
+};
+
 export type TabKey = 'home' | 'library' | 'playlists' | 'mixes' | 'favorites' | 'profile';

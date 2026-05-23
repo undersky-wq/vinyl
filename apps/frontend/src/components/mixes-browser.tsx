@@ -17,6 +17,7 @@ import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Release, TimelineComment, Track } from '../types';
+import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
 type MixesBrowserProps = {
   lang: SiteLang;
@@ -149,6 +150,7 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
   const [progressPercent, setProgressPercent] = useState(0);
   const [elapsedSecond, setElapsedSecond] = useState(0);
   const [comments, setComments] = useState<TimelineComment[]>([]);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const isCurrentMixPlaying = tracks.some((track) => track.id === currentTrack?.id);
   const durationSec = sourceTrack?.durationSec || 0;
 
@@ -220,6 +222,13 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
     playQueueAtPercent(tracks, 0, percent);
   }
 
+  function handlePointerPreview(event: React.PointerEvent<HTMLButtonElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const percent = Math.max(0, Math.min(((event.clientX - rect.left) / rect.width) * 100, 100));
+    const nearest = getNearestTimelineComment(comments, percent, durationSec);
+    setActiveCommentId(nearest?.id || null);
+  }
+
   if (!tracks.length) {
     return null;
   }
@@ -232,6 +241,10 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
           ref={waveformRef}
           className="library-wave__bars is-decoded mix-wave__bars"
           onClick={handleSeek}
+          onPointerMove={handlePointerPreview}
+          onPointerDown={handlePointerPreview}
+          onPointerLeave={() => setActiveCommentId(null)}
+          onPointerCancel={() => setActiveCommentId(null)}
           aria-label="Seek mix waveform"
         >
           {peaks.map((peak, index) => (
@@ -245,29 +258,11 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
           ))}
         </button>
 
-        {comments.map((comment) => {
-          const markerPercent = durationSec
-            ? Math.max(0, Math.min((comment.second / durationSec) * 100, 100))
-            : 0;
-
-          return (
-            <span
-              className="mix-comment-marker"
-              key={comment.id}
-              style={{ left: `${markerPercent}%` }}
-            >
-              {comment.user.avatarStorageUrl ? (
-                <img src={comment.user.avatarStorageUrl} alt={comment.user.displayName} />
-              ) : (
-                getAvatarInitial(comment.user.displayName)
-              )}
-              <span className="mix-comment-marker__tip" role="tooltip">
-                <strong>{comment.user.displayName}:</strong>
-                <span className="mix-comment-marker__text">{comment.text}</span>
-              </span>
-            </span>
-          );
-        })}
+        <TimelineCommentMarkers
+          comments={comments}
+          durationSec={durationSec}
+          activeCommentId={activeCommentId}
+        />
       </div>
       <div className="mix-wave__time-row">
         <span>{formatCommentTime(elapsedSecond)}</span>

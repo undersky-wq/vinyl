@@ -17,7 +17,8 @@ import {
 import { ChevronDown, Heart, ListMusic, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
 import { colors, radius, spacing } from '../theme';
-import { PlayerTrack } from '../types';
+import { PlayerTrack, TimelineComment } from '../types';
+import { getReleaseTimelineComments } from '../lib/api';
 
 type FullPlayerProps = {
   track: PlayerTrack | null;
@@ -72,6 +73,33 @@ function sampleWaveform(source: number[] | null | undefined, count: number) {
     const peak = Math.max(...slice, 0) / maxValue;
     return Math.max(0.16, Math.min(1, peak));
   });
+}
+
+function getAvatarInitial(name?: string | null) {
+  return (name || 'U').trim().charAt(0).toUpperCase() || 'U';
+}
+
+function getNearestTimelineComment(comments: TimelineComment[], ratio: number, durationMs: number) {
+  if (!comments.length || durationMs <= 0) {
+    return null;
+  }
+
+  const durationSec = durationMs / 1000;
+  const percent = ratio * 100;
+  const thresholdPercent = Math.max(2.5, Math.min(7, (6 / durationSec) * 100));
+  let closestComment: TimelineComment | null = null;
+  let closestDistance = Number.POSITIVE_INFINITY;
+
+  comments.forEach((comment) => {
+    const markerPercent = Math.max(0, Math.min((comment.second / durationSec) * 100, 100));
+    const distance = Math.abs(markerPercent - percent);
+    if (distance <= thresholdPercent && distance < closestDistance) {
+      closestComment = comment;
+      closestDistance = distance;
+    }
+  });
+
+  return closestComment;
 }
 
 function MarqueeText({
@@ -171,6 +199,8 @@ export function FullPlayer({
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [comments, setComments] = useState<TimelineComment[]>([]);
+  const [activeComment, setActiveComment] = useState<TimelineComment | null>(null);
   const waveformTouchRef = useRef<View>(null);
   const waveformLeftRef = useRef(0);
   const dragProgressRef = useRef<number | null>(null);
@@ -180,6 +210,31 @@ export function FullPlayer({
   const visibleProgress = dragProgress ?? progress;
   const visiblePositionMs =
     dragProgress !== null && durationMs > 0 ? Math.round(durationMs * dragProgress) : positionMs;
+
+  useEffect(() => {
+    if (!track?.releaseId) {
+      setComments([]);
+      setActiveComment(null);
+      return;
+    }
+
+    let cancelled = false;
+    getReleaseTimelineComments(track.releaseId)
+      .then((nextComments) => {
+        if (!cancelled) {
+          setComments(nextComments);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setComments([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [track?.releaseId]);
 
   function measureWaveform() {
     waveformTouchRef.current?.measureInWindow((x, _y, width) => {
@@ -200,6 +255,7 @@ export function FullPlayer({
     const nextRatio = getSeekRatio(pageX);
     dragProgressRef.current = nextRatio;
     setDragProgress(nextRatio);
+    setActiveComment(getNearestTimelineComment(comments, nextRatio, durationMs));
   }
 
   function commitDrag(pageX?: number) {
@@ -221,6 +277,7 @@ export function FullPlayer({
       dragProgressRef.current = null;
       dragCommittedRef.current = false;
       setDragProgress(null);
+      setActiveComment(null);
       setIsSeeking(false);
     }, 260);
   }
@@ -229,6 +286,7 @@ export function FullPlayer({
     dragProgressRef.current = null;
     dragCommittedRef.current = false;
     setDragProgress(null);
+    setActiveComment(null);
     setIsSeeking(false);
   }
 
@@ -317,6 +375,38 @@ export function FullPlayer({
                     />
                   );
                 })}
+                {durationMs > 0
+                  ? comments.map((comment) => {
+                      const markerRatio = Math.max(0, Math.min(comment.second / (durationMs / 1000), 1));
+                      const active = activeComment?.id === comment.id;
+
+                      return (
+                        <View
+                          key={comment.id}
+                          pointerEvents="none"
+                          style={[
+                            styles.commentMarker,
+                            { left: `${markerRatio * 100}%` },
+                            active && styles.commentMarkerActive,
+                          ]}
+                        >
+                          {comment.user.avatarStorageUrl ? (
+                            <Image source={{ uri: comment.user.avatarStorageUrl }} style={styles.commentAvatar} />
+                          ) : (
+                            <Text style={styles.commentInitial}>{getAvatarInitial(comment.user.displayName)}</Text>
+                          )}
+                          {active ? (
+                            <View style={styles.commentTip}>
+                              <Text numberOfLines={2} style={styles.commentTipText}>
+                                <Text style={styles.commentTipName}>{comment.user.displayName}: </Text>
+                                {comment.text}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      );
+                    })
+                  : null}
                 <View style={[styles.progressThumb, { left: `${visibleProgress * 100}%` }]} />
               </View>
             </View>
@@ -493,6 +583,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: radius.pill,
+    position: 'relative',
   },
   progressTrackSeeking: {
     opacity: 0.92,
@@ -509,6 +600,54 @@ const styles = StyleSheet.create({
     marginLeft: -1,
     borderRadius: radius.pill,
     backgroundColor: colors.accent,
+  },
+  commentMarker: {
+    position: 'absolute',
+    top: 31,
+    width: 24,
+    height: 24,
+    marginLeft: -12,
+    marginTop: -12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.88)',
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+    zIndex: 5,
+    elevation: 5,
+  },
+  commentMarkerActive: {
+    transform: [{ scale: 1.08 }],
+  },
+  commentAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: radius.pill,
+  },
+  commentInitial: {
+    color: '#111111',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  commentTip: {
+    position: 'absolute',
+    bottom: 30,
+    width: 210,
+    maxWidth: 240,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: '#242424',
+  },
+  commentTipText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  commentTipName: {
+    color: colors.muted,
+    fontWeight: '800',
   },
   times: {
     flexDirection: 'row',

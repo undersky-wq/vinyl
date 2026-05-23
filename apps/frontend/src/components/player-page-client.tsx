@@ -5,9 +5,12 @@ import { ChevronDown, ListMusic, Pause, Play, Repeat2, Shuffle, SkipBack, SkipFo
 import { useRouter } from 'next/navigation';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { getReleaseTimelineComments } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
+import { TimelineComment } from '../types';
 import { FavoriteButton } from './track-actions';
+import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -50,6 +53,8 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [pageTransition, setPageTransition] = useState<'opening' | 'closing' | ''>('');
   const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
+  const [comments, setComments] = useState<TimelineComment[]>([]);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const lastHapticStepRef = useRef(-1);
 
   useEffect(() => {
@@ -66,6 +71,30 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     const timeout = window.setTimeout(() => setPageTransition(''), 420);
     return () => window.clearTimeout(timeout);
   }, []);
+
+  useEffect(() => {
+    if (!currentTrack?.releaseId) {
+      setComments([]);
+      return;
+    }
+
+    let cancelled = false;
+    getReleaseTimelineComments(currentTrack.releaseId)
+      .then((nextComments) => {
+        if (!cancelled) {
+          setComments(nextComments);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setComments([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack?.releaseId]);
 
   if (!currentTrack) {
     return (
@@ -95,6 +124,11 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(4);
     }
+  }
+
+  function previewTimelineComment(nextProgress: number) {
+    const nearest = getNearestTimelineComment(comments, nextProgress, duration);
+    setActiveCommentId(nearest?.id || null);
   }
 
   function collapsePlayer() {
@@ -175,6 +209,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
             event.currentTarget.setPointerCapture(event.pointerId);
             const nextProgress = getPointerProgress(event);
             setDragProgress(nextProgress);
+            previewTimelineComment(nextProgress);
             vibrateOnStep(nextProgress);
           }}
           onPointerMove={(event) => {
@@ -184,17 +219,20 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
 
             const nextProgress = getPointerProgress(event);
             setDragProgress(nextProgress);
+            previewTimelineComment(nextProgress);
             vibrateOnStep(nextProgress);
           }}
           onPointerUp={(event) => {
             const nextProgress = getPointerProgress(event);
             seekToPercent(nextProgress);
             setDragProgress(null);
+            setActiveCommentId(null);
             lastHapticStepRef.current = -1;
             event.currentTarget.releasePointerCapture(event.pointerId);
           }}
           onPointerCancel={() => {
             setDragProgress(null);
+            setActiveCommentId(null);
             lastHapticStepRef.current = -1;
           }}
           aria-label={lang === 'ru' ? 'Перемотка трека' : 'Seek track'}
@@ -206,6 +244,11 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
               style={{ height: `${Math.max(10, Math.round(peak * 100))}%` }}
             />
           ))}
+          <TimelineCommentMarkers
+            comments={comments}
+            durationSec={duration}
+            activeCommentId={activeCommentId}
+          />
         </button>
         <span>{formatTime(duration)}</span>
       </div>

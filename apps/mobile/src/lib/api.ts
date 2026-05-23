@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { AuthUser, PlayerTrack, Playlist, PlaylistSummary, Release, Track } from '../types';
+import { AuthUser, PlayerTrack, Playlist, PlaylistSummary, Release, TimelineComment, Track } from '../types';
 
 const configuredApiUrl = Constants.expoConfig?.extra?.apiUrl;
 const API_URL = typeof configuredApiUrl === 'string' ? configuredApiUrl : 'https://mityadima.ru/api';
@@ -70,6 +70,10 @@ export async function getHomeReleases(
 
 export async function getRelease(id: string) {
   return fetchJson<Release>(`/releases/${id}`);
+}
+
+export async function getReleaseTimelineComments(releaseId: string) {
+  return fetchJson<TimelineComment[]>(`/releases/${releaseId}/comments`);
 }
 
 export async function getReleasesFiltered(

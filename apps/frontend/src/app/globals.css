@@ -604,7 +604,8 @@ textarea {
 }
 
 .mix-comment-marker:hover .mix-comment-marker__tip,
-.mix-comment-marker:focus-visible .mix-comment-marker__tip {
+.mix-comment-marker:focus-visible .mix-comment-marker__tip,
+.mix-comment-marker.is-visible .mix-comment-marker__tip {
   opacity: 1;
   transform: translate(-50%, 0);
 }
@@ -2102,6 +2103,7 @@ textarea {
 }
 
 .player-page__waveform {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 1px;
@@ -2115,26 +2117,26 @@ textarea {
   user-select: none;
 }
 
-.player-page__waveform span {
+.player-page__waveform > span {
   flex: 1 1 0;
   min-width: 1px;
   background: rgba(255, 255, 255, 0.38);
   transition: background 0.18s ease;
 }
 
-.player-page__waveform span.active {
+.player-page__waveform > span.active {
   background: var(--player-accent);
 }
 
-.player-page__waveform.dragging span.active {
+.player-page__waveform.dragging > span.active {
   background: #7e33c7;
 }
 
-.player-page__waveform:hover span {
+.player-page__waveform:hover > span {
   background: rgba(255, 255, 255, 0.85);
 }
 
-.player-page__waveform:hover span.active {
+.player-page__waveform:hover > span.active {
   background: var(--player-accent);
 }
 
@@ -3880,6 +3882,8 @@ textarea {
   opacity: 0.48;
   transition: opacity 0.28s ease;
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
 }
 
 .library-wave__bars.is-decoded {
@@ -5841,6 +5845,8 @@ textarea {
 
   .mix-card__title {
     display: block;
+    width: 100%;
+    padding-right: 0;
     line-height: 1.15;
   }
 
@@ -5870,22 +5876,9 @@ textarea {
     white-space: nowrap;
   }
 
-  .mix-card__share-actions {
-    gap: 8px;
-  }
-
-  .mix-card__share-actions .mix-share-button {
-    width: 34px;
-    height: 34px;
-    min-height: 34px;
-    padding: 0;
-    gap: 0;
-    font-size: 0;
-  }
-
-  .mix-card__share-actions .mix-share-button svg {
-    width: 17px;
-    height: 17px;
+  .mix-card__share-actions,
+  .mix-detail-actions {
+    display: none;
   }
 
   .mix-card__year {
