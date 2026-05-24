@@ -275,7 +275,7 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
 }
 
 export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
-  const { playQueue, togglePlayback } = usePlayerActions();
+  const { playQueue, prepareQueue, togglePlayback } = usePlayerActions();
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { user } = useAuth();
   const router = useRouter();
@@ -432,7 +432,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
 
     event.preventDefault();
     if (tracks.length) {
-      playQueue(tracks, 0);
+      prepareQueue(tracks, 0);
     }
     router.push(`/releases/${release.id}`);
   }
@@ -528,10 +528,6 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
               )}
 
               {release.year && editingId !== release.id ? <span className="mix-card__year">{release.year}</span> : null}
-              {isNowPlaying && editingId !== release.id ? (
-                <span className="mix-card__now-playing">Now playing</span>
-              ) : null}
-
               {isAdmin ? (
                 <div className="mix-card__admin-actions">
                   {editingId === release.id ? (

@@ -37,6 +37,7 @@ type PlayerContextType = {
   canPlayNext: boolean;
   playTrack: (track: PlayerTrack) => void;
   playQueue: (tracks: PlayerTrack[], startIndex?: number, displayTracks?: PlayerTrack[]) => void;
+  prepareQueue: (tracks: PlayerTrack[], startIndex?: number, displayTracks?: PlayerTrack[]) => void;
   playQueueAtPercent: (tracks: PlayerTrack[], startIndex: number, percent: number) => void;
   replaceQueuePreservingCurrent: (tracks: PlayerTrack[], displayTracks?: PlayerTrack[]) => void;
   playPrevious: () => void;
@@ -582,14 +583,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     void safelyPlay(audio);
   }, [currentTrack]);
 
-  const playQueue = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
+  const setQueueState = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
     const playableTracks = tracks.filter((track) => Boolean(track.audioUrl));
     if (!playableTracks.length) {
-      return;
+      return null;
     }
 
     if (!playableTracks.every((track) => track.isPublic) && !requireAuth()) {
-      return;
+      return null;
     }
 
     const safeIndex = Math.max(0, Math.min(startIndex, playableTracks.length - 1));
@@ -608,6 +609,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setDisplayQueue(sharedDisplayQueue);
     setCurrentIndex(safeIndex);
     setCurrentTrack(nextTrack);
+
+    return nextTrack;
+  };
+
+  const playQueue = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
+    setQueueState(tracks, startIndex, displayTracks);
+  };
+
+  const prepareQueue = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+    }
+    setIsPlaying(false);
+    setQueueState(tracks, startIndex, displayTracks);
   };
 
   const playTrack = (track: PlayerTrack) => {
@@ -959,6 +975,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const actionsValue = {
     playTrack,
     playQueue,
+    prepareQueue,
     playQueueAtPercent,
     replaceQueuePreservingCurrent,
     playPrevious,

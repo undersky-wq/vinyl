@@ -371,23 +371,6 @@ textarea {
   line-height: 1.25;
 }
 
-.mix-card__now-playing {
-  position: absolute;
-  top: 48px;
-  right: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  padding: 7px 11px;
-  background: rgba(186, 100, 255, 0.15);
-  color: var(--player-accent);
-  font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-}
-
 .mix-card__title {
   display: grid;
   align-content: center;
@@ -415,6 +398,11 @@ textarea {
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.mix-card.is-playing .mix-card__title span,
+.mix-card.is-playing .mix-card__title strong {
+  color: var(--player-accent);
 }
 
 .mix-card__title em {
@@ -512,7 +500,7 @@ textarea {
 .mix-share-sheet {
   position: fixed;
   inset: 0;
-  z-index: 220;
+  z-index: 20000;
   display: grid;
   align-items: end;
   color: #ffffff;
@@ -527,7 +515,7 @@ textarea {
 
 .mix-share-sheet__panel {
   position: relative;
-  z-index: 1;
+  z-index: 20001;
   display: grid;
   gap: 18px;
   width: min(720px, calc(100vw - 24px));
@@ -6683,13 +6671,6 @@ textarea {
 
   .mix-card__year {
     display: none;
-  }
-
-  .mix-card__now-playing {
-    top: 10px;
-    right: 10px;
-    padding: 6px 9px;
-    font-size: 0.66rem;
   }
 
   .mix-card__title em {
