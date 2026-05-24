@@ -22,6 +22,7 @@ import { CreateReleaseTrackDto } from './dto/create-release-track.dto';
 import { CreateManualReleaseDto } from './dto/create-manual-release.dto';
 import { CreateTimelineCommentDto } from './dto/create-timeline-comment.dto';
 import { QueryReleasesDto } from './dto/query-releases.dto';
+import { UpdateTimelineCommentDto } from './dto/update-timeline-comment.dto';
 import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
 import { UpdateReleaseStylesDto } from './dto/update-release-styles.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
@@ -104,6 +105,27 @@ export class ReleasesController {
     @Body() dto: CreateTimelineCommentDto,
   ) {
     return this.releasesService.createTimelineComment(id, request.user, dto);
+  }
+
+  @Patch(':id/comments/:commentId')
+  @UseGuards(AuthGuard)
+  async updateTimelineComment(
+    @Req() request: any,
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+    @Body() dto: UpdateTimelineCommentDto,
+  ) {
+    return this.releasesService.updateTimelineComment(id, commentId, request.user, dto);
+  }
+
+  @Delete(':id/comments/:commentId')
+  @UseGuards(AuthGuard)
+  async deleteTimelineComment(
+    @Req() request: any,
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.releasesService.deleteTimelineComment(id, commentId, request.user);
   }
 
   @Delete(':id')

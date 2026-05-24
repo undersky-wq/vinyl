@@ -724,6 +724,13 @@ textarea {
   background: rgba(255, 255, 255, 0.035);
 }
 
+.mix-comment__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 .mix-comment strong {
   margin-right: 8px;
   color: var(--text);
@@ -734,6 +741,61 @@ textarea {
   color: var(--player-accent);
   font-size: 0.78rem;
   font-weight: 800;
+}
+
+.mix-comment__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.mix-comment__actions button,
+.mix-comment__edit button {
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.mix-comment__actions button:hover,
+.mix-comment__actions button:focus-visible,
+.mix-comment__edit button:hover,
+.mix-comment__edit button:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--text);
+  outline: none;
+}
+
+.mix-comment__actions button:disabled,
+.mix-comment__edit button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.mix-comment__edit {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.mix-comment__edit input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
 }
 
 .mix-comment p {
@@ -5235,17 +5297,13 @@ textarea {
     font-weight: 700;
   }
 
-  .release-page.is-mix .release-heading__meta {
-    display: none;
-  }
-
   .tag-list {
     gap: 8px;
     margin: 16px 0 12px;
   }
 
   .release-page.is-mix .tag-list {
-    justify-content: flex-end;
+    justify-content: flex-start;
     margin: 8px 0 0;
   }
 
@@ -6030,6 +6088,24 @@ textarea {
   .mix-detail-wave .mix-wave__time-row {
     font-size: 0.8125rem;
     font-weight: 800;
+  }
+
+  .mix-comment-marker__tip {
+    left: 50%;
+    min-width: 0;
+    width: max-content;
+    max-width: min(220px, calc(100vw - 48px));
+    padding: 8px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+    transform: translate(-50%, -6px);
+  }
+
+  .mix-comment-marker__text {
+    overflow: hidden;
+    max-width: min(190px, calc(100vw - 72px));
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mix-admin-form {

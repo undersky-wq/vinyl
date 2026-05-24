@@ -62,7 +62,6 @@ export function TimelineCommentMarkers({
               getAvatarInitial(comment.user.displayName)
             )}
             <span className="mix-comment-marker__tip" role="tooltip">
-              <strong>{comment.user.displayName}:</strong>
               <span className="mix-comment-marker__text">{comment.text}</span>
             </span>
           </span>

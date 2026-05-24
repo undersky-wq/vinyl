@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ImageType, Prisma, User } from '@prisma/client';
+import { ImageType, Prisma, User, UserRole } from '@prisma/client';
 import sanitizeFilename from 'sanitize-filename';
 import sharp from 'sharp';
 import { AudioService } from '../audio/audio.service';
@@ -12,6 +12,7 @@ import { CreateReleaseTrackDto } from './dto/create-release-track.dto';
 import { CreateTimelineCommentDto } from './dto/create-timeline-comment.dto';
 import { QueryReleasesDto } from './dto/query-releases.dto';
 import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
+import { UpdateTimelineCommentDto } from './dto/update-timeline-comment.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
 
 @Injectable()
@@ -667,6 +668,84 @@ export class ReleasesService {
     });
 
     return this.signTimelineComment(comment);
+  }
+
+  async updateTimelineComment(
+    releaseId: string,
+    commentId: string,
+    user: User,
+    dto: UpdateTimelineCommentDto,
+  ) {
+    const comment = await this.prisma.timelineComment.findUnique({
+      where: { id: commentId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarStorageKey: true,
+            avatarStorageUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!comment || comment.releaseId !== releaseId) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    if (comment.userId !== user.id && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Comment can be edited only by its author or admin');
+    }
+
+    const text = dto.text.trim();
+    if (!text) {
+      throw new BadRequestException('Comment text is required');
+    }
+
+    const updatedComment = await this.prisma.timelineComment.update({
+      where: { id: commentId },
+      data: {
+        text: text.slice(0, 280),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarStorageKey: true,
+            avatarStorageUrl: true,
+          },
+        },
+      },
+    });
+
+    return this.signTimelineComment(updatedComment);
+  }
+
+  async deleteTimelineComment(releaseId: string, commentId: string, user: User) {
+    const comment = await this.prisma.timelineComment.findUnique({
+      where: { id: commentId },
+      select: {
+        id: true,
+        releaseId: true,
+        userId: true,
+      },
+    });
+
+    if (!comment || comment.releaseId !== releaseId) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    if (comment.userId !== user.id && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Comment can be deleted only by its author or admin');
+    }
+
+    await this.prisma.timelineComment.delete({
+      where: { id: commentId },
+    });
+
+    return { deleted: true };
   }
 
   async deleteRelease(id: string) {

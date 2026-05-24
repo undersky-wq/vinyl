@@ -191,6 +191,40 @@ export async function createReleaseTimelineComment(
   return parseJsonResponse<TimelineComment>(response);
 }
 
+export async function updateReleaseTimelineComment(
+  releaseId: string,
+  commentId: string,
+  input: { text: string },
+) {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/comments/${commentId}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Comment update failed'));
+  }
+
+  return parseJsonResponse<TimelineComment>(response);
+}
+
+export async function deleteReleaseTimelineComment(releaseId: string, commentId: string) {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/comments/${commentId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Comment delete failed'));
+  }
+
+  return parseJsonResponse<{ deleted: boolean }>(response);
+}
+
 export async function getSearchSuggestions(search: string) {
   const params = new URLSearchParams();
   params.set('search', search);

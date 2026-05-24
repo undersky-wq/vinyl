@@ -6,12 +6,14 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createReleaseTrack,
   createReleaseTimelineComment,
+  deleteReleaseTimelineComment,
   deleteReleaseTrack,
   deleteRelease,
   deleteTrackAudio,
   getReleaseTimelineComments,
   updateReleaseMetadata,
   updateReleaseStyles,
+  updateReleaseTimelineComment,
   updateTrackMetadata,
   uploadReleaseCover,
 } from '../lib/api';
@@ -412,6 +414,9 @@ function MixDetailPanel({
   const [selectedSecond, setSelectedSecond] = useState<number | null>(null);
   const [commentText, setCommentText] = useState('');
   const [commentStatus, setCommentStatus] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
   const [shareStatus, setShareStatus] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
   const isCurrentMixPlaying = tracks.some((track) => track.id === currentTrackId);
@@ -573,6 +578,56 @@ function MixDetailPanel({
     }
   }
 
+  function startCommentEdit(comment: TimelineComment) {
+    setEditingCommentId(comment.id);
+    setEditingCommentText(comment.text);
+    setCommentStatus('');
+  }
+
+  async function handleUpdateComment(commentId: string) {
+    const text = editingCommentText.trim();
+    if (!text) {
+      return;
+    }
+
+    setBusyCommentId(commentId);
+    setCommentStatus('');
+    try {
+      const updatedComment = await updateReleaseTimelineComment(release.id, commentId, { text });
+      setComments((current) =>
+        current.map((comment) => (comment.id === commentId ? updatedComment : comment)),
+      );
+      setEditingCommentId(null);
+      setEditingCommentText('');
+    } catch {
+      setCommentStatus(lang === 'ru' ? 'Комментарий не обновлён.' : 'Comment was not updated.');
+    } finally {
+      setBusyCommentId(null);
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    const confirmed = window.confirm(lang === 'ru' ? 'Удалить комментарий?' : 'Delete comment?');
+    if (!confirmed) {
+      return;
+    }
+
+    setBusyCommentId(commentId);
+    setCommentStatus('');
+    try {
+      await deleteReleaseTimelineComment(release.id, commentId);
+      setComments((current) => current.filter((comment) => comment.id !== commentId));
+      if (editingCommentId === commentId) {
+        setEditingCommentId(null);
+        setEditingCommentText('');
+      }
+    } catch {
+      setCommentStatus(lang === 'ru' ? 'Комментарий не удалён.' : 'Comment was not deleted.');
+    } finally {
+      setBusyCommentId(null);
+    }
+  }
+
   async function handleCopyLink() {
     const url = getReleaseShareUrl(release.id);
     try {
@@ -700,9 +755,59 @@ function MixDetailPanel({
                   )}
                 </span>
                 <div>
-                  <strong>{comment.user.displayName}</strong>
-                  <span>{formatCommentTime(comment.second)}</span>
-                  <p>{comment.text}</p>
+                  <div className="mix-comment__header">
+                    <strong>{comment.user.displayName}</strong>
+                    <span>{formatCommentTime(comment.second)}</span>
+                    {user && (user.id === comment.userId || user.role === 'ADMIN') ? (
+                      <div className="mix-comment__actions">
+                        {editingCommentId === comment.id ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCommentId(null);
+                              setEditingCommentText('');
+                            }}
+                          >
+                            {lang === 'ru' ? 'Отмена' : 'Cancel'}
+                          </button>
+                        ) : (
+                          <button type="button" onClick={() => startCommentEdit(comment)}>
+                            {lang === 'ru' ? 'Изменить' : 'Edit'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={busyCommentId === comment.id}
+                          onClick={() => void handleDeleteComment(comment.id)}
+                        >
+                          {lang === 'ru' ? 'Удалить' : 'Delete'}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                  {editingCommentId === comment.id ? (
+                    <form
+                      className="mix-comment__edit"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void handleUpdateComment(comment.id);
+                      }}
+                    >
+                      <input
+                        value={editingCommentText}
+                        maxLength={280}
+                        onChange={(event) => setEditingCommentText(event.target.value)}
+                      />
+                      <button
+                        type="submit"
+                        disabled={!editingCommentText.trim() || busyCommentId === comment.id}
+                      >
+                        {busyCommentId === comment.id ? '...' : lang === 'ru' ? 'Сохранить' : 'Save'}
+                      </button>
+                    </form>
+                  ) : (
+                    <p>{comment.text}</p>
+                  )}
                 </div>
               </article>
             ))}
