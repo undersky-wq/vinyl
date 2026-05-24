@@ -1099,7 +1099,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   }
 
   return (
-    <div className="release-page">
+    <div className={`release-page${release.isMix ? ' is-mix' : ''}`}>
       <div className="release-mobile-backbar">
         <button
           type="button"

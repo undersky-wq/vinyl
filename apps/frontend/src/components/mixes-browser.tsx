@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Copy, LoaderCircle, Pencil, Play, Plus, Save, Share2, Trash2, UploadCloud, X } from 'lucide-react';
 import {
   createManualRelease,
@@ -275,6 +276,7 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
 export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
   const { playQueue } = usePlayerActions();
   const { user } = useAuth();
+  const router = useRouter();
   const isAdmin = user?.role === 'ADMIN';
   const [localReleases, setLocalReleases] = useState(releases);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -431,6 +433,18 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
     await handleCopyLink(release);
   }
 
+  function handleCoverOpen(event: React.MouseEvent<HTMLAnchorElement>, release: Release, tracks: MixPlayerTrack[]) {
+    if (typeof window === 'undefined' || !window.matchMedia('(max-width: 640px)').matches) {
+      return;
+    }
+
+    event.preventDefault();
+    if (tracks.length) {
+      playQueue(tracks, 0);
+    }
+    router.push(`/releases/${release.id}`);
+  }
+
   if (!mixes.length && !isAdmin) {
     return (
       <section className="mixes-empty">
@@ -479,7 +493,12 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
       <section className="mixes-page" aria-label={lang === 'ru' ? 'Миксы' : 'Mixes'}>
         {mixes.map(({ release, tracks }) => (
           <article className="mix-card" key={release.id}>
-            <Link className="mix-card__cover" href={`/releases/${release.id}`} aria-label={release.title}>
+            <Link
+              className="mix-card__cover"
+              href={`/releases/${release.id}`}
+              aria-label={release.title}
+              onClick={(event) => handleCoverOpen(event, release, tracks)}
+            >
               <img src={getCoverUrl(release)} alt={release.title} loading="lazy" decoding="async" />
             </Link>
 

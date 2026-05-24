@@ -5235,9 +5235,18 @@ textarea {
     font-weight: 700;
   }
 
+  .release-page.is-mix .release-heading__meta {
+    display: none;
+  }
+
   .tag-list {
     gap: 8px;
     margin: 16px 0 12px;
+  }
+
+  .release-page.is-mix .tag-list {
+    justify-content: flex-end;
+    margin: 8px 0 0;
   }
 
   .tag-pill {
@@ -5992,10 +6001,11 @@ textarea {
     display: grid;
     width: 100%;
     gap: 6px;
-    margin-top: -14px;
+    margin-top: -18px;
   }
 
   .mix-detail-panel {
+    margin-top: 2px;
     gap: 4px;
   }
 
