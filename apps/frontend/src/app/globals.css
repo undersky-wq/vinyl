@@ -458,6 +458,12 @@ textarea {
   gap: 8px;
 }
 
+.mix-detail-actions {
+  justify-content: flex-end;
+  justify-self: end;
+  width: 100%;
+}
+
 .mix-share-button {
   display: inline-flex;
   align-items: center;
@@ -5986,19 +5992,15 @@ textarea {
     display: grid;
     width: 100%;
     gap: 6px;
-    margin-top: -8px;
+    margin-top: -14px;
   }
 
   .mix-detail-panel {
-    gap: 8px;
+    gap: 4px;
   }
 
   .mix-detail-play {
-    width: 58px;
-    height: 58px;
-    margin-top: -4px;
-    background: var(--player-accent);
-    color: #111111;
+    display: none;
   }
 
   .mix-detail-wave .mix-wave__bars {
