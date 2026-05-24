@@ -1,7 +1,7 @@
 'use client';
 
 import { Copy, Image as ImageIcon, Instagram, MessageCircle, Send, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Release } from '../types';
 
 type MixShareSheetProps = {
@@ -136,6 +136,10 @@ async function createStoryFile(release: Release, coverUrl: string, url: string) 
 export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShareSheetProps) {
   const [backgroundIndex, setBackgroundIndex] = useState(0);
   const [isSharingStory, setIsSharingStory] = useState(false);
+  const [dragY, setDragY] = useState(0);
+  const dragStartYRef = useRef<number | null>(null);
+  const dragYRef = useRef(0);
+  const didDragRef = useRef(false);
 
   if (!isOpen) {
     return null;
@@ -186,10 +190,63 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
     }
   }
 
+  function startDrag(clientY: number) {
+    dragStartYRef.current = clientY;
+    dragYRef.current = 0;
+    didDragRef.current = false;
+    setDragY(0);
+  }
+
+  function moveDrag(clientY: number) {
+    if (dragStartYRef.current === null) {
+      return;
+    }
+
+    const nextDragY = Math.max(0, clientY - dragStartYRef.current);
+    dragYRef.current = nextDragY;
+    didDragRef.current = nextDragY > 6;
+    setDragY(nextDragY);
+  }
+
+  function finishDrag() {
+    if (dragStartYRef.current === null) {
+      return;
+    }
+
+    const shouldClose = dragYRef.current > 44;
+    dragStartYRef.current = null;
+    dragYRef.current = 0;
+    setDragY(0);
+
+    if (shouldClose) {
+      onClose();
+    }
+  }
+
   return (
     <div className="mix-share-sheet" role="dialog" aria-modal="true" aria-label="Share mix">
       <button className="mix-share-sheet__backdrop" type="button" onClick={onClose} aria-label="Close share" />
-      <div className="mix-share-sheet__panel">
+      <div
+        className={`mix-share-sheet__panel${dragY > 0 ? ' dragging' : ''}`}
+        style={{ transform: dragY ? `translateY(${dragY}px)` : undefined }}
+        onClickCapture={(event) => {
+          if (didDragRef.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            didDragRef.current = false;
+          }
+        }}
+        onPointerDown={(event) => {
+          startDrag(event.clientY);
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => moveDrag(event.clientY)}
+        onPointerUp={(event) => {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          finishDrag();
+        }}
+        onPointerCancel={finishDrag}
+      >
         <button className="mix-share-sheet__close" type="button" onClick={onClose} aria-label="Close">
           <X size={18} />
         </button>

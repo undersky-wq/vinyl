@@ -524,6 +524,12 @@ textarea {
   border-radius: 30px;
   background: #111111;
   box-shadow: 0 -24px 80px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+  transition: transform 0.22s ease;
+}
+
+.mix-share-sheet__panel.dragging {
+  transition: none;
 }
 
 .mix-share-sheet__handle {
@@ -5471,17 +5477,15 @@ textarea {
 
   .release-mobile-backbar {
     position: sticky;
-    top: max(0px, calc(env(safe-area-inset-top) - 3px));
+    top: max(24px, calc(env(safe-area-inset-top) + 6px));
     z-index: 20;
     display: flex;
+    justify-content: flex-end;
     align-items: center;
-    gap: 11px;
-    min-height: 62px;
+    min-height: 40px;
     margin: 0 0 17px;
-    padding: 10px;
-    border-radius: 24px;
-    background: rgba(24, 24, 24, 0.96);
-    backdrop-filter: blur(18px);
+    padding: 0 26px 0 0;
+    pointer-events: none;
   }
 
   .release-mobile-backbar__button {
@@ -5489,37 +5493,14 @@ textarea {
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
     border: none;
     border-radius: 999px;
-    background: var(--panel-soft);
-    color: var(--text);
-  }
-
-  .release-mobile-backbar__text {
-    display: grid;
-    min-width: 0;
-    gap: 2px;
-  }
-
-  .release-mobile-backbar__text strong,
-  .release-mobile-backbar__text span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .release-mobile-backbar__text strong {
-    color: var(--text);
-    font-size: 0.9375rem;
-    font-weight: 900;
-  }
-
-  .release-mobile-backbar__text span {
-    color: #8d8d8d;
-    font-size: 0.8125rem;
-    font-weight: 700;
+    background: var(--player-accent);
+    color: #ffffff;
+    box-shadow: 0 10px 30px rgba(181, 120, 255, 0.34);
+    pointer-events: auto;
   }
 
   .release-panel {

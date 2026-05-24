@@ -1223,12 +1223,8 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
           onClick={() => router.back()}
           aria-label={lang === 'ru' ? 'Назад' : 'Back'}
         >
-          <ChevronLeft size={23} />
+          <ChevronLeft size={19} />
         </button>
-        <div className="release-mobile-backbar__text">
-          <strong>{releaseText.title}</strong>
-          <span>{releaseText.artist}</span>
-        </div>
       </div>
 
       <div className="release-header">
