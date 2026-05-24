@@ -398,10 +398,13 @@ function MixDetailPanel({
     tracks.find((track) => track.id === currentTrackId) ||
     tracks.find((track) => track.waveformData.length) ||
     tracks[0];
-  const peaks = (sourceTrack?.waveformData.length
+  const sourcePeaks = sourceTrack?.waveformData.length
     ? sourceTrack.waveformData
-    : buildFallbackWaveform(`${sourceTrack?.artist || ''}-${sourceTrack?.title || ''}`)).slice(0, 180);
+    : buildFallbackWaveform(`${sourceTrack?.artist || ''}-${sourceTrack?.title || ''}`);
+  const [isCompactWaveform, setIsCompactWaveform] = useState(false);
+  const peaks = sourcePeaks.slice(0, isCompactWaveform ? 96 : 180);
   const [progressPercent, setProgressPercent] = useState(0);
+  const [dragProgressPercent, setDragProgressPercent] = useState<number | null>(null);
   const [elapsedSecond, setElapsedSecond] = useState(0);
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -413,6 +416,19 @@ function MixDetailPanel({
   const [isSavingComment, setIsSavingComment] = useState(false);
   const isCurrentMixPlaying = tracks.some((track) => track.id === currentTrackId);
   const durationSec = sourceTrack?.durationSec || 0;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    const syncCompactState = () => setIsCompactWaveform(mediaQuery.matches);
+
+    syncCompactState();
+    mediaQuery.addEventListener('change', syncCompactState);
+    return () => mediaQuery.removeEventListener('change', syncCompactState);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -474,6 +490,7 @@ function MixDetailPanel({
     const nextSecond = durationSec ? Math.round((percent / 100) * durationSec) : 0;
     const nearest = getNearestTimelineComment(comments, percent, durationSec);
 
+    setDragProgressPercent(percent);
     setSelectedSecond(nextSecond);
     setActiveCommentId(nearest?.id || null);
     setCommentStatus('');
@@ -517,11 +534,13 @@ function MixDetailPanel({
     updateWaveSelection(percent);
     commitWaveSeek(percent);
     setIsWaveDragging(false);
+    setDragProgressPercent(null);
     event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
   function handleWavePointerCancel() {
     setIsWaveDragging(false);
+    setDragProgressPercent(null);
     setActiveCommentId(null);
   }
 
@@ -583,6 +602,8 @@ function MixDetailPanel({
     return null;
   }
 
+  const visibleProgressPercent = dragProgressPercent ?? progressPercent;
+
   return (
     <section className="release-panel mix-detail-panel">
       <button
@@ -598,7 +619,7 @@ function MixDetailPanel({
         <div className="mix-wave__timeline">
           <button
             type="button"
-            className="library-wave__bars is-decoded mix-wave__bars"
+            className={`library-wave__bars is-decoded mix-wave__bars${isWaveDragging ? ' dragging' : ''}`}
             onPointerDown={handleWavePointerDown}
             onPointerMove={handleWavePointerMove}
             onPointerUp={handleWavePointerUp}
@@ -613,7 +634,7 @@ function MixDetailPanel({
             {peaks.map((peak, index) => (
               <span
                 className={`library-wave__bar${
-                  (index / Math.max(peaks.length - 1, 1)) * 100 <= progressPercent ? ' is-active' : ''
+                  (index / Math.max(peaks.length - 1, 1)) * 100 <= visibleProgressPercent ? ' is-active' : ''
                 }`}
                 key={`${sourceTrack?.id || 'mix'}-${index}`}
                 style={{ height: `${Math.max(8, Math.round(peak * 100))}%` }}

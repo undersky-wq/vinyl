@@ -5223,7 +5223,7 @@ textarea {
   }
 
   .release-heading__meta {
-    margin-top: 10px;
+    margin-top: 16px;
     color: #8d8d8d;
     font-size: 0.8125rem;
     font-weight: 700;
@@ -5985,12 +5985,12 @@ textarea {
   .mix-detail-wave {
     display: grid;
     width: 100%;
-    gap: 8px;
-    margin-top: -4px;
+    gap: 6px;
+    margin-top: -8px;
   }
 
   .mix-detail-panel {
-    gap: 10px;
+    gap: 8px;
   }
 
   .mix-detail-play {
@@ -6004,6 +6004,7 @@ textarea {
   .mix-detail-wave .mix-wave__bars {
     height: 82px;
     opacity: 1;
+    gap: 3px;
   }
 
   .mix-detail-wave .library-wave__bar {
