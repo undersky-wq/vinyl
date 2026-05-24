@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Copy, LoaderCircle, Pencil, Play, Plus, Save, Share2, Trash2, UploadCloud, X } from 'lucide-react';
+import { Copy, LoaderCircle, Pause, Pencil, Play, Plus, Save, Share2, Trash2, UploadCloud, X } from 'lucide-react';
 import {
   createManualRelease,
   deleteRelease,
@@ -274,7 +274,8 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
 }
 
 export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
-  const { playQueue } = usePlayerActions();
+  const { playQueue, togglePlayback } = usePlayerActions();
+  const { currentTrack, isPlaying } = usePlayerTransport();
   const { user } = useAuth();
   const router = useRouter();
   const isAdmin = user?.role === 'ADMIN';
@@ -491,8 +492,11 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
       ) : null}
 
       <section className="mixes-page" aria-label={lang === 'ru' ? 'Миксы' : 'Mixes'}>
-        {mixes.map(({ release, tracks }) => (
-          <article className="mix-card" key={release.id}>
+        {mixes.map(({ release, tracks }) => {
+          const isNowPlaying = tracks.some((track) => track.id === currentTrack?.id);
+
+          return (
+            <article className={`mix-card${isNowPlaying ? ' is-playing' : ''}`} key={release.id}>
             <Link
               className="mix-card__cover"
               href={`/releases/${release.id}`}
@@ -503,8 +507,20 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
             </Link>
 
             <div className="mix-card__body">
-              <button className="mix-card__play" type="button" onClick={() => playQueue(tracks, 0)}>
-                <Play size={22} fill="currentColor" />
+              <button
+                className="mix-card__play"
+                type="button"
+                onClick={() => {
+                  if (isNowPlaying) {
+                    togglePlayback();
+                    return;
+                  }
+
+                  playQueue(tracks, 0);
+                }}
+                aria-label={isNowPlaying && isPlaying ? 'Pause mix' : 'Play mix'}
+              >
+                {isNowPlaying && isPlaying ? <Pause size={22} /> : <Play size={22} fill="currentColor" />}
               </button>
               {editingId === release.id ? (
                 <div className="mix-card__edit">
@@ -521,6 +537,9 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
               )}
 
               {release.year && editingId !== release.id ? <span className="mix-card__year">{release.year}</span> : null}
+              {isNowPlaying && editingId !== release.id ? (
+                <span className="mix-card__now-playing">Now playing</span>
+              ) : null}
 
               {isAdmin ? (
                 <div className="mix-card__admin-actions">
@@ -583,8 +602,9 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
                 </div>
               </div>
             </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </section>
     </>
   );

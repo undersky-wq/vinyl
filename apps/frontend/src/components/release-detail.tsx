@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, Copy, ImagePlus, Play, Plus, Share2, Trash2, X } from 'lucide-react';
+import { ChevronLeft, Copy, ImagePlus, Pause, Play, Plus, Share2, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -384,6 +384,8 @@ function MixDetailPanel({
   playQueue,
   playQueueAtPercent,
   seekToPercent,
+  isPlaying,
+  togglePlayback,
   lang,
 }: {
   release: Release;
@@ -393,6 +395,8 @@ function MixDetailPanel({
   playQueue: (tracks: PlayerTrack[], startIndex: number) => void;
   playQueueAtPercent: (tracks: PlayerTrack[], startIndex: number, percent: number) => void;
   seekToPercent: (percent: number) => void;
+  isPlaying: boolean;
+  togglePlayback: () => void;
   lang: SiteLang;
 }) {
   const { user, requireAuth } = useAuth();
@@ -664,10 +668,17 @@ function MixDetailPanel({
       <button
         type="button"
         className="mix-detail-play"
-        onClick={() => playQueue(tracks, 0)}
-        aria-label={lang === 'ru' ? 'Воспроизвести микс' : 'Play mix'}
+        onClick={() => {
+          if (isCurrentMixPlaying) {
+            togglePlayback();
+            return;
+          }
+
+          playQueue(tracks, 0);
+        }}
+        aria-label={isCurrentMixPlaying && isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : lang === 'ru' ? 'Воспроизвести микс' : 'Play mix'}
       >
-        <Play size={22} fill="currentColor" />
+        {isCurrentMixPlaying && isPlaying ? <Pause size={22} /> : <Play size={22} fill="currentColor" />}
       </button>
 
       <div className="mix-wave mix-detail-wave">
@@ -819,7 +830,7 @@ function MixDetailPanel({
 }
 
 export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
-  const { currentTrack, playQueue, playQueueAtPercent, seekToPercent, getAudioElement } = usePlayer();
+  const { currentTrack, isPlaying, playQueue, playQueueAtPercent, seekToPercent, togglePlayback, getAudioElement } = usePlayer();
   const { user, requireAuth } = useAuth();
   const router = useRouter();
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -1302,6 +1313,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                   await handleReleaseTextSave({ artist: value });
                 }}
               />
+              {release.isMix && meta ? <span className="release-heading__mix-year">{meta}</span> : null}
               <span className="release-heading__dash">—</span>
               <EditableTrackText
                 value={releaseText.title}
@@ -1386,6 +1398,8 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
           playQueue={playQueue}
           playQueueAtPercent={playQueueAtPercent}
           seekToPercent={seekToPercent}
+          isPlaying={isPlaying}
+          togglePlayback={togglePlayback}
           lang={lang}
         />
       ) : null}

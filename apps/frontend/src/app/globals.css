@@ -371,6 +371,23 @@ textarea {
   line-height: 1.25;
 }
 
+.mix-card__now-playing {
+  position: absolute;
+  top: 48px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: rgba(186, 100, 255, 0.15);
+  color: var(--player-accent);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
 .mix-card__title {
   display: grid;
   align-content: center;
@@ -5278,12 +5295,43 @@ textarea {
     font-weight: 700;
   }
 
+  .release-heading__mix-year {
+    display: none;
+  }
+
+  .release-page.is-mix .release-heading {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 12px;
+  }
+
+  .release-page.is-mix .release-heading__artist {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .release-page.is-mix .release-heading__mix-year {
+    display: block;
+    color: #8d8d8d;
+    font-size: 0.8125rem;
+    font-weight: 800;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .release-page.is-mix .release-heading__meta {
+    display: none;
+  }
+
   .release-heading__dash {
     display: none;
   }
 
   .release-heading__title {
     display: block;
+    grid-column: 1 / -1;
     color: #ffffff;
     font-size: 1.5rem;
     font-weight: 900;
@@ -6164,6 +6212,13 @@ textarea {
 
   .mix-card__year {
     display: none;
+  }
+
+  .mix-card__now-playing {
+    top: 10px;
+    right: 10px;
+    padding: 6px 9px;
+    font-size: 0.66rem;
   }
 
   .mix-card__title em {
