@@ -505,6 +505,10 @@ textarea {
   transform: translateY(-1px);
 }
 
+.release-mix-mobile-share {
+  display: none;
+}
+
 .mix-share-sheet {
   position: fixed;
   inset: 0;
@@ -525,10 +529,10 @@ textarea {
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 20px;
-  width: min(560px, calc(100vw - 24px));
+  gap: 18px;
+  width: min(720px, calc(100vw - 24px));
   margin: 0 auto 18px;
-  padding: 14px 14px 18px;
+  padding: 14px 18px 20px;
   border-radius: 30px;
   background: #111111;
   box-shadow: 0 -24px 80px rgba(0, 0, 0, 0.5);
@@ -560,85 +564,99 @@ textarea {
 }
 
 .mix-share-sheet__story {
+  position: relative;
   display: grid;
-  place-items: center;
-  min-height: min(560px, 66vh);
+  place-items: end stretch;
+  min-height: 260px;
   overflow: hidden;
   border-radius: 24px;
-  box-shadow: inset 0 0 70px rgba(255, 255, 255, 0.08);
+  background: #1b2634 !important;
+  box-shadow: inset 0 0 70px rgba(255, 255, 255, 0.08), 0 18px 58px rgba(0, 0, 0, 0.32);
+}
+
+.mix-share-sheet__blur-cover {
+  position: absolute;
+  inset: -32px;
+  display: block;
+  width: calc(100% + 64px);
+  height: calc(100% + 64px);
+  object-fit: cover;
+  opacity: 0.44;
+  filter: blur(28px) saturate(1.12) brightness(0.78);
+  transform: scale(1.04);
+}
+
+.mix-share-sheet__story::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 12, 18, 0.44), rgba(10, 10, 10, 0.1) 44%, rgba(10, 10, 10, 0.68));
 }
 
 .mix-share-sheet__card {
+  position: relative;
+  z-index: 1;
   display: grid;
-  gap: 9px;
-  width: min(270px, 68vw);
-  padding: 28px 24px;
-  border-radius: 14px;
-  background: rgba(16, 22, 32, 0.72);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  grid-template-columns: 136px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 5px 22px;
+  width: 100%;
+  padding: 26px 28px;
+  border-radius: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.035));
+  box-shadow: none;
   backdrop-filter: blur(14px);
 }
 
 .mix-share-sheet__art {
   position: relative;
-  width: 128px;
-  height: 128px;
-  margin-bottom: 10px;
+  grid-row: 1 / 3;
+  width: 136px;
+  height: 136px;
+  margin: 0;
 }
 
 .mix-share-sheet__art img {
   position: relative;
   z-index: 2;
-  width: 104px;
-  height: 104px;
+  width: 124px;
+  height: 124px;
   border-radius: 14px;
   object-fit: cover;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 
 .mix-share-sheet__vinyl {
-  position: absolute;
-  right: 0;
-  top: 18px;
-  z-index: 1;
-  width: 92px;
-  height: 92px;
-  border-radius: 999px;
-  background: radial-gradient(circle at center, #333 0 9%, #060606 10% 57%, #1f1f1f 58% 61%, #050505 62%);
-  box-shadow: 12px 12px 28px rgba(0, 0, 0, 0.42);
-}
-
-.mix-share-sheet__vinyl span {
-  position: absolute;
-  inset: 31px;
-  border-radius: inherit;
-  background-position: center;
-  background-size: cover;
+  display: none;
 }
 
 .mix-share-sheet__card strong {
-  font-size: 1.05rem;
+  align-self: end;
+  overflow: hidden;
+  font-size: 1.28rem;
   font-weight: 900;
   line-height: 1.28;
+  text-overflow: ellipsis;
 }
 
 .mix-share-sheet__card > span {
+  align-self: start;
+  overflow: hidden;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 1rem;
+  font-size: 1.08rem;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mix-share-sheet__card em,
 .mix-share-sheet__card small {
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 0.72rem;
-  font-style: normal;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  display: none;
 }
 
 .mix-share-sheet__palette {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   gap: 14px;
@@ -670,9 +688,7 @@ textarea {
 }
 
 .mix-share-sheet__actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  display: none;
 }
 
 .mix-share-sheet__actions button {
@@ -689,6 +705,69 @@ textarea {
   font-size: 1rem;
   font-weight: 900;
   cursor: pointer;
+}
+
+.mix-share-sheet__send-to,
+.mix-share-sheet__mobile-title,
+.mix-share-sheet__mobile-actions {
+  display: grid;
+}
+
+.mix-share-sheet__send-to,
+.mix-share-sheet__mobile-title {
+  padding: 0 4px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mix-share-sheet__send-to > div,
+.mix-share-sheet__mobile-actions {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  padding-top: 14px;
+  scrollbar-width: none;
+}
+
+.mix-share-sheet__send-to > div::-webkit-scrollbar,
+.mix-share-sheet__mobile-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.mix-share-sheet__send-to button,
+.mix-share-sheet__mobile-actions button {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  min-width: 72px;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mix-share-sheet__send-to button span {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.mix-share-sheet__mobile-actions svg {
+  width: 58px;
+  height: 58px;
+  padding: 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.11);
+  color: #ffffff;
 }
 
 .mix-card__footer {
@@ -5541,6 +5620,24 @@ textarea {
     margin: 8px 0 0;
   }
 
+  .release-page.is-mix .tag-list::after {
+    content: '';
+    flex: 1 1 auto;
+  }
+
+  .release-mix-mobile-share {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--panel);
+    color: var(--player-accent);
+    cursor: pointer;
+  }
+
   .tag-pill {
     min-height: 32px;
     padding: 8px 13px;
@@ -6394,6 +6491,194 @@ textarea {
   .mix-card__share-actions,
   .mix-detail-actions {
     display: none;
+  }
+
+  .mix-share-sheet {
+    align-items: end;
+  }
+
+  .mix-share-sheet__backdrop {
+    background: rgba(0, 0, 0, 0.42);
+  }
+
+  .mix-share-sheet__panel {
+    gap: 0;
+    width: 100vw;
+    margin: 0;
+    padding: 0 0 calc(env(safe-area-inset-bottom) + 18px);
+    border-radius: 26px 26px 0 0;
+    background: #101010;
+    overflow: hidden;
+  }
+
+  .mix-share-sheet__close {
+    top: 14px;
+    right: 14px;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+  }
+
+  .mix-share-sheet__handle {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    z-index: 4;
+    width: 42px;
+    height: 5px;
+    transform: translateX(-50%);
+  }
+
+  .mix-share-sheet__story {
+    min-height: 244px;
+    place-items: end stretch;
+    border-radius: 0;
+    background: #1b2634 !important;
+    box-shadow: none;
+  }
+
+  .mix-share-sheet__blur-cover {
+    position: absolute;
+    inset: -28px;
+    display: block;
+    width: calc(100% + 56px);
+    height: calc(100% + 56px);
+    object-fit: cover;
+    opacity: 0.48;
+    filter: blur(26px) saturate(1.15) brightness(0.8);
+    transform: scale(1.04);
+  }
+
+  .mix-share-sheet__story::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(8, 12, 18, 0.52), rgba(9, 9, 9, 0.08) 42%, rgba(10, 10, 10, 0.72));
+  }
+
+  .mix-share-sheet__card {
+    grid-template-columns: 116px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 4px 18px;
+    width: 100%;
+    padding: 26px 22px 22px;
+    border-radius: 0;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+    box-shadow: none;
+    backdrop-filter: blur(12px);
+  }
+
+  .mix-share-sheet__art {
+    grid-row: 1 / 3;
+    width: 116px;
+    height: 116px;
+    margin: 0;
+  }
+
+  .mix-share-sheet__art img {
+    width: 104px;
+    height: 104px;
+    border-radius: 12px;
+  }
+
+  .mix-share-sheet__vinyl,
+  .mix-share-sheet__card em,
+  .mix-share-sheet__card small,
+  .mix-share-sheet__palette,
+  .mix-share-sheet__actions {
+    display: none;
+  }
+
+  .mix-share-sheet__card strong {
+    align-self: end;
+    overflow: hidden;
+    font-size: 1.02rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+  }
+
+  .mix-share-sheet__card > span {
+    align-self: start;
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.98rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mix-share-sheet__send-to,
+  .mix-share-sheet__mobile-title {
+    display: grid;
+    padding: 20px 22px 0;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .mix-share-sheet__send-to > div {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    padding-top: 18px;
+    scrollbar-width: none;
+  }
+
+  .mix-share-sheet__send-to > div::-webkit-scrollbar,
+  .mix-share-sheet__mobile-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mix-share-sheet__send-to button,
+  .mix-share-sheet__mobile-actions button {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    min-width: 64px;
+    border: 0;
+    background: transparent;
+    color: #ffffff;
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .mix-share-sheet__send-to button span {
+    width: 54px;
+    height: 54px;
+    border-radius: 999px;
+    background-position: center;
+    background-size: cover;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  }
+
+  .mix-share-sheet__mobile-actions {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    padding: 18px 22px 0;
+    scrollbar-width: none;
+  }
+
+  .mix-share-sheet__mobile-actions button {
+    min-width: 72px;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .mix-share-sheet__mobile-actions svg {
+    width: 56px;
+    height: 56px;
+    padding: 15px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.11);
+    color: #ffffff;
   }
 
   .mix-card__year {

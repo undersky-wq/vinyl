@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Image as ImageIcon, Send, X } from 'lucide-react';
+import { Copy, Image as ImageIcon, Instagram, MessageCircle, Send, X } from 'lucide-react';
 import { useState } from 'react';
 import { Release } from '../types';
 
@@ -62,6 +62,7 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
         <span className="mix-share-sheet__handle" />
 
         <div className="mix-share-sheet__story" style={{ background: BACKGROUNDS[backgroundIndex].value }}>
+          <img className="mix-share-sheet__blur-cover" src={coverUrl} alt="" aria-hidden="true" />
           <div className="mix-share-sheet__card">
             <div className="mix-share-sheet__art">
               <img src={coverUrl} alt={release.title} />
@@ -90,6 +91,46 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
               onClick={() => setBackgroundIndex(index)}
             />
           ))}
+        </div>
+
+        <div className="mix-share-sheet__send-to" aria-label="Send to">
+          <span>Send to</span>
+          <div>
+            {['v.k. / hot...', 'G-Blanka', 'Marussya...'].map((name, index) => (
+              <button type="button" key={name} onClick={() => void handleNativeShare()}>
+                <span style={{ backgroundImage: `url(${coverUrl})`, filter: index === 1 ? 'hue-rotate(80deg)' : undefined }} />
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mix-share-sheet__mobile-title">Share</div>
+        <div className="mix-share-sheet__mobile-actions">
+          <button type="button" onClick={() => void handleNativeShare()}>
+            <Send size={22} />
+            Message
+          </button>
+          <button type="button" onClick={() => void onCopy()}>
+            <Copy size={22} />
+            Copy Link
+          </button>
+          <button type="button" onClick={() => void handleNativeShare()}>
+            <Send size={22} />
+            Telegram
+          </button>
+          <button type="button" onClick={() => void handleNativeShare()}>
+            <MessageCircle size={22} />
+            WhatsApp
+          </button>
+          <button type="button" onClick={() => void handleNativeShare()}>
+            <MessageCircle size={22} />
+            Status
+          </button>
+          <button type="button" onClick={() => void handleNativeShare()}>
+            <Instagram size={22} />
+            Stories
+          </button>
         </div>
 
         <div className="mix-share-sheet__actions">

@@ -840,6 +840,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   const [styleTags, setStyleTags] = useState(() => [...release.styles]);
   const [styleDraft, setStyleDraft] = useState('');
   const [isSavingStyles, setIsSavingStyles] = useState(false);
+  const [isMobileMixShareOpen, setIsMobileMixShareOpen] = useState(false);
   const [releaseText, setReleaseText] = useState(() => ({
     artist: release.artist,
     title: release.title,
@@ -1208,6 +1209,11 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
     }
   }
 
+  async function handleMobileMixCopyLink() {
+    const url = getReleaseShareUrl(release.id);
+    await navigator.clipboard.writeText(url);
+  }
+
   return (
     <div className={`release-page${release.isMix ? ' is-mix' : ''}`}>
       <div className="release-mobile-backbar">
@@ -1378,7 +1384,26 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                   </button>
                 </form>
               ) : null}
+              {release.isMix ? (
+                <button
+                  type="button"
+                  className="release-mix-mobile-share"
+                  onClick={() => setIsMobileMixShareOpen(true)}
+                  aria-label="Share mix"
+                >
+                  <Share2 size={16} />
+                </button>
+              ) : null}
             </div>
+          ) : null}
+          {release.isMix ? (
+            <MixShareSheet
+              release={release}
+              url={getReleaseShareUrl(release.id)}
+              isOpen={isMobileMixShareOpen}
+              onClose={() => setIsMobileMixShareOpen(false)}
+              onCopy={handleMobileMixCopyLink}
+            />
           ) : null}
         </div>
       </div>
