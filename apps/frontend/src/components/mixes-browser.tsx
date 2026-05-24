@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Copy, LoaderCircle, Pause, Pencil, Play, Plus, Save, Share2, Trash2, UploadCloud, X } from 'lucide-react';
+import { LoaderCircle, Pause, Pencil, Play, Plus, Save, Share2, Trash2, UploadCloud, X } from 'lucide-react';
 import {
   createManualRelease,
   deleteRelease,
@@ -18,6 +18,7 @@ import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Release, TimelineComment, Track } from '../types';
+import { MixShareSheet } from './mix-share-sheet';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
 type MixesBrowserProps = {
@@ -286,6 +287,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
   const [editForm, setEditForm] = useState<MixFormState>(() => getInitialForm());
   const [status, setStatus] = useState('');
   const [shareStatus, setShareStatus] = useState('');
+  const [shareRelease, setShareRelease] = useState<Release | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const mixes = useMemo(
     () =>
@@ -420,18 +422,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
   }
 
   async function handleShare(release: Release) {
-    const url = getMixShareUrl(release.id);
-    const title = `${release.artist} - ${release.title}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, text: title, url });
-        return;
-      } catch {
-        return;
-      }
-    }
-
-    await handleCopyLink(release);
+    setShareRelease(release);
   }
 
   function handleCoverOpen(event: React.MouseEvent<HTMLAnchorElement>, release: Release, tracks: MixPlayerTrack[]) {
@@ -591,10 +582,6 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
                 )}
 
                 <div className="mix-card__share-actions">
-                  <button type="button" className="mix-share-button" onClick={() => void handleCopyLink(release)}>
-                    <Copy size={15} />
-                    Copy link
-                  </button>
                   <button type="button" className="mix-share-button" onClick={() => void handleShare(release)}>
                     <Share2 size={15} />
                     Share
@@ -606,6 +593,15 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
           );
         })}
       </section>
+      {shareRelease ? (
+        <MixShareSheet
+          release={shareRelease}
+          url={getMixShareUrl(shareRelease.id)}
+          isOpen={Boolean(shareRelease)}
+          onClose={() => setShareRelease(null)}
+          onCopy={() => handleCopyLink(shareRelease)}
+        />
+      ) : null}
     </>
   );
 }

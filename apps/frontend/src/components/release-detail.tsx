@@ -23,6 +23,7 @@ import { PlayerTrack, usePlayer } from '../providers/player-provider';
 import { Release, TimelineComment } from '../types';
 import { CoverArtwork } from './cover-artwork';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
+import { MixShareSheet } from './mix-share-sheet';
 import { TrackUploadButton } from './track-upload-button';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
@@ -422,6 +423,7 @@ function MixDetailPanel({
   const [editingCommentText, setEditingCommentText] = useState('');
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
   const [shareStatus, setShareStatus] = useState('');
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const [isSavingComment, setIsSavingComment] = useState(false);
   const isCurrentMixPlaying = tracks.some((track) => track.id === currentTrackId);
   const durationSec = sourceTrack?.durationSec || 0;
@@ -643,18 +645,7 @@ function MixDetailPanel({
   }
 
   async function handleShare() {
-    const url = getReleaseShareUrl(release.id);
-    const title = `${release.artist} - ${release.title}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, text: title, url });
-        return;
-      } catch {
-        return;
-      }
-    }
-
-    await handleCopyLink();
+    setIsShareSheetOpen(true);
   }
 
   if (!tracks.length) {
@@ -720,16 +711,19 @@ function MixDetailPanel({
         </div>
 
         <div className="mix-detail-actions">
-          <button type="button" className="mix-share-button" onClick={() => void handleCopyLink()}>
-            <Copy size={15} />
-            Copy link
-          </button>
           <button type="button" className="mix-share-button" onClick={() => void handleShare()}>
             <Share2 size={15} />
             Share
           </button>
           {shareStatus ? <span className="muted">{shareStatus}</span> : null}
         </div>
+        <MixShareSheet
+          release={release}
+          url={getReleaseShareUrl(release.id)}
+          isOpen={isShareSheetOpen}
+          onClose={() => setIsShareSheetOpen(false)}
+          onCopy={handleCopyLink}
+        />
 
         <form className="mix-comment-composer" onSubmit={handleSaveComment}>
           <span className="mix-comment-composer__avatar">

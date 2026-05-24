@@ -428,12 +428,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       console.warn('Audio element error', audio.error);
     };
 
+    const syncAfterPageResume = () => {
+      syncPlaybackState();
+      setIsPlaying(!audio.paused && !audio.ended);
+
+      if (audio.ended && currentTrackRef.current) {
+        onEnded();
+      }
+    };
+
     audio.addEventListener('timeupdate', syncPlaybackState);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
+    window.addEventListener('pageshow', syncAfterPageResume);
+    document.addEventListener('visibilitychange', syncAfterPageResume);
 
     syncPlaybackState();
     setIsPlaying(!audio.paused);
@@ -445,6 +456,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
+      window.removeEventListener('pageshow', syncAfterPageResume);
+      document.removeEventListener('visibilitychange', syncAfterPageResume);
     };
   }, []);
 
@@ -719,7 +732,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (isPlaying) {
+    if (!audio.paused && !audio.ended) {
       audio.pause();
       return;
     }

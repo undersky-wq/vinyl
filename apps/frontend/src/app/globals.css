@@ -505,6 +505,192 @@ textarea {
   transform: translateY(-1px);
 }
 
+.mix-share-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: grid;
+  align-items: end;
+  color: #ffffff;
+}
+
+.mix-share-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.68);
+}
+
+.mix-share-sheet__panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 20px;
+  width: min(560px, calc(100vw - 24px));
+  margin: 0 auto 18px;
+  padding: 14px 14px 18px;
+  border-radius: 30px;
+  background: #111111;
+  box-shadow: 0 -24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.mix-share-sheet__handle {
+  justify-self: center;
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.mix-share-sheet__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.mix-share-sheet__story {
+  display: grid;
+  place-items: center;
+  min-height: min(560px, 66vh);
+  overflow: hidden;
+  border-radius: 24px;
+  box-shadow: inset 0 0 70px rgba(255, 255, 255, 0.08);
+}
+
+.mix-share-sheet__card {
+  display: grid;
+  gap: 9px;
+  width: min(270px, 68vw);
+  padding: 28px 24px;
+  border-radius: 14px;
+  background: rgba(16, 22, 32, 0.72);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(14px);
+}
+
+.mix-share-sheet__art {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  margin-bottom: 10px;
+}
+
+.mix-share-sheet__art img {
+  position: relative;
+  z-index: 2;
+  width: 104px;
+  height: 104px;
+  border-radius: 14px;
+  object-fit: cover;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+.mix-share-sheet__vinyl {
+  position: absolute;
+  right: 0;
+  top: 18px;
+  z-index: 1;
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, #333 0 9%, #060606 10% 57%, #1f1f1f 58% 61%, #050505 62%);
+  box-shadow: 12px 12px 28px rgba(0, 0, 0, 0.42);
+}
+
+.mix-share-sheet__vinyl span {
+  position: absolute;
+  inset: 31px;
+  border-radius: inherit;
+  background-position: center;
+  background-size: cover;
+}
+
+.mix-share-sheet__card strong {
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1.28;
+}
+
+.mix-share-sheet__card > span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.mix-share-sheet__card em,
+.mix-share-sheet__card small {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.mix-share-sheet__palette {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mix-share-sheet__image,
+.mix-share-sheet__swatch {
+  width: 52px;
+  height: 52px;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.mix-share-sheet__image {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.mix-share-sheet__swatch.is-active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+.mix-share-sheet__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mix-share-sheet__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 54px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111111;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .mix-card__footer {
   grid-column: 1 / -1;
   align-self: end;
