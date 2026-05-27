@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ChevronDown, ListMusic, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronDown, ListOrdered, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -9,7 +9,7 @@ import { getReleaseTimelineComments } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
 import { TimelineComment } from '../types';
-import { FavoriteButton } from './track-actions';
+import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
 function formatTime(value: number) {
@@ -314,15 +314,17 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
 
       <div className="player-page__secondary-actions">
         <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
+        <TrackPlaylistMenu trackId={currentTrack.id} lang={lang} className="player-page__playlist-add" align="up" />
         <div className="player-queue-menu player-page__queue">
           <button
             type="button"
             className={`track-playlist-menu__trigger player-queue-menu__trigger${isQueueOpen ? ' active' : ''}`}
             aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
             title={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
+            data-tooltip="queue"
             onClick={() => setIsQueueOpen((current) => !current)}
           >
-            <ListMusic size={18} />
+            <ListOrdered size={18} />
           </button>
 
           {isQueueOpen ? (

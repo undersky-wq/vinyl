@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   ChevronDown,
-  ListMusic,
+  ListOrdered,
   Pause,
   Play,
   Repeat2,
@@ -20,7 +20,7 @@ import { SiteLang } from '../lib/language';
 import { useResponsiveWaveform } from '../lib/waveform';
 import { usePlayer } from '../providers/player-provider';
 import { TimelineComment } from '../types';
-import { FavoriteButton } from './track-actions';
+import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
 type MiniPlayerProps = {
@@ -364,9 +364,10 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             className={`track-playlist-menu__trigger player-queue-menu__trigger${isQueueOpen ? ' active' : ''}`}
             aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
             title={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
+            data-tooltip="queue"
             onClick={() => setIsQueueOpen((current) => !current)}
           >
-            <ListMusic size={18} />
+            <ListOrdered size={18} />
           </button>
 
           {isQueueOpen ? (
@@ -569,14 +570,16 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
 
           <div className="player-page__secondary-actions">
             <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
+            <TrackPlaylistMenu trackId={currentTrack.id} lang={lang} className="player-page__playlist-add" align="up" />
             <div className="player-queue-menu player-page__queue">
               <button
                 type="button"
                 className={`track-playlist-menu__trigger player-queue-menu__trigger${isOverlayQueueOpen ? ' active' : ''}`}
                 aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
+                data-tooltip="queue"
                 onClick={() => setIsOverlayQueueOpen((current) => !current)}
               >
-                <ListMusic size={18} />
+                <ListOrdered size={18} />
               </button>
               {isOverlayQueueOpen ? (
                 <div
