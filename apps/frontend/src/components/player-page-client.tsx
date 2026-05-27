@@ -168,7 +168,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
 
   return (
     <section
-      className={`player-page${pageTransition ? ` ${pageTransition}` : ''}`}
+      className={`player-page${!isPlaying ? ' is-paused' : ''}${pageTransition ? ` ${pageTransition}` : ''}`}
       style={{ '--player-cover-bg': `url("${currentTrack.coverUrl}")` } as CSSProperties}
     >
       <button

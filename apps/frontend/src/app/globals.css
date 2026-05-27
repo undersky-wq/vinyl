@@ -2284,6 +2284,12 @@ textarea {
   filter: brightness(1.04);
 }
 
+.player-page.is-paused .player-page__cover-frame > img {
+  transform: scale(0.85);
+  filter: brightness(0.92) saturate(0.96);
+  transition: transform 0.46s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.46s ease;
+}
+
 .mini-player__track img {
   border-radius: 12px;
   transition: transform 0.2s ease, filter 0.2s ease;
@@ -4628,6 +4634,20 @@ textarea {
   transform: translate(-50%, 0);
 }
 
+@media (hover: none), (pointer: coarse) {
+  .track-favorite-button[data-tooltip]::after,
+  .library-track__favorite[data-tooltip]::after,
+  .track-playlist-menu__trigger[data-tooltip]::after,
+  .player-queue-menu__trigger[data-tooltip]::after,
+  .player-icon-button[data-tooltip]::after,
+  .player-main-button[data-tooltip]::after,
+  .player-page__collapse[data-tooltip]::after,
+  .player-page__control[data-tooltip]::after,
+  .player-page__play[data-tooltip]::after {
+    display: none;
+  }
+}
+
 .player-queue-menu__popup {
   position: absolute;
   right: 0;
@@ -6841,6 +6861,14 @@ textarea {
     will-change: transform;
   }
 
+  .mobile-player-overlay .player-page__playlist-add .track-playlist-menu__popup {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    padding: 12px 12px max(28px, env(safe-area-inset-bottom));
+    overflow: hidden;
+    touch-action: pan-y;
+  }
+
   .mobile-player-overlay .player-queue-menu__popup.dragging,
   .mobile-player-overlay .player-page__playlist-add .track-playlist-menu__popup.dragging {
     transition: none;
@@ -6860,6 +6888,13 @@ textarea {
   .mobile-player-overlay .player-queue-menu__list,
   .mobile-player-overlay .player-page__playlist-add .track-playlist-menu__list {
     max-height: min(42dvh, 320px);
+  }
+
+  .mobile-player-overlay .player-page__playlist-add .track-playlist-menu__list {
+    min-height: 0;
+    padding-bottom: 28px;
+    overflow-y: auto;
+    scroll-padding-bottom: 34px;
   }
 
   .track-playlist-menu.open {
@@ -6886,6 +6921,9 @@ textarea {
     user-select: none;
     transition: transform 0.18s ease;
     will-change: transform;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    overflow: hidden;
   }
 
   .track-playlist-menu__popup.dragging {
@@ -6903,9 +6941,11 @@ textarea {
   }
 
   .track-playlist-menu__list {
+    min-height: 0;
     max-height: min(34dvh, 280px);
-    padding-bottom: 8px;
-    scroll-padding-bottom: 18px;
+    padding-bottom: 28px;
+    overflow-y: auto;
+    scroll-padding-bottom: 34px;
   }
 
   .mobile-player-overlay .player-queue-menu__item {

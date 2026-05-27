@@ -441,7 +441,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     </div>
     {isFullPlayerOpen ? (
       <div className="mobile-player-overlay" role="dialog" aria-modal="true">
-        <section className="player-page mobile-player-overlay__panel opening">
+        <section className={`player-page mobile-player-overlay__panel opening${!isPlaying ? ' is-paused' : ''}`}>
           <button
             type="button"
             className="player-page__collapse mobile-player-overlay__collapse"
