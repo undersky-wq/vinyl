@@ -533,11 +533,24 @@ textarea {
 }
 
 .mix-share-sheet__handle {
-  justify-self: center;
   width: 44px;
   height: 5px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
+}
+
+.mix-share-sheet__drag-zone {
+  display: inline-flex;
+  justify-self: center;
+  align-items: center;
+  justify-content: center;
+  width: min(220px, 60vw);
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: grab;
+  touch-action: none;
 }
 
 .mix-share-sheet__close {
@@ -6489,14 +6502,19 @@ textarea {
     color: #ffffff;
   }
 
-  .mix-share-sheet__handle {
+  .mix-share-sheet__drag-zone {
     position: absolute;
-    top: 10px;
+    top: 0;
     left: 50%;
     z-index: 4;
+    width: min(220px, 60vw);
+    height: 30px;
+    transform: translateX(-50%);
+  }
+
+  .mix-share-sheet__handle {
     width: 42px;
     height: 5px;
-    transform: translateX(-50%);
   }
 
   .mix-share-sheet__story {

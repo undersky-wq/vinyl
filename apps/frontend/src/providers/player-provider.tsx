@@ -101,7 +101,7 @@ let sharedIsRepeatEnabled = false;
 function getSharedAudio() {
   if (!sharedAudio && typeof window !== 'undefined') {
     sharedAudio = new Audio();
-    sharedAudio.preload = 'metadata';
+    sharedAudio.preload = 'auto';
     sharedAudio.volume = sharedVolume;
   }
 
@@ -266,6 +266,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const shuffleEnabledRef = useRef(sharedIsShuffleEnabled);
   const repeatEnabledRef = useRef(sharedIsRepeatEnabled);
   const pendingSeekPercentRef = useRef<number | null>(null);
+  const recoveryInFlightRef = useRef(false);
+  const loadedTrackIdRef = useRef(sharedCurrentTrack?.id || '');
   const mediaMetadataKeyRef = useRef('');
   const mediaMetadataTimerRef = useRef<number | null>(null);
   const mediaPlayRef = useRef<() => void>(() => {});
@@ -315,6 +317,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (audio.src !== stored.currentTrack.audioUrl) {
           audio.src = stored.currentTrack.audioUrl;
         }
+        loadedTrackIdRef.current = stored.currentTrack.id;
 
         if (stored.currentTime > 0) {
           audio.currentTime = stored.currentTime;
@@ -423,10 +426,81 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setDisplayQueue(sharedDisplayQueue);
     };
 
+    const recoverCurrentTrack = async () => {
+      const audioElement = audioRef.current;
+      const trackToRecover = currentTrackRef.current;
+      if (!audioElement || !trackToRecover || recoveryInFlightRef.current) {
+        return;
+      }
+
+      recoveryInFlightRef.current = true;
+      const resumeTime = audioElement.currentTime || 0;
+      const shouldResume = !audioElement.paused && !audioElement.ended;
+
+      try {
+        const refreshedTrack = await refreshPlayerTrack(trackToRecover.id);
+        if (!refreshedTrack.audioUrl || currentTrackRef.current?.id !== trackToRecover.id) {
+          return;
+        }
+
+        const nextTrack = { ...trackToRecover, ...refreshedTrack };
+        const nextQueue = mergeTrackById(queueRef.current, nextTrack);
+        const nextDisplayQueue = mergeTrackById(displayQueueRef.current, nextTrack);
+
+        sharedCurrentTrack = nextTrack;
+        currentTrackRef.current = nextTrack;
+        sharedQueue = nextQueue;
+        queueRef.current = nextQueue;
+        sharedDisplayQueue = nextDisplayQueue;
+        displayQueueRef.current = nextDisplayQueue;
+
+        setCurrentTrack(nextTrack);
+        setQueue(nextQueue);
+        setDisplayQueue(nextDisplayQueue);
+
+        if (audioElement.src !== nextTrack.audioUrl) {
+          audioElement.src = nextTrack.audioUrl;
+          audioElement.load();
+        }
+        loadedTrackIdRef.current = nextTrack.id;
+
+        const restoreTime = () => {
+          if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
+            audioElement.currentTime = Math.min(resumeTime, Math.max(audioElement.duration - 0.2, 0));
+          } else {
+            audioElement.currentTime = resumeTime;
+          }
+          setCurrentTime(audioElement.currentTime || resumeTime);
+          if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
+            setProgress(((audioElement.currentTime || resumeTime) / audioElement.duration) * 100);
+          }
+        };
+
+        if (audioElement.readyState >= 1) {
+          restoreTime();
+        } else {
+          audioElement.addEventListener('loadedmetadata', restoreTime, { once: true });
+        }
+
+        if (shouldResume) {
+          void safelyPlay(audioElement);
+        }
+      } catch (error) {
+        console.warn('Audio recovery failed', error);
+      } finally {
+        recoveryInFlightRef.current = false;
+      }
+    };
+
     const onError = () => {
-      setIsPlaying(false);
-      setProgress(0);
+      void recoverCurrentTrack();
       console.warn('Audio element error', audio.error);
+    };
+
+    const onStalled = () => {
+      if (currentTrackRef.current && !audio.paused && !audio.ended) {
+        void recoverCurrentTrack();
+      }
     };
 
     const syncAfterPageResume = () => {
@@ -444,6 +518,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
+    audio.addEventListener('stalled', onStalled);
     window.addEventListener('pageshow', syncAfterPageResume);
     document.addEventListener('visibilitychange', syncAfterPageResume);
 
@@ -457,6 +532,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
+      audio.removeEventListener('stalled', onStalled);
       window.removeEventListener('pageshow', syncAfterPageResume);
       document.removeEventListener('visibilitychange', syncAfterPageResume);
     };
@@ -567,14 +643,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const sameTrackLoaded =
-      currentTrackRef.current?.id === currentTrack.id && audio.src === currentTrack.audioUrl;
+    const sameTrackLoaded = loadedTrackIdRef.current === currentTrack.id && Boolean(audio.src);
 
     if (sameTrackLoaded) {
       return;
     }
 
     audio.src = currentTrack.audioUrl;
+    loadedTrackIdRef.current = currentTrack.id;
     audio.currentTime = 0;
     setCurrentTime(0);
     setProgress(0);

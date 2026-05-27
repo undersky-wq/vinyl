@@ -64,6 +64,38 @@ function wrapCanvasText(context: CanvasRenderingContext2D, text: string, maxWidt
   return lines.slice(0, 3);
 }
 
+function openShareTarget(appUrl: string, webFallbackUrl?: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (/^(https?:)?\/\//.test(appUrl)) {
+    window.open(appUrl, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  const openedAt = window.Date.now();
+  window.location.assign(appUrl);
+
+  if (!webFallbackUrl) {
+    return;
+  }
+
+  window.setTimeout(() => {
+    if (window.Date.now() - openedAt < 1600) {
+      window.open(webFallbackUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, 1200);
+}
+
+function isMobileShareDevice() {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
 async function createStoryFile(release: Release, coverUrl: string, url: string) {
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
@@ -147,6 +179,10 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
 
   const coverUrl = getCoverUrl(release);
   const title = `${release.artist} - ${release.title}${release.year ? ` ${release.year}` : ''}`;
+  const shareText = `${title}\n${url}`;
+  const encodedTitle = encodeURIComponent(title);
+  const encodedUrl = encodeURIComponent(url);
+  const encodedShareText = encodeURIComponent(shareText);
 
   async function handleNativeShare() {
     if (navigator.share) {
@@ -190,6 +226,40 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
     }
   }
 
+  function handleMessageShare() {
+    if (!isMobileShareDevice()) {
+      void handleNativeShare();
+      return;
+    }
+
+    openShareTarget(`sms:?&body=${encodedShareText}`);
+  }
+
+  function handleTelegramShare() {
+    if (!isMobileShareDevice()) {
+      openShareTarget(`https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`);
+      return;
+    }
+
+    openShareTarget(
+      `tg://msg_url?url=${encodedUrl}&text=${encodedTitle}`,
+      `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`,
+    );
+  }
+
+  function handleWhatsAppShare() {
+    if (!isMobileShareDevice()) {
+      openShareTarget(`https://wa.me/?text=${encodedShareText}`);
+      return;
+    }
+
+    openShareTarget(`whatsapp://send?text=${encodedShareText}`, `https://wa.me/?text=${encodedShareText}`);
+  }
+
+  function stopButtonPointer(event: React.PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+  }
+
   function startDrag(clientY: number) {
     dragStartYRef.current = clientY;
     dragYRef.current = 0;
@@ -229,28 +299,41 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
       <div
         className={`mix-share-sheet__panel${dragY > 0 ? ' dragging' : ''}`}
         style={{ transform: dragY ? `translateY(${dragY}px)` : undefined }}
-        onClickCapture={(event) => {
-          if (didDragRef.current) {
-            event.preventDefault();
-            event.stopPropagation();
-            didDragRef.current = false;
-          }
-        }}
-        onPointerDown={(event) => {
-          startDrag(event.clientY);
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => moveDrag(event.clientY)}
-        onPointerUp={(event) => {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-          finishDrag();
-        }}
-        onPointerCancel={finishDrag}
       >
-        <button className="mix-share-sheet__close" type="button" onClick={onClose} aria-label="Close">
+        <button
+          className="mix-share-sheet__close"
+          type="button"
+          onClick={onClose}
+          onPointerDown={stopButtonPointer}
+          aria-label="Close"
+        >
           <X size={18} />
         </button>
-        <span className="mix-share-sheet__handle" />
+        <button
+          type="button"
+          className="mix-share-sheet__drag-zone"
+          aria-label="Close share"
+          onClick={(event) => {
+            if (didDragRef.current) {
+              event.preventDefault();
+              event.stopPropagation();
+              didDragRef.current = false;
+              return;
+            }
+          }}
+          onPointerDown={(event) => {
+            startDrag(event.clientY);
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => moveDrag(event.clientY)}
+          onPointerUp={(event) => {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+            finishDrag();
+          }}
+          onPointerCancel={finishDrag}
+        >
+          <span className="mix-share-sheet__handle" />
+        </button>
 
         <div className="mix-share-sheet__story" style={{ background: BACKGROUNDS[backgroundIndex].value }}>
           <img className="mix-share-sheet__blur-cover" src={coverUrl} alt="" aria-hidden="true" />
@@ -269,7 +352,7 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
         </div>
 
         <div className="mix-share-sheet__palette" aria-label="Story background">
-          <button type="button" className="mix-share-sheet__image" aria-label="Use cover colors">
+          <button type="button" className="mix-share-sheet__image" onPointerDown={stopButtonPointer} aria-label="Use cover colors">
             <ImageIcon size={18} />
           </button>
           {BACKGROUNDS.map((background, index) => (
@@ -279,6 +362,7 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
               aria-label={background.name}
               className={`mix-share-sheet__swatch${backgroundIndex === index ? ' is-active' : ''}`}
               style={{ background: background.value }}
+              onPointerDown={stopButtonPointer}
               onClick={() => setBackgroundIndex(index)}
             />
           ))}
@@ -286,38 +370,39 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
 
         <div className="mix-share-sheet__mobile-title">Share</div>
         <div className="mix-share-sheet__mobile-actions">
-          <button type="button" onClick={() => void handleStoryShare()} disabled={isSharingStory}>
+          <button type="button" onPointerDown={stopButtonPointer} onClick={handleMessageShare}>
             <Send size={22} />
             Message
           </button>
-          <button type="button" onClick={() => void onCopy()}>
+          <button type="button" onPointerDown={stopButtonPointer} onClick={() => void onCopy()}>
             <Copy size={22} />
             Copy Link
           </button>
-          <button type="button" onClick={() => void handleStoryShare()} disabled={isSharingStory}>
+          <button type="button" onPointerDown={stopButtonPointer} onClick={handleTelegramShare}>
             <Send size={22} />
             Telegram
           </button>
-          <button type="button" onClick={() => void handleStoryShare()} disabled={isSharingStory}>
-            <MessageCircle size={22} />
-            WhatsApp
-          </button>
-          <button type="button" onClick={() => void handleStoryShare()} disabled={isSharingStory}>
+          <button type="button" onPointerDown={stopButtonPointer} onClick={handleWhatsAppShare}>
             <MessageCircle size={22} />
             Status
           </button>
-          <button type="button" onClick={() => void handleStoryShare()} disabled={isSharingStory}>
+          <button
+            type="button"
+            onPointerDown={stopButtonPointer}
+            onClick={() => void handleStoryShare()}
+            disabled={isSharingStory}
+          >
             <Instagram size={22} />
             Stories
           </button>
         </div>
 
         <div className="mix-share-sheet__actions">
-          <button type="button" onClick={() => void onCopy()}>
+          <button type="button" onPointerDown={stopButtonPointer} onClick={() => void onCopy()}>
             <Copy size={18} />
             Copy link
           </button>
-          <button type="button" onClick={() => void handleNativeShare()}>
+          <button type="button" onPointerDown={stopButtonPointer} onClick={() => void handleNativeShare()}>
             <Send size={18} />
             Share
           </button>
