@@ -2718,6 +2718,7 @@ textarea {
 }
 
 .player-icon-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4585,8 +4586,14 @@ textarea {
 }
 
 .track-favorite-button[data-tooltip]::after,
+.library-track__favorite[data-tooltip]::after,
 .track-playlist-menu__trigger[data-tooltip]::after,
-.player-queue-menu__trigger[data-tooltip]::after {
+.player-queue-menu__trigger[data-tooltip]::after,
+.player-icon-button[data-tooltip]::after,
+.player-main-button[data-tooltip]::after,
+.player-page__collapse[data-tooltip]::after,
+.player-page__control[data-tooltip]::after,
+.player-page__play[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
   left: 50%;
@@ -4598,7 +4605,7 @@ textarea {
   color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.34);
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1;
   opacity: 0;
@@ -4609,8 +4616,14 @@ textarea {
 }
 
 .track-favorite-button[data-tooltip]:hover::after,
+.library-track__favorite[data-tooltip]:hover::after,
 .track-playlist-menu__trigger[data-tooltip]:hover::after,
-.player-queue-menu__trigger[data-tooltip]:hover::after {
+.player-queue-menu__trigger[data-tooltip]:hover::after,
+.player-icon-button[data-tooltip]:hover::after,
+.player-main-button[data-tooltip]:hover::after,
+.player-page__collapse[data-tooltip]:hover::after,
+.player-page__control[data-tooltip]:hover::after,
+.player-page__play[data-tooltip]:hover::after {
   opacity: 1;
   transform: translate(-50%, 0);
 }
@@ -4834,6 +4847,7 @@ textarea {
 }
 
 .library-track__favorite {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4854,9 +4868,14 @@ textarea {
   opacity: 1;
 }
 
-.library-track__favorite:not(.active):hover {
+.library-track__favorite:not(.active):hover,
+.library-track__favorite.active:hover {
   color: rgba(255, 255, 255, 0.62);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.library-track__favorite.active:hover {
+  color: var(--player-accent) !important;
 }
 
 .library-track__favorite.active {

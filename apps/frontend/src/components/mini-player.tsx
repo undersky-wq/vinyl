@@ -270,7 +270,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             toggleShuffle();
           }}
           aria-label={lang === 'ru' ? 'Смешивание' : 'Shuffle'}
-          title={lang === 'ru' ? 'Смешивание' : 'Shuffle'}
+          data-tooltip={lang === 'ru' ? 'Смешивание' : 'Shuffle'}
         >
           <Shuffle size={17} />
         </button>
@@ -283,7 +283,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
           }}
           disabled={!canPlayPrevious}
           aria-label={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
-          title={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
+          data-tooltip={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
         >
           <SkipBack size={20} fill="currentColor" />
         </button>
@@ -296,7 +296,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             togglePlayback();
           }}
           aria-label={isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : 'Play'}
-          title={isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : 'Play'}
+          data-tooltip={isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : 'Play'}
         >
           {isPlaying ? <Pause size={24} /> : <Play size={24} fill="currentColor" />}
         </button>
@@ -309,7 +309,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
           }}
           disabled={!canPlayNext}
           aria-label={lang === 'ru' ? 'Следующий трек' : 'Next track'}
-          title={lang === 'ru' ? 'Следующий трек' : 'Next track'}
+          data-tooltip={lang === 'ru' ? 'Следующий трек' : 'Next track'}
         >
           <SkipForward size={20} fill="currentColor" />
         </button>
@@ -321,7 +321,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             toggleRepeat();
           }}
           aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
-          title={lang === 'ru' ? 'Повтор' : 'Repeat'}
+          data-tooltip={lang === 'ru' ? 'Повтор' : 'Repeat'}
         >
           <Repeat2 size={17} />
         </button>
@@ -363,8 +363,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             type="button"
             className={`track-playlist-menu__trigger player-queue-menu__trigger${isQueueOpen ? ' active' : ''}`}
             aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
-            title={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
-            data-tooltip="queue"
+            data-tooltip="Queue"
             onClick={() => setIsQueueOpen((current) => !current)}
           >
             <ListOrdered size={18} />
@@ -433,7 +432,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
           type="button"
           className="player-icon-button ghost"
           aria-label={volumeLabel}
-          title={volumeLabel}
+          data-tooltip={volumeLabel}
           onClick={() => setVolume(volume <= 0.01 ? 0.8 : 0)}
         >
           {volume <= 0.01 ? <VolumeX size={18} /> : <Volume2 size={18} />}
@@ -576,7 +575,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                 type="button"
                 className={`track-playlist-menu__trigger player-queue-menu__trigger${isOverlayQueueOpen ? ' active' : ''}`}
                 aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
-                data-tooltip="queue"
+                data-tooltip="Queue"
                 onClick={() => setIsOverlayQueueOpen((current) => !current)}
               >
                 <ListOrdered size={18} />

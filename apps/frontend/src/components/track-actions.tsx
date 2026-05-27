@@ -31,7 +31,7 @@ export function FavoriteButton({
         className ? ` ${className}` : ''
       }`}
       aria-label={lang === 'ru' ? 'Избранное' : 'Favorite'}
-      data-tooltip={active ? 'unlike' : 'like'}
+      data-tooltip={active ? 'Unlike' : 'Like'}
       onClick={() => void toggleFavorite(trackId)}
     >
       <Heart size={17} fill="currentColor" />
@@ -173,7 +173,7 @@ export function TrackPlaylistMenu({
           isInPlaylist ? ' saved' : ''
         }`}
         aria-label={lang === 'ru' ? 'Меню трека' : 'Track menu'}
-        data-tooltip="add to playlist"
+        data-tooltip="Add to playlist"
         onClick={() => {
           if (!isOpen && !requireAuth()) {
             return;

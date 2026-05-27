@@ -942,6 +942,7 @@ export function TracklistBrowser({
                             favoriteTrackIds.includes(track.id) ? ' active' : ''
                           }`}
                           aria-label={lang === 'ru' ? 'Добавить в избранное' : 'Add to favorites'}
+                          data-tooltip={favoriteTrackIds.includes(track.id) ? 'Unlike' : 'Like'}
                           onClick={() => toggleFavorite(track.id)}
                         >
                           <Heart size={17} fill="currentColor" />

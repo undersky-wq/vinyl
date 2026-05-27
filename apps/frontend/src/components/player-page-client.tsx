@@ -176,7 +176,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         className="player-page__collapse"
         onClick={collapsePlayer}
         aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
-        title={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
+        data-tooltip={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
       >
         <ChevronDown size={24} />
       </button>
@@ -320,8 +320,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
             type="button"
             className={`track-playlist-menu__trigger player-queue-menu__trigger${isQueueOpen ? ' active' : ''}`}
             aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
-            title={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
-            data-tooltip="queue"
+            data-tooltip="Queue"
             onClick={() => setIsQueueOpen((current) => !current)}
           >
             <ListOrdered size={18} />
