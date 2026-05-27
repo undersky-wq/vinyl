@@ -569,7 +569,13 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
 
           <div className="player-page__secondary-actions">
             <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
-            <TrackPlaylistMenu trackId={currentTrack.id} lang={lang} className="player-page__playlist-add" align="up" />
+            <TrackPlaylistMenu
+              trackId={currentTrack.id}
+              lang={lang}
+              className="player-page__playlist-add"
+              align="up"
+              sheetDrag
+            />
             <div className="player-queue-menu player-page__queue">
               <button
                 type="button"

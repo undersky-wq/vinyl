@@ -6825,7 +6825,7 @@ textarea {
     left: 14px;
     right: 14px;
     bottom: max(14px, env(safe-area-inset-bottom));
-    z-index: 240;
+    z-index: 8000;
     width: auto;
     max-height: min(54dvh, 420px);
     padding: 12px;
@@ -6841,7 +6841,8 @@ textarea {
     will-change: transform;
   }
 
-  .mobile-player-overlay .player-queue-menu__popup.dragging {
+  .mobile-player-overlay .player-queue-menu__popup.dragging,
+  .mobile-player-overlay .player-page__playlist-add .track-playlist-menu__popup.dragging {
     transition: none;
   }
 
@@ -6859,6 +6860,52 @@ textarea {
   .mobile-player-overlay .player-queue-menu__list,
   .mobile-player-overlay .player-page__playlist-add .track-playlist-menu__list {
     max-height: min(42dvh, 320px);
+  }
+
+  .track-playlist-menu.open {
+    z-index: 8000;
+  }
+
+  .track-playlist-menu__popup {
+    position: fixed;
+    top: auto;
+    left: 14px;
+    right: 14px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    z-index: 8000;
+    width: auto;
+    max-height: min(58dvh, 430px);
+    padding: 12px 12px max(18px, env(safe-area-inset-bottom));
+    border-radius: 22px;
+    background: rgba(28, 28, 28, 0.96);
+    box-shadow: 0 -18px 70px rgba(0, 0, 0, 0.52);
+    backdrop-filter: blur(18px);
+    transform: none;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    user-select: none;
+    transition: transform 0.18s ease;
+    will-change: transform;
+  }
+
+  .track-playlist-menu__popup.dragging {
+    transition: none;
+  }
+
+  .track-playlist-menu__popup::before {
+    content: '';
+    display: block;
+    width: 42px;
+    height: 4px;
+    margin: 0 auto 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .track-playlist-menu__list {
+    max-height: min(34dvh, 280px);
+    padding-bottom: 8px;
+    scroll-padding-bottom: 18px;
   }
 
   .mobile-player-overlay .player-queue-menu__item {
