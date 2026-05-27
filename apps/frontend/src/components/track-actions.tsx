@@ -225,7 +225,12 @@ export function TrackPlaylistMenu({
         }`}
         aria-label={lang === 'ru' ? 'Меню трека' : 'Track menu'}
         data-tooltip="Add to playlist"
-        onClick={() => {
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
           if (!isOpen && !requireAuth()) {
             return;
           }
@@ -256,9 +261,15 @@ export function TrackPlaylistMenu({
             }
 
             const target = event.target as HTMLElement;
-            if (target.closest('.track-playlist-menu__list, input, button')) {
+            if (target.closest('input, .track-playlist-menu__create-row button')) {
               return;
             }
+
+            const list = target.closest('.track-playlist-menu__list') as HTMLElement | null;
+            if (list && list.scrollTop > 0) {
+              return;
+            }
+
             startPopupDrag(event.clientY);
             event.currentTarget.setPointerCapture(event.pointerId);
           }}
@@ -269,6 +280,9 @@ export function TrackPlaylistMenu({
           }}
           onPointerUp={(event) => {
             if (!canSheetDrag) {
+              return;
+            }
+            if (popupDragStartYRef.current === null) {
               return;
             }
             event.currentTarget.releasePointerCapture(event.pointerId);

@@ -6864,7 +6864,7 @@ textarea {
   .mobile-player-overlay .player-page__playlist-add .track-playlist-menu__popup {
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
-    padding: 12px 12px max(28px, env(safe-area-inset-bottom));
+    padding: 12px 12px max(18px, env(safe-area-inset-bottom));
     overflow: hidden;
     touch-action: pan-y;
   }
@@ -6892,9 +6892,9 @@ textarea {
 
   .mobile-player-overlay .player-page__playlist-add .track-playlist-menu__list {
     min-height: 0;
-    padding-bottom: 28px;
+    padding-bottom: 10px;
     overflow-y: auto;
-    scroll-padding-bottom: 34px;
+    scroll-padding-bottom: 14px;
   }
 
   .track-playlist-menu.open {
@@ -6943,9 +6943,9 @@ textarea {
   .track-playlist-menu__list {
     min-height: 0;
     max-height: min(34dvh, 280px);
-    padding-bottom: 28px;
+    padding-bottom: 10px;
     overflow-y: auto;
-    scroll-padding-bottom: 34px;
+    scroll-padding-bottom: 14px;
   }
 
   .mobile-player-overlay .player-queue-menu__item {
