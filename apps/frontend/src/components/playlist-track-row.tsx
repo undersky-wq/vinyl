@@ -1,8 +1,8 @@
 'use client';
 
-import Image from 'next/image';
 import { Pause, Play } from 'lucide-react';
 import { SiteLang } from '../lib/language';
+import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 
 const KEY_COLORS: Record<string, string> = {
@@ -128,7 +128,7 @@ export function PlaylistTrackRow({
         onClick={onPlay}
         aria-label={isCurrentTrack && isPlaying ? 'Pause' : 'Play'}
       >
-        <Image src={coverUrl} alt="" width={44} height={44} />
+        <CoverImage src={coverUrl} alt="" width={44} height={44} />
         <span className="playlist-track__play">
           {isCurrentTrack && isPlaying ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}
         </span>

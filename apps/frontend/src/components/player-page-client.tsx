@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { ChevronDown, ListOrdered, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { CSSProperties } from 'react';
@@ -9,6 +8,7 @@ import { getReleaseTimelineComments } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
 import { TimelineComment } from '../types';
+import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
@@ -193,7 +193,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         disabled={!currentTrack.releaseId}
         aria-label={currentTrack.releaseId ? `${currentTrack.artist} - ${currentTrack.title}` : currentTrack.title}
       >
-        <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} />
+        <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} loading="eager" />
       </button>
       <div className={`player-page__meta slide-${trackDirection}`} key={`meta-${currentTrack.id}`}>
         <p>{currentTrack.artist}</p>
@@ -354,7 +354,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
                         setIsQueueOpen(false);
                       }}
                     >
-                      <Image src={track.coverUrl} alt="" width={34} height={34} />
+                      <CoverImage src={track.coverUrl} alt="" width={34} height={34} />
                       <span>
                         <strong>{track.title}</strong>
                         <em>{track.artist}</em>

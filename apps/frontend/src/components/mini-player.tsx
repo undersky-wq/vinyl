@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   ChevronDown,
@@ -20,6 +19,7 @@ import { SiteLang } from '../lib/language';
 import { useResponsiveWaveform } from '../lib/waveform';
 import { usePlayer } from '../providers/player-provider';
 import { TimelineComment } from '../types';
+import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
@@ -254,7 +254,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       }}
     >
       <div className="mini-player__track">
-        <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={58} height={58} />
+        <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={58} height={58} loading="eager" />
         <div className="mini-player__meta">
           <div className="mini-player__title">{currentTrack.title}</div>
           <div className="mini-player__artist">{currentTrack.artist}</div>
@@ -391,7 +391,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                       setIsQueueOpen(false);
                     }}
                   >
-                    <Image src={track.coverUrl} alt="" width={34} height={34} />
+                    <CoverImage src={track.coverUrl} alt="" width={34} height={34} />
                     <span>
                       <strong>{track.title}</strong>
                       <em>{track.artist}</em>
@@ -467,7 +467,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             disabled={!currentTrack.releaseId}
             aria-label={currentTrack.releaseId ? `${currentTrack.artist} - ${currentTrack.title}` : currentTrack.title}
           >
-            <Image src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} />
+            <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} loading="eager" />
           </button>
           <div className={`player-page__meta slide-${trackDirection}`} key={`mobile-meta-${currentTrack.id}`}>
             <p>{currentTrack.artist}</p>
@@ -639,7 +639,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                             setIsOverlayQueueOpen(false);
                           }}
                         >
-                          <Image src={track.coverUrl} alt="" width={34} height={34} />
+                          <CoverImage src={track.coverUrl} alt="" width={34} height={34} />
                           <span>
                             <strong>{track.title}</strong>
                             <em>{track.artist}</em>

@@ -10,6 +10,7 @@ import { useAuth } from '../providers/auth-provider';
 import { useFavorites } from '../providers/favorites-provider';
 import { PlayerTrack, usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { LibraryFeedOptions, PlaylistSummary, Release } from '../types';
+import { CoverImage } from './cover-image';
 import { TrackPlaylistMenu } from './track-actions';
 
 type TracklistBrowserProps = {
@@ -886,7 +887,7 @@ export function TracklistBrowser({
                             void playFromVisibleFeed(track.id);
                           }}
                         >
-                          <img src={track.coverUrl} alt="" width={44} height={44} loading="lazy" decoding="async" />
+                          <CoverImage src={track.coverUrl} alt="" width={44} height={44} />
                           <span className="library-track__thumb-play">
                             {isCurrentTrack && isPlaying ? (
                               <Pause size={21} />
