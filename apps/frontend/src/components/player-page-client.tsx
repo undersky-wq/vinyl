@@ -262,6 +262,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
             toggleShuffle();
           }}
           aria-label={lang === 'ru' ? 'Перемешивание' : 'Shuffle'}
+          data-tooltip={lang === 'ru' ? 'Перемешивание' : 'Shuffle'}
         >
           <Shuffle size={22} />
         </button>
@@ -274,6 +275,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
           }}
           disabled={!canPlayPrevious}
           aria-label={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
+          data-tooltip={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
         >
           <SkipBack size={26} fill="currentColor" />
         </button>
@@ -284,6 +286,8 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
             event.stopPropagation();
             togglePlayback();
           }}
+          aria-label={isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : 'Play'}
+          data-tooltip={isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : 'Play'}
         >
           {isPlaying ? <Pause size={34} /> : <Play size={34} fill="currentColor" />}
         </button>
@@ -296,6 +300,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
           }}
           disabled={!canPlayNext}
           aria-label={lang === 'ru' ? 'Следующий трек' : 'Next track'}
+          data-tooltip={lang === 'ru' ? 'Следующий трек' : 'Next track'}
         >
           <SkipForward size={26} fill="currentColor" />
         </button>
@@ -307,6 +312,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
             toggleRepeat();
           }}
           aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
+          data-tooltip={lang === 'ru' ? 'Повтор' : 'Repeat'}
         >
           <Repeat2 size={22} />
         </button>
@@ -320,7 +326,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
             type="button"
             className={`track-playlist-menu__trigger player-queue-menu__trigger${isQueueOpen ? ' active' : ''}`}
             aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
-            data-tooltip="Queue"
+            data-tooltip={lang === 'ru' ? 'Очередь' : 'Queue'}
             onClick={() => setIsQueueOpen((current) => !current)}
           >
             <ListOrdered size={18} />

@@ -2,6 +2,7 @@
 
 import { Check, Heart, ListMusic, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { useFavorites } from '../providers/favorites-provider';
@@ -31,7 +32,7 @@ export function FavoriteButton({
         className ? ` ${className}` : ''
       }`}
       aria-label={lang === 'ru' ? 'Избранное' : 'Favorite'}
-      data-tooltip={active ? 'Unlike' : 'Like'}
+      data-tooltip={active ? (lang === 'ru' ? 'Убрать лайк' : 'Unlike') : lang === 'ru' ? 'Лайк' : 'Like'}
       onClick={() => void toggleFavorite(trackId)}
     >
       <Heart size={17} fill="currentColor" />
@@ -61,7 +62,9 @@ export function TrackPlaylistMenu({
   const [autoAlign, setAutoAlign] = useState<'down' | 'up'>(align);
   const [popupDragY, setPopupDragY] = useState(0);
   const [isMobileSheet, setIsMobileSheet] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const popupRef = useRef<HTMLDivElement | null>(null);
   const popupDragStartYRef = useRef<number | null>(null);
   const popupDragYRef = useRef(0);
   const popupDidDragRef = useRef(false);
@@ -71,6 +74,8 @@ export function TrackPlaylistMenu({
   const canSheetDrag = sheetDrag || isMobileSheet;
 
   useEffect(() => {
+    setIsMounted(true);
+
     function syncMobileSheet() {
       setIsMobileSheet(window.matchMedia('(max-width: 760px)').matches);
     }
@@ -86,7 +91,7 @@ export function TrackPlaylistMenu({
     }
 
     function updatePopupDirection() {
-      if (!menuRef.current) {
+      if (!menuRef.current || isMobileSheet) {
         return;
       }
 
@@ -101,8 +106,10 @@ export function TrackPlaylistMenu({
 
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as Node;
+      const clickedTrigger = menuRef.current?.contains(target);
+      const clickedPopup = popupRef.current?.contains(target);
 
-      if (menuRef.current && !menuRef.current.contains(target)) {
+      if (!clickedTrigger && !clickedPopup) {
         setIsOpen(false);
       }
     }
@@ -116,7 +123,7 @@ export function TrackPlaylistMenu({
       window.removeEventListener('scroll', updatePopupDirection);
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [align, isOpen]);
+  }, [align, isMobileSheet, isOpen]);
 
   async function handleCreatePlaylist() {
     if (!requireAuth()) {
@@ -211,22 +218,110 @@ export function TrackPlaylistMenu({
     }
   }
 
+  const popup = isOpen ? (
+    <div
+      className={`track-playlist-menu__popup${canSheetDrag && popupDragY > 0 ? ' dragging' : ''}`}
+      ref={popupRef}
+      style={{ transform: canSheetDrag && popupDragY ? `translateY(${popupDragY}px)` : undefined }}
+      onClickCapture={(event) => {
+        if (canSheetDrag && popupDidDragRef.current) {
+          event.preventDefault();
+          event.stopPropagation();
+          popupDidDragRef.current = false;
+        }
+      }}
+      onPointerDown={(event) => {
+        if (!canSheetDrag) {
+          return;
+        }
+
+        startPopupDrag(event.clientY);
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        if (canSheetDrag) {
+          movePopupDrag(event.clientY);
+        }
+      }}
+      onPointerUp={(event) => {
+        if (!canSheetDrag || popupDragStartYRef.current === null) {
+          return;
+        }
+
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        finishPopupDrag();
+      }}
+      onPointerCancel={canSheetDrag ? finishPopupDrag : undefined}
+    >
+      <div className="track-playlist-menu__create">
+        <div className="track-playlist-menu__title">
+          {lang === 'ru' ? 'Добавить плейлист' : 'Add playlist'}
+        </div>
+        <div className="track-playlist-menu__create-row">
+          <input
+            value={playlistName}
+            onChange={(event) => setPlaylistName(event.target.value)}
+            placeholder={lang === 'ru' ? 'Название плейлиста' : 'Playlist name'}
+          />
+          <button
+            type="button"
+            disabled={pendingActionKey === 'create'}
+            onClick={() => void handleCreatePlaylist()}
+            aria-label={lang === 'ru' ? 'Создать плейлист' : 'Create playlist'}
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="track-playlist-menu__list">
+        {playlists.length ? (
+          playlists.map((playlist) => {
+            const alreadyAdded = playlist.items.some((item) => item.track.id === trackId);
+
+            return (
+              <button
+                type="button"
+                key={playlist.id}
+                className={`track-playlist-menu__item${alreadyAdded ? ' selected' : ''}`}
+                disabled={pendingActionKey === `add:${playlist.id}` || pendingActionKey === `remove:${playlist.id}`}
+                onClick={() => void handleAddToPlaylist(playlist)}
+              >
+                <span>{playlist.name}</span>
+                {alreadyAdded ? <Check size={14} /> : null}
+              </button>
+            );
+          })
+        ) : (
+          <p className="muted">
+            {isLoading
+              ? lang === 'ru'
+                ? 'Загружаем...'
+                : 'Loading...'
+              : lang === 'ru'
+                ? 'Плейлистов пока нет.'
+                : 'No playlists yet.'}
+          </p>
+        )}
+      </div>
+
+      {status ? <p className="muted track-playlist-menu__status">{status}</p> : null}
+    </div>
+  ) : null;
+  const renderedPopup = isMobileSheet && isMounted && popup ? createPortal(popup, document.body) : popup;
+
   return (
     <div
       className={`track-playlist-menu${isOpen ? ' open' : ''}${
         autoAlign === 'up' ? ' track-playlist-menu--up' : ''
-      }${
-        className ? ` ${className}` : ''
-      }`}
+      }${className ? ` ${className}` : ''}`}
       ref={menuRef}
     >
       <button
         type="button"
-        className={`track-playlist-menu__trigger${isOpen ? ' active' : ''}${
-          isInPlaylist ? ' saved' : ''
-        }`}
+        className={`track-playlist-menu__trigger${isOpen ? ' active' : ''}${isInPlaylist ? ' saved' : ''}`}
         aria-label={lang === 'ru' ? 'Меню трека' : 'Track menu'}
-        data-tooltip="Add to playlist"
+        data-tooltip={lang === 'ru' ? 'Добавить в плейлист' : 'Add to playlist'}
         onPointerDown={(event) => {
           event.stopPropagation();
         }}
@@ -246,100 +341,7 @@ export function TrackPlaylistMenu({
         <ListMusic size={17} />
       </button>
 
-      {isOpen ? (
-        <div
-          className={`track-playlist-menu__popup${canSheetDrag && popupDragY > 0 ? ' dragging' : ''}`}
-          style={{ transform: canSheetDrag && popupDragY ? `translateY(${popupDragY}px)` : undefined }}
-          onClickCapture={(event) => {
-            if (canSheetDrag && popupDidDragRef.current) {
-              event.preventDefault();
-              event.stopPropagation();
-              popupDidDragRef.current = false;
-            }
-          }}
-          onPointerDown={(event) => {
-            if (!canSheetDrag) {
-              return;
-            }
-
-            startPopupDrag(event.clientY);
-            event.currentTarget.setPointerCapture(event.pointerId);
-          }}
-          onPointerMove={(event) => {
-            if (canSheetDrag) {
-              movePopupDrag(event.clientY);
-            }
-          }}
-          onPointerUp={(event) => {
-            if (!canSheetDrag) {
-              return;
-            }
-            if (popupDragStartYRef.current === null) {
-              return;
-            }
-            event.currentTarget.releasePointerCapture(event.pointerId);
-            finishPopupDrag();
-          }}
-          onPointerCancel={canSheetDrag ? finishPopupDrag : undefined}
-        >
-          <div className="track-playlist-menu__create">
-            <div className="track-playlist-menu__title">
-              {lang === 'ru' ? 'Добавить плейлист' : 'Add playlist'}
-            </div>
-            <div className="track-playlist-menu__create-row">
-              <input
-                value={playlistName}
-                onChange={(event) => setPlaylistName(event.target.value)}
-                placeholder={lang === 'ru' ? 'Название плейлиста' : 'Playlist name'}
-              />
-              <button
-                type="button"
-                disabled={pendingActionKey === 'create'}
-                onClick={() => void handleCreatePlaylist()}
-                aria-label={lang === 'ru' ? 'Создать плейлист' : 'Create playlist'}
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-          </div>
-
-          <div className="track-playlist-menu__list">
-            {playlists.length ? (
-              playlists.map((playlist) => {
-                const alreadyAdded = playlist.items.some((item) => item.track.id === trackId);
-
-                return (
-                  <button
-                    type="button"
-                    key={playlist.id}
-                    className={`track-playlist-menu__item${alreadyAdded ? ' selected' : ''}`}
-                    disabled={
-                      pendingActionKey === `add:${playlist.id}` ||
-                      pendingActionKey === `remove:${playlist.id}`
-                    }
-                    onClick={() => void handleAddToPlaylist(playlist)}
-                  >
-                    <span>{playlist.name}</span>
-                    {alreadyAdded ? <Check size={14} /> : null}
-                  </button>
-                );
-              })
-            ) : (
-              <p className="muted">
-                {isLoading
-                  ? lang === 'ru'
-                    ? 'Загружаем...'
-                    : 'Loading...'
-                  : lang === 'ru'
-                    ? 'Плейлистов пока нет.'
-                    : 'No playlists yet.'}
-              </p>
-            )}
-          </div>
-
-          {status ? <p className="muted track-playlist-menu__status">{status}</p> : null}
-        </div>
-      ) : null}
+      {renderedPopup}
     </div>
   );
 }

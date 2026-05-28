@@ -363,7 +363,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             type="button"
             className={`track-playlist-menu__trigger player-queue-menu__trigger${isQueueOpen ? ' active' : ''}`}
             aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
-            data-tooltip="Queue"
+            data-tooltip={lang === 'ru' ? 'Очередь' : 'Queue'}
             onClick={() => setIsQueueOpen((current) => !current)}
           >
             <ListOrdered size={18} />
@@ -447,6 +447,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             className="player-page__collapse mobile-player-overlay__collapse"
             onClick={() => setIsFullPlayerOpen(false)}
             aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
+            data-tooltip={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
           >
             <ChevronDown size={19} />
           </button>
@@ -533,6 +534,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
               className={`player-page__control player-page__control--shuffle${overlayShuffleActive ? ' active' : ''}`}
               onClick={handleOverlayShuffle}
               aria-label={lang === 'ru' ? 'Перемешивание' : 'Shuffle'}
+              data-tooltip={lang === 'ru' ? 'Перемешивание' : 'Shuffle'}
             >
               <Shuffle size={22} />
             </button>
@@ -542,10 +544,17 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
               onClick={handlePreviousTrack}
               disabled={!canPlayPrevious}
               aria-label={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
+              data-tooltip={lang === 'ru' ? 'Предыдущий трек' : 'Previous track'}
             >
               <SkipBack size={26} fill="currentColor" />
             </button>
-            <button type="button" className="player-page__play" onClick={togglePlayback}>
+            <button
+              type="button"
+              className="player-page__play"
+              onClick={togglePlayback}
+              aria-label={isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : 'Play'}
+              data-tooltip={isPlaying ? (lang === 'ru' ? 'Пауза' : 'Pause') : 'Play'}
+            >
               {isPlaying ? <Pause size={34} /> : <Play size={34} fill="currentColor" />}
             </button>
             <button
@@ -554,6 +563,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
               onClick={handleNextTrack}
               disabled={!canPlayNext}
               aria-label={lang === 'ru' ? 'Следующий трек' : 'Next track'}
+              data-tooltip={lang === 'ru' ? 'Следующий трек' : 'Next track'}
             >
               <SkipForward size={26} fill="currentColor" />
             </button>
@@ -562,6 +572,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
               className={`player-page__control player-page__control--repeat${overlayRepeatActive ? ' active' : ''}`}
               onClick={handleOverlayRepeat}
               aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
+              data-tooltip={lang === 'ru' ? 'Повтор' : 'Repeat'}
             >
               <Repeat2 size={22} />
             </button>
@@ -581,7 +592,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                 type="button"
                 className={`track-playlist-menu__trigger player-queue-menu__trigger${isOverlayQueueOpen ? ' active' : ''}`}
                 aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
-                data-tooltip="Queue"
+                data-tooltip={lang === 'ru' ? 'Очередь' : 'Queue'}
                 onClick={() => setIsOverlayQueueOpen((current) => !current)}
               >
                 <ListOrdered size={18} />

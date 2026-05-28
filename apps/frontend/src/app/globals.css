@@ -6899,7 +6899,7 @@ textarea {
 
   .track-playlist-menu.open {
     position: static;
-    z-index: 20000;
+    z-index: 30000;
   }
 
   .library-track:has(.track-playlist-menu.open),
@@ -6907,7 +6907,7 @@ textarea {
   .favorites-track:has(.track-playlist-menu.open),
   .track-row:has(.track-playlist-menu.open) {
     position: relative;
-    z-index: 19999;
+    z-index: 29999;
     overflow: visible;
   }
 
@@ -6917,7 +6917,7 @@ textarea {
     left: 14px;
     right: 14px;
     bottom: max(14px, env(safe-area-inset-bottom));
-    z-index: 20000;
+    z-index: 30000;
     width: auto;
     max-height: min(58dvh, 430px);
     padding: 12px 12px max(18px, env(safe-area-inset-bottom));
