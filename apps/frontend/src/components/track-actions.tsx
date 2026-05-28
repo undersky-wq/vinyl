@@ -100,7 +100,9 @@ export function TrackPlaylistMenu({
     }
 
     function handlePointerDown(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+
+      if (menuRef.current && !menuRef.current.contains(target)) {
         setIsOpen(false);
       }
     }
@@ -257,16 +259,6 @@ export function TrackPlaylistMenu({
           }}
           onPointerDown={(event) => {
             if (!canSheetDrag) {
-              return;
-            }
-
-            const target = event.target as HTMLElement;
-            if (target.closest('input, .track-playlist-menu__create-row button')) {
-              return;
-            }
-
-            const list = target.closest('.track-playlist-menu__list') as HTMLElement | null;
-            if (list && list.scrollTop > 0) {
               return;
             }
 

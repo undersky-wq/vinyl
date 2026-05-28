@@ -6866,7 +6866,7 @@ textarea {
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     padding: 12px 12px max(18px, env(safe-area-inset-bottom));
     overflow: hidden;
-    touch-action: pan-y;
+    touch-action: none;
   }
 
   .mobile-player-overlay .player-queue-menu__popup.dragging,
@@ -6898,7 +6898,17 @@ textarea {
   }
 
   .track-playlist-menu.open {
-    z-index: 8000;
+    position: static;
+    z-index: 20000;
+  }
+
+  .library-track:has(.track-playlist-menu.open),
+  .playlist-track:has(.track-playlist-menu.open),
+  .favorites-track:has(.track-playlist-menu.open),
+  .track-row:has(.track-playlist-menu.open) {
+    position: relative;
+    z-index: 19999;
+    overflow: visible;
   }
 
   .track-playlist-menu__popup {
@@ -6907,7 +6917,7 @@ textarea {
     left: 14px;
     right: 14px;
     bottom: max(14px, env(safe-area-inset-bottom));
-    z-index: 8000;
+    z-index: 20000;
     width: auto;
     max-height: min(58dvh, 430px);
     padding: 12px 12px max(18px, env(safe-area-inset-bottom));
@@ -6916,7 +6926,7 @@ textarea {
     box-shadow: 0 -18px 70px rgba(0, 0, 0, 0.52);
     backdrop-filter: blur(18px);
     transform: none;
-    touch-action: pan-y;
+    touch-action: none;
     overscroll-behavior: contain;
     user-select: none;
     transition: transform 0.18s ease;
