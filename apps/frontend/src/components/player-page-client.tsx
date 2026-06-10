@@ -6,6 +6,7 @@ import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { getReleaseTimelineComments } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { buildFallbackWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
 import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
@@ -20,10 +21,6 @@ function formatTime(value: number) {
   const minutes = Math.floor(value / 60);
   const seconds = Math.floor(value % 60);
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function fallbackWaveform(points = 120) {
-  return Array.from({ length: points }, (_, index) => 0.25 + ((index * 37) % 70) / 100);
 }
 
 function getSafeReturnPath(value: string) {
@@ -56,6 +53,10 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const lastHapticStepRef = useRef(-1);
+  const currentTrackId = currentTrack?.id || '';
+  const previousTrackIdRef = useRef(currentTrackId);
+  const isTrackSwitching =
+    Boolean(currentTrackId) && Boolean(previousTrackIdRef.current) && previousTrackIdRef.current !== currentTrackId;
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -96,6 +97,13 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     };
   }, [currentTrack?.releaseId]);
 
+  useEffect(() => {
+    previousTrackIdRef.current = currentTrackId;
+    setDragProgress(null);
+    setActiveCommentId(null);
+    lastHapticStepRef.current = -1;
+  }, [currentTrackId]);
+
   if (!currentTrack) {
     return (
       <section className="player-page">
@@ -104,8 +112,8 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     );
   }
 
-  const peaks = (currentTrack.waveformData?.length ? currentTrack.waveformData : fallbackWaveform()).slice(0, 160);
-  const displayedProgress = dragProgress ?? progress;
+  const peaks = (currentTrack.waveformData?.length ? currentTrack.waveformData : buildFallbackWaveform(currentTrack.id)).slice(0, 160);
+  const displayedProgress = dragProgress ?? (isTrackSwitching ? 0 : progress);
   const visibleQueue = displayQueue.length ? displayQueue : queue;
 
   function getPointerProgress(event: React.PointerEvent<HTMLButtonElement>) {

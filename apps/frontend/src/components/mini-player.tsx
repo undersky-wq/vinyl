@@ -16,7 +16,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { getReleaseTimelineComments } from '../lib/api';
 import { SiteLang } from '../lib/language';
-import { useResponsiveWaveform } from '../lib/waveform';
+import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayer } from '../providers/player-provider';
 import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
@@ -35,10 +35,6 @@ function formatTime(value: number) {
   const minutes = Math.floor(value / 60);
   const seconds = Math.floor(value % 60);
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function fallbackWaveform(points = 90) {
-  return Array.from({ length: points }, (_, index) => 0.25 + ((index * 37) % 70) / 100);
 }
 
 export function MiniPlayer({ lang }: MiniPlayerProps) {
@@ -80,14 +76,21 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const overlayQueueDragStartYRef = useRef<number | null>(null);
   const overlayQueueDragYRef = useRef(0);
   const overlayQueueDidDragRef = useRef(false);
+  const currentTrackId = currentTrack?.id || '';
+  const previousTrackIdRef = useRef(currentTrackId);
+  const isTrackSwitching =
+    Boolean(currentTrackId) && Boolean(previousTrackIdRef.current) && previousTrackIdRef.current !== currentTrackId;
 
   const volumeLabel = lang === 'ru' ? 'Громкость' : 'Volume';
-  const displayProgress = dragProgress ?? progress;
-  const overlayProgress = overlayDragProgress ?? progress;
+  const visualProgress = isTrackSwitching ? 0 : progress;
+  const displayProgress = dragProgress ?? visualProgress;
+  const overlayProgress = overlayDragProgress ?? visualProgress;
   const visibleQueue = displayQueue.length ? displayQueue : queue;
   const displayTime =
     dragProgress !== null && duration > 0 ? (duration * dragProgress) / 100 : currentTime;
-  const overlaySourcePeaks = currentTrack?.waveformData?.length ? currentTrack.waveformData : fallbackWaveform();
+  const overlaySourcePeaks = currentTrack?.waveformData?.length
+    ? currentTrack.waveformData
+    : buildFallbackWaveform(currentTrackId || 'fallback', 90);
   const { ref: overlayWaveformRef, peaks: overlayPeaks } = useResponsiveWaveform(overlaySourcePeaks, {
     minBars: 48,
     maxBars: 90,
@@ -117,6 +120,14 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       cancelled = true;
     };
   }, [currentTrack?.releaseId]);
+
+  useEffect(() => {
+    previousTrackIdRef.current = currentTrackId;
+    setDragProgress(null);
+    setOverlayDragProgress(null);
+    setActiveCommentId(null);
+    lastHapticStepRef.current = -1;
+  }, [currentTrackId]);
 
   useEffect(() => {
     if (!isFullPlayerOpen) {
