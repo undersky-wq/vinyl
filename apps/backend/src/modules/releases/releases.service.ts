@@ -190,6 +190,7 @@ export class ReleasesService {
               select: {
                 id: true,
                 title: true,
+                waveformData: true,
                 audioFiles: true,
               },
             },

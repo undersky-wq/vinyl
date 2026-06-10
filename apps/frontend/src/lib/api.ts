@@ -138,6 +138,9 @@ function mapHomeRelease(release: HomeReleaseApi): HomeRelease {
       .map((track) => ({
         id: track.id,
         title: track.title,
+        waveformData: Array.isArray(track.waveformData)
+          ? track.waveformData.filter((value): value is number => typeof value === 'number')
+          : [],
         audioUrl: track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '',
       }))
       .filter((track) => Boolean(track.audioUrl)),

@@ -35,6 +35,7 @@ export function ReleaseCard({ release, onOpenRelease }: ReleaseCardProps) {
         audioUrl: track.audioUrl,
         coverUrl: coverSrc,
         releaseId: release.id,
+        waveformData: track.waveformData || [],
       };
     })
     .filter((track): track is PlayerTrack => Boolean(track));

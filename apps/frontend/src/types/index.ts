@@ -60,6 +60,7 @@ export type HomeRelease = {
     id: string;
     title: string;
     audioUrl: string;
+    waveformData?: number[] | null;
   }>;
 };
 
@@ -77,6 +78,7 @@ export type HomeReleaseApi = {
   tracks: Array<{
     id: string;
     title: string;
+    waveformData?: number[] | null;
     audioFiles: AudioFile[];
   }>;
 };
