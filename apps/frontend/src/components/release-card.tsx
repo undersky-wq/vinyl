@@ -10,9 +10,10 @@ import { HomeRelease } from '../types';
 type ReleaseCardProps = {
   release: HomeRelease;
   onOpenRelease?: () => void;
+  priority?: boolean;
 };
 
-export function ReleaseCard({ release, onOpenRelease }: ReleaseCardProps) {
+export function ReleaseCard({ release, onOpenRelease, priority = false }: ReleaseCardProps) {
   const { requireAuth } = useAuth();
   const { playQueue } = usePlayerActions();
   const coverSrc =
@@ -58,7 +59,7 @@ export function ReleaseCard({ release, onOpenRelease }: ReleaseCardProps) {
           className="cover-link"
           onClick={onOpenRelease}
         >
-          <CoverArtwork src={coverSrc} alt={release.title} />
+          <CoverArtwork src={coverSrc} alt={release.title} priority={priority} />
         </Link>
 
         <div className="cover-overlay">

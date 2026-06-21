@@ -24,7 +24,7 @@ export function CoverArtwork({
 
   return (
     <div className={`cover-artwork${isLoaded ? ' is-loaded' : ''}${className ? ` ${className}` : ''}`}>
-      <div className="cover-artwork__ambient" style={{ backgroundImage: `url("${src}")` }} />
+      <div className="cover-artwork__ambient" />
       <div className="cover-artwork__tint" />
       <div className="cover-artwork__shimmer" />
       <Image

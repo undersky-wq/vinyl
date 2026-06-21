@@ -256,8 +256,13 @@ export function HomeReleaseGrid({
   return (
     <>
       <section className="release-grid">
-        {releases.map((release) => (
-          <ReleaseCard key={release.id} release={release} onOpenRelease={persistCurrentViewState} />
+        {releases.map((release, index) => (
+          <ReleaseCard
+            key={release.id}
+            release={release}
+            onOpenRelease={persistCurrentViewState}
+            priority={index < 4}
+          />
         ))}
       </section>
 
