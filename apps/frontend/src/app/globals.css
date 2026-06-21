@@ -871,7 +871,8 @@ textarea {
   z-index: 20;
   display: flex;
   align-items: baseline;
-  min-width: 190px;
+  width: max-content;
+  min-width: 0;
   max-width: min(280px, 70vw);
   gap: 5px;
   padding: 10px 12px;
