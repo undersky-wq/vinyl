@@ -1143,10 +1143,10 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
     }));
 
     try {
-      const updatedTrack = await updateTrackMetadata(trackId, patch);
+      const updatedTrack = await updateTrackMetadata(trackId, nextMeta);
       const savedMeta = {
-        bpm: 'bpm' in patch ? (updatedTrack.bpm ?? null) : (nextMeta.bpm ?? null),
-        key: 'key' in patch ? (updatedTrack.key ?? null) : (nextMeta.key ?? null),
+        bpm: updatedTrack.bpm ?? nextMeta.bpm ?? null,
+        key: updatedTrack.key ?? nextMeta.key ?? null,
       };
 
       setTrackMetaById((current) => ({
