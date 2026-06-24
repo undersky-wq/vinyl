@@ -1142,15 +1142,34 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
       [trackId]: nextMeta,
     }));
 
-    const updatedTrack = await updateTrackMetadata(trackId, nextMeta);
-    setTrackMetaById((current) => ({
-      ...current,
-      [trackId]: {
-        bpm: updatedTrack.bpm,
-        key: updatedTrack.key,
-      },
-    }));
-    router.refresh();
+    try {
+      const updatedTrack = await updateTrackMetadata(trackId, nextMeta);
+      setTrackMetaById((current) => ({
+        ...current,
+        [trackId]: {
+          bpm: updatedTrack.bpm,
+          key: updatedTrack.key,
+        },
+      }));
+      setTracks((current) =>
+        current.map((track) =>
+          track.id === trackId
+            ? {
+                ...track,
+                bpm: updatedTrack.bpm,
+                key: updatedTrack.key,
+              }
+            : track,
+        ),
+      );
+    } catch (error) {
+      setTrackMetaById((current) => ({
+        ...current,
+        [trackId]: currentMeta,
+      }));
+      window.alert(error instanceof Error ? error.message : 'Track metadata update failed');
+      throw error;
+    }
   }
 
   async function handleTrackTextSave(trackId: string, patch: { artist?: string; title?: string }) {
