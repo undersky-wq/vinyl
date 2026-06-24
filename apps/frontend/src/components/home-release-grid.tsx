@@ -21,6 +21,8 @@ type HomeViewState = {
 };
 
 const HOME_VIEW_STATE_KEY = 'vinyl-home-view-state';
+const HOME_SCROLL_STATE_KEY = 'vinyl-home-scroll-state';
+let homeViewStateMemory: HomeViewState | null = null;
 
 function uniqueByReleaseId(releases: HomeRelease[]) {
   const seen = new Set<string>();
@@ -41,6 +43,13 @@ function readHomeViewState(queryString: string) {
   }
 
   try {
+    if (homeViewStateMemory?.queryString === queryString) {
+      return {
+        ...homeViewStateMemory,
+        releases: uniqueByReleaseId(homeViewStateMemory.releases),
+      } satisfies HomeViewState;
+    }
+
     const rawState = window.sessionStorage.getItem(HOME_VIEW_STATE_KEY);
     if (!rawState) {
       return null;
@@ -62,15 +71,51 @@ function readHomeViewState(queryString: string) {
   }
 }
 
+function compactReleaseForStorage(release: HomeRelease): HomeRelease {
+  return {
+    ...release,
+    tracks: release.tracks.map((track) => ({
+      id: track.id,
+      title: track.title,
+      audioUrl: track.audioUrl,
+    })),
+  };
+}
+
 function writeHomeViewState(state: HomeViewState) {
   if (typeof window === 'undefined') {
     return;
   }
 
+  homeViewStateMemory = state;
+
   try {
-    window.sessionStorage.setItem(HOME_VIEW_STATE_KEY, JSON.stringify(state));
+    window.sessionStorage.setItem(
+      HOME_VIEW_STATE_KEY,
+      JSON.stringify({
+        ...state,
+        releases: state.releases.map(compactReleaseForStorage),
+      }),
+    );
+    window.sessionStorage.setItem(
+      HOME_SCROLL_STATE_KEY,
+      JSON.stringify({
+        queryString: state.queryString,
+        scrollY: state.scrollY,
+      }),
+    );
   } catch {
-    // If storage is blocked or full, home pagination still works normally.
+    try {
+      window.sessionStorage.setItem(
+        HOME_SCROLL_STATE_KEY,
+        JSON.stringify({
+          queryString: state.queryString,
+          scrollY: state.scrollY,
+        }),
+      );
+    } catch {
+      // If storage is blocked or full, home pagination still works normally.
+    }
   }
 }
 
@@ -115,7 +160,7 @@ export function HomeReleaseGrid({
       const isCloseEnough = Math.abs(window.scrollY - targetState.scrollY) < 8;
       const hasEnoughHeight = document.documentElement.scrollHeight >= targetState.scrollY + window.innerHeight;
 
-      if ((isCloseEnough && hasEnoughHeight) || attempts >= 24) {
+      if ((isCloseEnough && hasEnoughHeight) || attempts >= 60) {
         restoredViewStateRef.current = null;
         return;
       }
@@ -129,6 +174,19 @@ export function HomeReleaseGrid({
       if (frame) {
         window.cancelAnimationFrame(frame);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!('scrollRestoration' in window.history)) {
+      return;
+    }
+
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
     };
   }, []);
 

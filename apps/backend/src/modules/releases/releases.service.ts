@@ -910,7 +910,7 @@ export class ReleasesService {
         if ('bpm' in dto || 'key' in dto || 'artists' in dto) {
           delete data.title;
         } else {
-        throw new BadRequestException('Track title is required');
+          throw new BadRequestException('Track title is required');
         }
       } else {
         data.title = title;

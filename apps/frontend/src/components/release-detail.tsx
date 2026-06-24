@@ -1144,20 +1144,22 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
 
     try {
       const updatedTrack = await updateTrackMetadata(trackId, patch);
+      const savedMeta = {
+        bpm: 'bpm' in patch ? (updatedTrack.bpm ?? null) : (nextMeta.bpm ?? null),
+        key: 'key' in patch ? (updatedTrack.key ?? null) : (nextMeta.key ?? null),
+      };
+
       setTrackMetaById((current) => ({
         ...current,
-        [trackId]: {
-          bpm: updatedTrack.bpm,
-          key: updatedTrack.key,
-        },
+        [trackId]: savedMeta,
       }));
       setTracks((current) =>
         current.map((track) =>
           track.id === trackId
             ? {
                 ...track,
-                bpm: updatedTrack.bpm,
-                key: updatedTrack.key,
+                bpm: savedMeta.bpm,
+                key: savedMeta.key,
               }
             : track,
         ),
