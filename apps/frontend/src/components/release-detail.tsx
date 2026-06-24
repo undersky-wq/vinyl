@@ -1557,6 +1557,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                 <div className="track-row__meta-actions">
                   <div className="track-row__meta-edit track-row__meta-edit--inline">
                     <EditableTrackMeta
+                      key={`${track.id}-bpm`}
                       label="BPM"
                       value={trackMeta.bpm ? `${trackMeta.bpm} BPM` : null}
                       disabled={user?.role !== 'ADMIN'}
@@ -1568,6 +1569,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                       }}
                     />
                     <EditableTrackMeta
+                      key={`${track.id}-key`}
                       label="KEY"
                       value={trackMeta.key}
                       color={getKeyColor(trackMeta.key)}

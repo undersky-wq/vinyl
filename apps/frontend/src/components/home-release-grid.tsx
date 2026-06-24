@@ -20,6 +20,11 @@ type HomeViewState = {
   scrollY: number;
 };
 
+type HomeScrollState = {
+  queryString: string;
+  scrollY: number;
+};
+
 const HOME_VIEW_STATE_KEY = 'vinyl-home-view-state';
 const HOME_SCROLL_STATE_KEY = 'vinyl-home-scroll-state';
 let homeViewStateMemory: HomeViewState | null = null;
@@ -66,6 +71,31 @@ function readHomeViewState(queryString: string) {
       hasMore: Boolean(parsed.hasMore),
       scrollY: typeof parsed.scrollY === 'number' ? parsed.scrollY : 0,
     } satisfies HomeViewState;
+  } catch {
+    return null;
+  }
+}
+
+function readHomeScrollState(queryString: string) {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawState = window.sessionStorage.getItem(HOME_SCROLL_STATE_KEY);
+    if (!rawState) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawState) as Partial<HomeScrollState>;
+    if (parsed.queryString !== queryString || typeof parsed.scrollY !== 'number' || parsed.scrollY <= 0) {
+      return null;
+    }
+
+    return {
+      queryString,
+      scrollY: parsed.scrollY,
+    } satisfies HomeScrollState;
   } catch {
     return null;
   }
@@ -125,7 +155,21 @@ export function HomeReleaseGrid({
   lang,
   pageSize = 24,
 }: HomeReleaseGridProps) {
-  const restoredViewStateRef = useRef<HomeViewState | null>(readHomeViewState(queryString));
+  const restoredViewStateRef = useRef<HomeViewState | null>(
+    readHomeViewState(queryString) ||
+      (() => {
+        const scrollState = readHomeScrollState(queryString);
+        return scrollState
+          ? {
+              queryString,
+              releases: uniqueByReleaseId(initialReleases),
+              hasMore: initialReleases.length === pageSize,
+              scrollY: scrollState.scrollY,
+            }
+          : null;
+      })(),
+  );
+  const isRestoringScrollRef = useRef(Boolean(restoredViewStateRef.current?.scrollY));
   const [releases, setReleases] = useState(() => restoredViewStateRef.current?.releases || uniqueByReleaseId(initialReleases));
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(() => restoredViewStateRef.current?.hasMore ?? initialReleases.length === pageSize);
@@ -162,6 +206,7 @@ export function HomeReleaseGrid({
 
       if ((isCloseEnough && hasEnoughHeight) || attempts >= 60) {
         restoredViewStateRef.current = null;
+        isRestoringScrollRef.current = false;
         return;
       }
 
@@ -200,6 +245,10 @@ export function HomeReleaseGrid({
   }, [hasMore, queryString, releases]);
 
   useEffect(() => {
+    if (isRestoringScrollRef.current) {
+      return;
+    }
+
     writeHomeViewState({
       queryString,
       releases,
@@ -218,6 +267,10 @@ export function HomeReleaseGrid({
 
       frame = window.requestAnimationFrame(() => {
         frame = 0;
+        if (isRestoringScrollRef.current) {
+          return;
+        }
+
         writeHomeViewState({
           queryString,
           releases,
