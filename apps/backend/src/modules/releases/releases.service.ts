@@ -907,10 +907,14 @@ export class ReleasesService {
     if ('title' in dto) {
       const title = dto.title?.trim();
       if (!title) {
+        if ('bpm' in dto || 'key' in dto || 'artists' in dto) {
+          delete data.title;
+        } else {
         throw new BadRequestException('Track title is required');
+        }
+      } else {
+        data.title = title;
       }
-
-      data.title = title;
     }
 
     if ('artists' in dto) {

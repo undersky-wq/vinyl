@@ -1143,7 +1143,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
     }));
 
     try {
-      const updatedTrack = await updateTrackMetadata(trackId, nextMeta);
+      const updatedTrack = await updateTrackMetadata(trackId, patch);
       setTrackMetaById((current) => ({
         ...current,
         [trackId]: {
