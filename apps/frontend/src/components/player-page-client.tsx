@@ -6,7 +6,7 @@ import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { getReleaseTimelineComments } from '../lib/api';
 import { SiteLang } from '../lib/language';
-import { buildFallbackWaveform } from '../lib/waveform';
+import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
 import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
@@ -57,6 +57,14 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   const previousTrackIdRef = useRef(currentTrackId);
   const isTrackSwitching =
     Boolean(currentTrackId) && Boolean(previousTrackIdRef.current) && previousTrackIdRef.current !== currentTrackId;
+  const sourcePeaks = currentTrack?.waveformData?.length
+    ? currentTrack.waveformData
+    : buildFallbackWaveform(currentTrackId || 'fallback', 160);
+  const { ref: waveformRef, peaks } = useResponsiveWaveform(sourcePeaks, {
+    minBars: 72,
+    maxBars: 160,
+    pixelsPerBar: 5,
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -112,7 +120,6 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     );
   }
 
-  const peaks = (currentTrack.waveformData?.length ? currentTrack.waveformData : buildFallbackWaveform(currentTrack.id)).slice(0, 160);
   const displayedProgress = dragProgress ?? (isTrackSwitching ? 0 : progress);
   const visibleQueue = displayQueue.length ? displayQueue : queue;
 
@@ -212,6 +219,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         <span>{formatTime(currentTime)}</span>
         <button
           type="button"
+          ref={waveformRef}
           className={`player-page__waveform${dragProgress !== null ? ' dragging' : ''}`}
           onPointerDown={(event) => {
             event.currentTarget.setPointerCapture(event.pointerId);
