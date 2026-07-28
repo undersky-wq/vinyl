@@ -714,6 +714,25 @@ textarea {
   cursor: pointer;
 }
 
+.mix-share-sheet__toast {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  z-index: 4;
+  width: max-content;
+  max-width: calc(100% - 40px);
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(36, 36, 36, 0.96);
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateX(-50%);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.46);
+  pointer-events: none;
+}
+
 .mix-share-sheet__send-to,
 .mix-share-sheet__mobile-title,
 .mix-share-sheet__mobile-actions {
@@ -3627,6 +3646,35 @@ textarea {
   box-shadow: none;
 }
 
+.profile-action-button--switch {
+  justify-content: space-between;
+  min-width: 230px;
+  padding-right: 12px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.profile-action-button--switch strong {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.profile-action-button--switch.active strong {
+  background: rgba(181, 120, 255, 0.2);
+  color: var(--player-accent);
+}
+
 .profile-users-panel {
   display: grid;
   gap: 18px;
@@ -5283,6 +5331,164 @@ textarea {
   .profile-user-stats {
     grid-column: 1 / -1;
     justify-content: flex-start;
+  }
+
+  .profile-grid {
+    gap: 14px;
+    padding-bottom: 120px;
+  }
+
+  .profile-panel {
+    width: 100%;
+    padding: 18px;
+    border-radius: 28px;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+      rgba(18, 18, 18, 0.92);
+  }
+
+  .profile-hero {
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .profile-avatar {
+    width: 76px;
+    height: 76px;
+    font-size: 1.8rem;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.26);
+  }
+
+  .profile-title {
+    margin: 4px 0 6px;
+    font-size: 1.7rem;
+    line-height: 1;
+  }
+
+  .profile-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .profile-stats .stat-card {
+    min-width: 0;
+    gap: 4px;
+    padding: 12px 10px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  .profile-stats .stat-card span {
+    overflow: hidden;
+    font-size: 0.68rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .profile-stats .stat-card strong {
+    color: var(--text);
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+
+  .profile-actions {
+    display: grid;
+    gap: 9px;
+    margin-top: 16px;
+  }
+
+  .profile-action-button {
+    width: 100%;
+    min-height: 50px;
+    justify-content: flex-start;
+    padding: 0 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--text);
+    font-size: 0.92rem;
+  }
+
+  .profile-action-button:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .profile-action-button--switch {
+    min-width: 0;
+    justify-content: space-between;
+  }
+
+  .profile-users-panel {
+    gap: 14px;
+  }
+
+  .profile-users-header {
+    align-items: center;
+  }
+
+  .profile-users-header h2 {
+    font-size: 1.05rem;
+    line-height: 1.12;
+  }
+
+  .profile-users-list {
+    gap: 8px;
+  }
+
+  .profile-user-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px;
+    border-radius: 18px;
+  }
+
+  .profile-user-avatar {
+    width: 42px;
+    height: 42px;
+  }
+
+  .profile-user-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .profile-user-stats span {
+    min-width: 0;
+    padding: 7px 6px;
+    border-radius: 12px;
+  }
+
+  .profile-user-stats em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .admin-mobile-edit-off .release-cover-upload,
+  .admin-mobile-edit-off .release-delete-button,
+  .admin-mobile-edit-off .release-style-form,
+  .admin-mobile-edit-off .release-track-form,
+  .admin-mobile-edit-off .track-row .track-upload-button--icon,
+  .admin-mobile-edit-off .track-row .track-icon-button--danger,
+  .admin-mobile-edit-off .track-row__meta-edit,
+  .admin-mobile-edit-off .track-row__meta-edit--inline,
+  .admin-mobile-edit-off .mix-admin-panel,
+  .admin-mobile-edit-off .mix-card__admin-actions,
+  .admin-mobile-edit-off .mix-card__edit {
+    display: none !important;
+  }
+
+  .admin-mobile-edit-off .tag-pill--editable {
+    pointer-events: none;
+  }
+
+  .admin-mobile-edit-off .tag-pill--editable svg {
+    display: none;
+  }
+
+  .admin-mobile-edit-off .track-text-edit {
+    cursor: default;
+    pointer-events: none;
   }
 
   .library-toolbar__filters {

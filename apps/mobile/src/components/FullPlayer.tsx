@@ -17,7 +17,7 @@ import {
   TextStyle,
   View,
 } from 'react-native';
-import { ChevronDown, Heart, ListMusic, ListPlus, MessageCircle, Pause, Pencil, Play, Repeat, Shuffle, SkipBack, SkipForward, Trash2 } from 'lucide-react-native';
+import { Heart, ListMusic, ListPlus, MessageCircle, Pause, Pencil, Play, Repeat, Shuffle, SkipBack, SkipForward, Trash2 } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
 import { colors, radius, spacing } from '../theme';
 import { AuthUser, PlayerTrack, Playlist, TimelineComment } from '../types';
@@ -61,8 +61,13 @@ function formatMs(value: number) {
   }
 
   const totalSeconds = Math.floor(value / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
 
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
@@ -591,10 +596,6 @@ export function FullPlayer({
         <Image source={{ uri: track.coverUrl }} style={styles.ambient} blurRadius={26} />
         <View style={styles.overlay} />
 
-        <Pressable style={styles.closeButton} onPress={onClose}>
-          <ChevronDown size={22} color="#ffffff" strokeWidth={2.8} />
-        </Pressable>
-
         <KeyboardAvoidingView
           style={styles.content}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -975,29 +976,13 @@ const styles = StyleSheet.create({
     inset: 0,
     backgroundColor: 'rgba(10,10,10,0.82)',
   },
-  closeButton: {
-    position: 'absolute',
-    top: Math.max((StatusBar.currentHeight || 0) + 12, 42),
-    right: spacing.md,
-    zIndex: 4,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-  },
   content: {
     flex: 1,
     justifyContent: 'center',
     gap: 24,
     paddingHorizontal: spacing.lg,
-    paddingTop: 118,
-    paddingBottom: spacing.lg,
+    paddingTop: Math.max((StatusBar.currentHeight || 0) + 28, 54),
+    paddingBottom: 42,
   },
   cover: {
     width: '100%',
@@ -1096,7 +1081,7 @@ const styles = StyleSheet.create({
   commentTip: {
     position: 'absolute',
     bottom: 32,
-    minWidth: 128,
+    alignSelf: 'flex-start',
     maxWidth: 270,
     paddingVertical: 8,
     paddingHorizontal: 12,

@@ -1,7 +1,7 @@
 'use client';
 
 import { Copy, Image as ImageIcon, Instagram, MessageCircle, Send, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Release } from '../types';
 
 type MixShareSheetProps = {
@@ -168,10 +168,20 @@ async function createStoryFile(release: Release, coverUrl: string, url: string) 
 export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShareSheetProps) {
   const [backgroundIndex, setBackgroundIndex] = useState(0);
   const [isSharingStory, setIsSharingStory] = useState(false);
+  const [copyToast, setCopyToast] = useState('');
   const [dragY, setDragY] = useState(0);
   const dragStartYRef = useRef<number | null>(null);
   const dragYRef = useRef(0);
   const didDragRef = useRef(false);
+  const copyToastTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyToastTimerRef.current) {
+        window.clearTimeout(copyToastTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!isOpen) {
     return null;
@@ -197,6 +207,24 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
     await onCopy();
   }
 
+  async function handleCopyOnly() {
+    try {
+      await onCopy();
+      setCopyToast(document.documentElement.lang === 'ru' ? 'Ссылка скопирована' : 'Link copied');
+    } catch {
+      setCopyToast(document.documentElement.lang === 'ru' ? 'Не удалось скопировать' : 'Copy failed');
+    }
+
+    if (copyToastTimerRef.current) {
+      window.clearTimeout(copyToastTimerRef.current);
+    }
+
+    copyToastTimerRef.current = window.setTimeout(() => {
+      setCopyToast('');
+      copyToastTimerRef.current = null;
+    }, 1600);
+  }
+
   async function handleStoryShare() {
     setIsSharingStory(true);
     try {
@@ -218,7 +246,7 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
         return;
       }
 
-      await onCopy();
+      await handleCopyOnly();
     } catch {
       await handleNativeShare();
     } finally {
@@ -374,7 +402,7 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
             <Send size={22} />
             Message
           </button>
-          <button type="button" onPointerDown={stopButtonPointer} onClick={() => void onCopy()}>
+          <button type="button" onPointerDown={stopButtonPointer} onClick={() => void handleCopyOnly()}>
             <Copy size={22} />
             Copy Link
           </button>
@@ -398,7 +426,7 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
         </div>
 
         <div className="mix-share-sheet__actions">
-          <button type="button" onPointerDown={stopButtonPointer} onClick={() => void onCopy()}>
+          <button type="button" onPointerDown={stopButtonPointer} onClick={() => void handleCopyOnly()}>
             <Copy size={18} />
             Copy link
           </button>
@@ -407,6 +435,7 @@ export function MixShareSheet({ release, url, isOpen, onClose, onCopy }: MixShar
             Share
           </button>
         </div>
+        {copyToast ? <div className="mix-share-sheet__toast">{copyToast}</div> : null}
       </div>
     </div>
   );

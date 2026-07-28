@@ -18,6 +18,11 @@ import {
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { AuthUser, UserProfile } from '../types';
+import {
+  ADMIN_EDIT_MODE_EVENT,
+  ADMIN_EDIT_MODE_STORAGE_KEY,
+  setAdminEditModeClass,
+} from './admin-edit-mode-sync';
 
 function getUserInitial(user: UserProfile) {
   return (user.displayName || user.email || '?').slice(0, 1).toUpperCase();
@@ -60,9 +65,17 @@ export function ProfileScreen({
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(
     activeUser.avatarStorageUrl || null,
   );
+  const [isAdminEditModeEnabled, setIsAdminEditModeEnabled] = useState(true);
   const discogsProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const waveformProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const normalizeProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const storedValue = window.localStorage.getItem(ADMIN_EDIT_MODE_STORAGE_KEY);
+    const enabled = storedValue !== 'off';
+    setIsAdminEditModeEnabled(enabled);
+    setAdminEditModeClass(enabled);
+  }, []);
 
   useEffect(() => {
     if (avatarPreviewUrl?.startsWith('blob:')) {
@@ -321,6 +334,14 @@ export function ProfileScreen({
     router.refresh();
   }
 
+  function handleAdminEditModeToggle() {
+    const nextValue = !isAdminEditModeEnabled;
+    setIsAdminEditModeEnabled(nextValue);
+    window.localStorage.setItem(ADMIN_EDIT_MODE_STORAGE_KEY, nextValue ? 'on' : 'off');
+    setAdminEditModeClass(nextValue);
+    window.dispatchEvent(new Event(ADMIN_EDIT_MODE_EVENT));
+  }
+
   return (
     <section className="profile-grid">
       <article className="release-panel profile-panel">
@@ -416,6 +437,17 @@ export function ProfileScreen({
                       ? 'Подготовить MP3'
                       : 'Prepare MP3'}
                 </span>
+              </button>
+
+              <button
+                type="button"
+                className={`profile-action-button profile-action-button--switch${isAdminEditModeEnabled ? ' active' : ''}`}
+                onClick={handleAdminEditModeToggle}
+              >
+                <span className="profile-action-button__label">
+                  {lang === 'ru' ? 'Редактирование с телефона' : 'Mobile editing'}
+                </span>
+                <strong>{isAdminEditModeEnabled ? 'ON' : 'OFF'}</strong>
               </button>
 
             </>

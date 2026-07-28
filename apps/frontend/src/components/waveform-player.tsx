@@ -11,6 +11,23 @@ type WaveformPlayerProps = {
   tracks: PlayerTrack[];
 };
 
+function formatWaveformTime(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0:00';
+  }
+
+  const totalSeconds = Math.floor(value);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
 export function WaveformPlayer({ lang, tracks }: WaveformPlayerProps) {
   const {
     currentTrack,
@@ -189,12 +206,8 @@ export function WaveformPlayer({ lang, tracks }: WaveformPlayerProps) {
       </div>
 
       <div className="waveform-time muted">
-        <span>
-          {Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}
-        </span>
-        <span>
-          {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
-        </span>
+        <span>{formatWaveformTime(currentTime)}</span>
+        <span>{formatWaveformTime(duration)}</span>
       </div>
     </div>
   );

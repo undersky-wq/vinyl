@@ -113,15 +113,24 @@ function formatDuration(durationRaw?: string | null, durationSec?: number | null
     return '';
   }
 
-  const minutes = Math.floor(durationSec / 60);
-  const seconds = durationSec % 60;
+  const totalSeconds = Math.floor(durationSec);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function formatCommentTime(second: number) {
   const safeSecond = Math.max(0, Math.floor(second));
-  const minutes = Math.floor(safeSecond / 60);
+  const hours = Math.floor(safeSecond / 3600);
+  const minutes = Math.floor((safeSecond % 3600) / 60);
   const seconds = safeSecond % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 

@@ -2,6 +2,7 @@ import './globals.css';
 import { cookies } from 'next/headers';
 import { MobileNav } from '../components/mobile-nav';
 import { PlayerChrome } from '../components/player-chrome';
+import { AdminEditModeSync } from '../components/admin-edit-mode-sync';
 import { getCurrentUser, getFavorites } from '../lib/api';
 import { PlayerProvider } from '../providers/player-provider';
 import { AuthProvider } from '../providers/auth-provider';
@@ -27,6 +28,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang={lang}>
       <body>
+        <AdminEditModeSync />
         <AuthProvider initialUser={currentUser}>
           <FavoritesProvider initialFavoriteTrackIds={favoriteTrackIds}>
             <PlaylistsProvider>
