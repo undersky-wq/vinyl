@@ -54,10 +54,36 @@ export type Playlist = {
 
 export type AuthUser = {
   id: string;
-  email: string;
+  email: string | null;
   displayName: string;
+  discogsUsername?: string | null;
   role: 'USER' | 'ADMIN';
+  avatarStorageKey?: string | null;
   avatarStorageUrl?: string | null;
+  createdAt?: string;
+};
+
+export type ProfileStats = {
+  releasesCount: number;
+  tracksCount: number;
+  playlistsCount: number;
+};
+
+export type UserProfile = {
+  id: string;
+  email: string | null;
+  displayName: string;
+  discogsUsername: string | null;
+  role: 'USER' | 'ADMIN';
+  avatarStorageKey?: string | null;
+  avatarStorageUrl?: string | null;
+  createdAt: string;
+  _count: {
+    collectionItems: number;
+    playlists: number;
+    audioFiles: number;
+    favoriteTracks: number;
+  };
 };
 
 export type PlayerTrack = {
@@ -72,6 +98,7 @@ export type PlayerTrack = {
   durationSec?: number | null;
   waveformData?: number[] | null;
   isPublic?: boolean;
+  isMix?: boolean;
 };
 
 export type TimelineComment = {

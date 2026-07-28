@@ -3,22 +3,30 @@ import {
   Animated,
   Easing,
   Image,
+  KeyboardAvoidingView,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StatusBar,
   StyleProp,
   StyleSheet,
   Text,
+  TextInput,
   TextStyle,
   View,
 } from 'react-native';
-import { ChevronDown, Heart, ListMusic, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from 'lucide-react-native';
+import { ChevronDown, Heart, ListMusic, ListPlus, MessageCircle, Pause, Pencil, Play, Repeat, Shuffle, SkipBack, SkipForward, Trash2 } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
 import { colors, radius, spacing } from '../theme';
-import { PlayerTrack, TimelineComment } from '../types';
-import { getReleaseTimelineComments } from '../lib/api';
+import { AuthUser, PlayerTrack, Playlist, TimelineComment } from '../types';
+import {
+  createReleaseTimelineComment,
+  deleteReleaseTimelineComment,
+  getReleaseTimelineComments,
+  updateReleaseTimelineComment,
+} from '../lib/api';
 
 type FullPlayerProps = {
   track: PlayerTrack | null;
@@ -27,6 +35,7 @@ type FullPlayerProps = {
   isFavorite: boolean;
   positionMs: number;
   durationMs: number;
+  currentUser: AuthUser | null;
   onClose: () => void;
   onToggle: () => void;
   onFavorite: () => void;
@@ -35,7 +44,10 @@ type FullPlayerProps = {
   onSeek: (ratio: number, resumeAfterSeek?: boolean) => void;
   queue: PlayerTrack[];
   queuePreview?: PlayerTrack[];
+  playlists: Playlist[];
   onSelectQueueTrack: (track: PlayerTrack) => void;
+  onPlaylistToggle: (playlist: Playlist, trackId: string) => Promise<void>;
+  onCreatePlaylist: (name: string, trackId: string) => Promise<Playlist>;
   isShuffleEnabled: boolean;
   isRepeatEnabled: boolean;
   onToggleShuffle: () => void;
@@ -173,6 +185,36 @@ function MarqueeText({
   );
 }
 
+function WaveformCommentTip({ comment }: { comment: TimelineComment }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 360,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 360,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, translateY]);
+
+  return (
+    <Animated.View style={[styles.commentTip, { opacity, transform: [{ translateY }] }]}>
+      <Text numberOfLines={3} style={styles.commentTipText}>
+        {comment.text}
+      </Text>
+    </Animated.View>
+  );
+}
+
 export function FullPlayer({
   track,
   visible,
@@ -180,6 +222,7 @@ export function FullPlayer({
   isFavorite,
   positionMs,
   durationMs,
+  currentUser,
   onClose,
   onToggle,
   onFavorite,
@@ -188,7 +231,10 @@ export function FullPlayer({
   onSeek,
   queue,
   queuePreview,
+  playlists,
   onSelectQueueTrack,
+  onPlaylistToggle,
+  onCreatePlaylist,
   isShuffleEnabled,
   isRepeatEnabled,
   onToggleShuffle,
@@ -199,8 +245,18 @@ export function FullPlayer({
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [isPlaylistSheetOpen, setIsPlaylistSheetOpen] = useState(false);
+  const [isCommentsSheetOpen, setIsCommentsSheetOpen] = useState(false);
+  const [playlistName, setPlaylistName] = useState('');
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const [activeComment, setActiveComment] = useState<TimelineComment | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [isSavingComment, setIsSavingComment] = useState(false);
+  const coverScale = useRef(new Animated.Value(isPlaying ? 1 : 0.85)).current;
+  const sheetTranslateY = useRef(new Animated.Value(0)).current;
+  const sheetScrollYRef = useRef(0);
   const waveformTouchRef = useRef<View>(null);
   const waveformLeftRef = useRef(0);
   const dragProgressRef = useRef<number | null>(null);
@@ -210,11 +266,129 @@ export function FullPlayer({
   const visibleProgress = dragProgress ?? progress;
   const visiblePositionMs =
     dragProgress !== null && durationMs > 0 ? Math.round(durationMs * dragProgress) : positionMs;
+  useEffect(() => {
+    Animated.timing(coverScale, {
+      toValue: isPlaying ? 1 : 0.85,
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [coverScale, isPlaying]);
+
+  useEffect(() => {
+    if (isQueueOpen || isPlaylistSheetOpen || isCommentsSheetOpen) {
+      sheetTranslateY.setValue(0);
+      sheetScrollYRef.current = 0;
+    }
+  }, [isCommentsSheetOpen, isPlaylistSheetOpen, isQueueOpen, sheetTranslateY]);
+
+  function closeOpenSheet() {
+    setIsQueueOpen(false);
+    setIsPlaylistSheetOpen(false);
+    setIsCommentsSheetOpen(false);
+    setPlaylistName('');
+  }
+
+  const sheetPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          gesture.dy > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderGrant: () => {
+          sheetTranslateY.setValue(0);
+        },
+        onPanResponderMove: (_event, gesture) => {
+          sheetTranslateY.setValue(Math.max(0, gesture.dy));
+        },
+        onPanResponderRelease: (_event, gesture) => {
+          if (gesture.dy > 72 || gesture.vy > 0.9) {
+            Animated.timing(sheetTranslateY, {
+              toValue: 520,
+              duration: 180,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }).start(closeOpenSheet);
+            return;
+          }
+
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 18,
+            stiffness: 180,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 18,
+            stiffness: 180,
+          }).start();
+        },
+      }),
+    [sheetTranslateY],
+  );
+
+  const sheetContentPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          sheetScrollYRef.current <= 1 &&
+          gesture.dy > 12 &&
+          Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2,
+        onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+          sheetScrollYRef.current <= 1 &&
+          gesture.dy > 12 &&
+          Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2,
+        onPanResponderGrant: () => {
+          sheetTranslateY.setValue(0);
+        },
+        onPanResponderMove: (_event, gesture) => {
+          sheetTranslateY.setValue(Math.max(0, gesture.dy));
+        },
+        onPanResponderRelease: (_event, gesture) => {
+          if (gesture.dy > 72 || gesture.vy > 0.9) {
+            Animated.timing(sheetTranslateY, {
+              toValue: 520,
+              duration: 180,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }).start(closeOpenSheet);
+            return;
+          }
+
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 18,
+            stiffness: 180,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 18,
+            stiffness: 180,
+          }).start();
+        },
+      }),
+    [sheetTranslateY],
+  );
+
+  function handleSheetScroll(event: any) {
+    sheetScrollYRef.current = event.nativeEvent.contentOffset.y;
+  }
 
   useEffect(() => {
     if (!track?.releaseId) {
       setComments([]);
       setActiveComment(null);
+      setCommentText('');
+      setEditingCommentId(null);
       return;
     }
 
@@ -290,6 +464,89 @@ export function FullPlayer({
     setIsSeeking(false);
   }
 
+  async function handlePlaylistToggle(playlist: Playlist) {
+    if (!track) {
+      return;
+    }
+
+    await onPlaylistToggle(playlist, track.id);
+  }
+
+  async function handleCreatePlaylist() {
+    if (!track || !playlistName.trim() || isCreatingPlaylist) {
+      return;
+    }
+
+    setIsCreatingPlaylist(true);
+    try {
+      await onCreatePlaylist(playlistName.trim(), track.id);
+      setPlaylistName('');
+    } finally {
+      setIsCreatingPlaylist(false);
+    }
+  }
+
+  function startEditComment(comment: TimelineComment) {
+    setEditingCommentId(comment.id);
+    setCommentText(comment.text);
+    setActiveComment(comment);
+    setIsCommentsSheetOpen(false);
+  }
+
+  function resetCommentEditor() {
+    setEditingCommentId(null);
+    setCommentText('');
+  }
+
+  async function saveTimelineComment() {
+    if (!track?.releaseId || !track.isMix || !commentText.trim() || isSavingComment) {
+      return;
+    }
+
+    setIsSavingComment(true);
+    try {
+      if (editingCommentId) {
+        const updatedComment = await updateReleaseTimelineComment(track.releaseId, editingCommentId, {
+          text: commentText.trim(),
+        });
+        setComments((current) =>
+          current.map((comment) => (comment.id === updatedComment.id ? updatedComment : comment)),
+        );
+        setActiveComment(updatedComment);
+      } else {
+        const createdComment = await createReleaseTimelineComment(track.releaseId, {
+          second: Math.max(0, Math.round(visiblePositionMs / 1000)),
+          text: commentText.trim(),
+        });
+        setComments((current) => [...current, createdComment].sort((a, b) => a.second - b.second));
+        setActiveComment(createdComment);
+      }
+      resetCommentEditor();
+    } finally {
+      setIsSavingComment(false);
+    }
+  }
+
+  async function deleteTimelineComment(comment: TimelineComment) {
+    if (!track?.releaseId || isSavingComment) {
+      return;
+    }
+
+    setIsSavingComment(true);
+    try {
+      await deleteReleaseTimelineComment(track.releaseId, comment.id);
+      setComments((current) => current.filter((item) => item.id !== comment.id));
+      if (activeComment?.id === comment.id) {
+        setActiveComment(null);
+      }
+      if (editingCommentId === comment.id) {
+        resetCommentEditor();
+      }
+    } finally {
+      setIsSavingComment(false);
+    }
+  }
+
   const waveformPanResponder = useMemo(
     () =>
       PanResponder.create({
@@ -324,7 +581,12 @@ export function FullPlayer({
   const visibleQueue = queuePreview?.length ? queuePreview : queue;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
+    >
       <View style={styles.screen}>
         <Image source={{ uri: track.coverUrl }} style={styles.ambient} blurRadius={26} />
         <View style={styles.overlay} />
@@ -333,13 +595,20 @@ export function FullPlayer({
           <ChevronDown size={22} color="#ffffff" strokeWidth={2.8} />
         </Pressable>
 
-        <View style={styles.content}>
+        <KeyboardAvoidingView
+          style={styles.content}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
           <Pressable
             style={styles.coverButton}
             onPress={onOpenRelease}
             disabled={!onOpenRelease || !track.releaseId}
           >
-            <Image source={{ uri: track.coverUrl }} style={styles.cover} />
+            <Animated.Image
+              source={{ uri: track.coverUrl }}
+              style={[styles.cover, { transform: [{ scale: coverScale }] }]}
+            />
           </Pressable>
 
           <View style={styles.meta}>
@@ -395,14 +664,7 @@ export function FullPlayer({
                           ) : (
                             <Text style={styles.commentInitial}>{getAvatarInitial(comment.user.displayName)}</Text>
                           )}
-                          {active ? (
-                            <View style={styles.commentTip}>
-                              <Text numberOfLines={2} style={styles.commentTipText}>
-                                <Text style={styles.commentTipName}>{comment.user.displayName}: </Text>
-                                {comment.text}
-                              </Text>
-                            </View>
-                          ) : null}
+                          {active ? <WaveformCommentTip comment={comment} /> : null}
                         </View>
                       );
                     })
@@ -415,6 +677,35 @@ export function FullPlayer({
               <Text style={styles.time}>{track.durationRaw || formatMs(durationMs)}</Text>
             </View>
           </View>
+
+          {track.isMix ? (
+            <View style={styles.commentComposer}>
+              <TextInput
+                value={commentText}
+                onChangeText={setCommentText}
+                placeholder={editingCommentId ? 'Edit comment' : `Comment at ${formatMs(visiblePositionMs)}`}
+                placeholderTextColor={colors.muted}
+                style={styles.commentInput}
+                returnKeyType="done"
+                onSubmitEditing={() => void saveTimelineComment()}
+              />
+              {editingCommentId ? (
+                <Pressable style={styles.commentIconButton} onPress={resetCommentEditor}>
+                  <Text style={styles.commentCancelText}>×</Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                style={[
+                  styles.commentSaveButton,
+                  (!commentText.trim() || isSavingComment) && styles.disabledButton,
+                ]}
+                disabled={!commentText.trim() || isSavingComment}
+                onPress={() => void saveTimelineComment()}
+              >
+                <Text style={styles.commentSaveText}>{editingCommentId ? 'Save' : '+'}</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           <View style={styles.controls}>
             <Pressable style={styles.iconButton} onPress={onToggleShuffle}>
@@ -450,19 +741,61 @@ export function FullPlayer({
                 fill={isFavorite ? colors.accent : 'none'}
               />
             </Pressable>
-            <Pressable style={styles.iconButton} onPress={() => setIsQueueOpen((current) => !current)}>
+            {track.isMix ? (
+              <Pressable
+                style={styles.iconButton}
+                onPress={() => {
+                  setIsQueueOpen(false);
+                  setIsPlaylistSheetOpen(false);
+                  setIsCommentsSheetOpen((current) => !current);
+                }}
+              >
+                <MessageCircle
+                  size={22}
+                  color={isCommentsSheetOpen || comments.length ? colors.accent : colors.muted}
+                  strokeWidth={2.4}
+                />
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={styles.iconButton}
+              onPress={() => {
+                setIsQueueOpen(false);
+                setIsCommentsSheetOpen(false);
+                setIsPlaylistSheetOpen((current) => !current);
+              }}
+            >
+              <ListPlus size={22} color={isPlaylistSheetOpen ? colors.accent : colors.muted} strokeWidth={2.4} />
+            </Pressable>
+            <Pressable
+              style={styles.iconButton}
+              onPress={() => {
+                setIsPlaylistSheetOpen(false);
+                setIsCommentsSheetOpen(false);
+                setIsQueueOpen((current) => !current);
+              }}
+            >
               <ListMusic size={22} color={isQueueOpen ? colors.accent : colors.muted} strokeWidth={2.4} />
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
 
         {isQueueOpen ? (
           <View style={styles.queueLayer}>
             <Pressable style={styles.queueBackdrop} onPress={() => setIsQueueOpen(false)} />
-            <View style={styles.queueSheet}>
-              <View style={styles.queueHandle} />
-              <Text style={styles.queueHeading}>Up next</Text>
-              <ScrollView style={styles.queue}>
+            <Animated.View
+              style={[styles.queueSheet, { transform: [{ translateY: sheetTranslateY }] }]}
+            >
+              <View style={styles.sheetDragZone} {...sheetPanResponder.panHandlers}>
+                <View style={styles.queueHandle} />
+                <Text style={styles.queueHeading}>Up next</Text>
+              </View>
+              <ScrollView
+                style={styles.queue}
+                scrollEventThrottle={16}
+                onScroll={handleSheetScroll}
+                {...sheetContentPanResponder.panHandlers}
+              >
                 {visibleQueue.map((queueTrack, index) => {
                   const active = queueTrack.id === track.id;
                   return (
@@ -487,7 +820,137 @@ export function FullPlayer({
                   );
                 })}
               </ScrollView>
-            </View>
+            </Animated.View>
+          </View>
+        ) : null}
+
+        {isPlaylistSheetOpen ? (
+          <View style={styles.queueLayer}>
+            <Pressable
+              style={styles.queueBackdrop}
+              onPress={() => {
+                setIsPlaylistSheetOpen(false);
+                setPlaylistName('');
+              }}
+            />
+            <Animated.View
+              style={[styles.queueSheet, { transform: [{ translateY: sheetTranslateY }] }]}
+            >
+              <View style={styles.sheetDragZone} {...sheetPanResponder.panHandlers}>
+                <View style={styles.queueHandle} />
+                <Text style={styles.queueHeading}>Playlists</Text>
+              </View>
+              <View style={styles.playlistCreateRow}>
+                <TextInput
+                  value={playlistName}
+                  onChangeText={setPlaylistName}
+                  placeholder="New playlist"
+                  placeholderTextColor={colors.muted}
+                  style={styles.playlistCreateInput}
+                  autoCapitalize="sentences"
+                  returnKeyType="done"
+                  onSubmitEditing={() => void handleCreatePlaylist()}
+                />
+                <Pressable
+                  style={[
+                    styles.playlistCreateButton,
+                    (!playlistName.trim() || isCreatingPlaylist) && styles.disabledButton,
+                  ]}
+                  disabled={!playlistName.trim() || isCreatingPlaylist}
+                  onPress={() => void handleCreatePlaylist()}
+                >
+                  <Text style={styles.playlistCreateButtonText}>+</Text>
+                </Pressable>
+              </View>
+              <ScrollView
+                style={styles.queue}
+                scrollEventThrottle={16}
+                onScroll={handleSheetScroll}
+                {...sheetContentPanResponder.panHandlers}
+              >
+                {playlists.length ? (
+                  playlists.map((playlist) => {
+                    const active = playlist.items.some((item) => item.track.id === track.id);
+
+                    return (
+                      <Pressable
+                        key={playlist.id}
+                        style={[styles.playlistMenuItem, active && styles.playlistMenuItemActive]}
+                        onPress={() => void handlePlaylistToggle(playlist)}
+                      >
+                        <Text style={[styles.playlistMenuText, active && styles.playlistMenuTextActive]}>
+                          {playlist.name}
+                        </Text>
+                        <Text style={styles.playlistMenuCount}>{playlist.items.length}</Text>
+                      </Pressable>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.playlistMenuEmpty}>No playlists yet</Text>
+                )}
+              </ScrollView>
+            </Animated.View>
+          </View>
+        ) : null}
+
+        {isCommentsSheetOpen ? (
+          <View style={styles.queueLayer}>
+            <Pressable style={styles.queueBackdrop} onPress={() => setIsCommentsSheetOpen(false)} />
+            <Animated.View
+              style={[styles.queueSheet, { transform: [{ translateY: sheetTranslateY }] }]}
+            >
+              <View style={styles.sheetDragZone} {...sheetPanResponder.panHandlers}>
+                <View style={styles.queueHandle} />
+                <Text style={styles.queueHeading}>Comments</Text>
+              </View>
+              <ScrollView
+                style={styles.queue}
+                scrollEventThrottle={16}
+                onScroll={handleSheetScroll}
+                {...sheetContentPanResponder.panHandlers}
+              >
+                {comments.length ? (
+                  comments.map((comment) => {
+                    const canEdit =
+                      Boolean(currentUser) &&
+                      (currentUser?.role === 'ADMIN' || comment.userId === currentUser?.id);
+
+                    return (
+                      <View key={comment.id} style={styles.commentSheetRow}>
+                        {comment.user.avatarStorageUrl ? (
+                          <Image source={{ uri: comment.user.avatarStorageUrl }} style={styles.commentSheetAvatar} />
+                        ) : (
+                          <View style={styles.commentSheetAvatarFallback}>
+                            <Text style={styles.commentSheetInitial}>{getAvatarInitial(comment.user.displayName)}</Text>
+                          </View>
+                        )}
+                        <View style={styles.commentSheetBody}>
+                          <View style={styles.commentSheetMeta}>
+                            <Text numberOfLines={1} style={styles.commentSheetName}>
+                              {comment.user.displayName}
+                            </Text>
+                            <Text style={styles.commentSheetTime}>{formatMs(comment.second * 1000)}</Text>
+                          </View>
+                          <Text style={styles.commentSheetText}>{comment.text}</Text>
+                        </View>
+                        {canEdit ? (
+                          <View style={styles.commentSheetActions}>
+                            <Pressable style={styles.commentIconButton} onPress={() => startEditComment(comment)}>
+                              <Pencil size={15} color={colors.muted} strokeWidth={2.4} />
+                            </Pressable>
+                            <Pressable style={styles.commentIconButton} onPress={() => void deleteTimelineComment(comment)}>
+                              <Trash2 size={15} color={colors.muted} strokeWidth={2.4} />
+                            </Pressable>
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.playlistMenuEmpty}>No comments yet</Text>
+                )}
+              </ScrollView>
+            </Animated.View>
           </View>
         ) : null}
       </View>
@@ -533,7 +996,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 24,
     paddingHorizontal: spacing.lg,
-    paddingTop: 94,
+    paddingTop: 118,
     paddingBottom: spacing.lg,
   },
   cover: {
@@ -632,18 +1095,18 @@ const styles = StyleSheet.create({
   },
   commentTip: {
     position: 'absolute',
-    bottom: 30,
-    width: 210,
-    maxWidth: 240,
+    bottom: 32,
+    minWidth: 128,
+    maxWidth: 270,
     paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    backgroundColor: '#242424',
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(24,24,24,0.96)',
   },
   commentTipText: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   commentTipName: {
     color: colors.muted,
@@ -657,6 +1120,68 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
     fontWeight: '800',
+  },
+  commentComposer: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: -10,
+  },
+  commentInput: {
+    flex: 1,
+    height: 42,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(24,24,24,0.74)',
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  commentSaveButton: {
+    minWidth: 44,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+  },
+  commentSaveText: {
+    color: '#111111',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  activeCommentRow: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: -14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(24,24,24,0.64)',
+  },
+  activeCommentText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  commentIconButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(24,24,24,0.74)',
+  },
+  commentCancelText: {
+    color: colors.muted,
+    fontSize: 24,
+    fontWeight: '800',
+    lineHeight: 25,
   },
   controls: {
     flexDirection: 'row',
@@ -729,13 +1254,146 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: 'rgba(255,255,255,0.24)',
   },
+  sheetDragZone: {
+    minHeight: 52,
+    justifyContent: 'center',
+    gap: 10,
+    marginHorizontal: -spacing.md,
+    marginTop: -10,
+    paddingTop: 10,
+    paddingHorizontal: spacing.md,
+  },
   queueHeading: {
     color: colors.text,
     fontSize: 16,
     fontWeight: '900',
   },
+  playlistCreateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  playlistCreateInput: {
+    flex: 1,
+    height: 42,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: colors.panelSoft,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  playlistCreateButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+  },
+  disabledButton: {
+    opacity: 0.45,
+  },
+  playlistCreateButtonText: {
+    color: '#111111',
+    fontSize: 23,
+    fontWeight: '900',
+    lineHeight: 25,
+  },
   queue: {
     maxHeight: 360,
+  },
+  playlistMenuItem: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  playlistMenuItemActive: {
+    backgroundColor: 'rgba(181,120,255,0.12)',
+  },
+  playlistMenuText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  playlistMenuTextActive: {
+    color: colors.accent,
+  },
+  playlistMenuCount: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  playlistMenuEmpty: {
+    paddingVertical: 14,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  commentSheetRow: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+  },
+  commentSheetAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    backgroundColor: colors.panel,
+  },
+  commentSheetAvatarFallback: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+  },
+  commentSheetInitial: {
+    color: '#111111',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  commentSheetBody: {
+    flex: 1,
+    gap: 3,
+  },
+  commentSheetMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  commentSheetName: {
+    flexShrink: 1,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  commentSheetTime: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  commentSheetText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 17,
+  },
+  commentSheetActions: {
+    flexDirection: 'row',
+    gap: 6,
   },
   queueRow: {
     minHeight: 48,

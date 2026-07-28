@@ -8,6 +8,10 @@ function safely(action: () => Promise<void>) {
 }
 
 export async function playbackService() {
+  if (!TrackPlayer?.addEventListener || !Event) {
+    return;
+  }
+
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     safely(() => TrackPlayer.play());
   });

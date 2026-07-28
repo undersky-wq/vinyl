@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { AudioLines, Heart, House, Library, ListMusic } from 'lucide-react-native';
-import TrackPlayer, {
-  AppKilledPlaybackBehavior,
-  Capability,
-  Event,
-  State,
-  type Track as TrackPlayerTrack,
-} from 'react-native-track-player';
+import type { Track as TrackPlayerTrack } from 'react-native-track-player';
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { FullPlayer } from './src/components/FullPlayer';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -25,6 +19,7 @@ import {
   getFavorites,
   getPlaylists,
   getRelease,
+  refreshPlayerTrack,
   removeTrackFromPlaylist,
   toggleFavoriteTrack,
 } from './src/lib/api';
@@ -35,6 +30,8 @@ import { AuthUser, PlayerTrack, Playlist, Release, TabKey, Track } from './src/t
 
 type FavoriteTrack = Track & { release: Release };
 
+declare const require: (path: string) => any;
+
 const tabs: Array<{ key: TabKey; label: string; Icon: typeof House }> = [
   { key: 'home', label: 'Home', Icon: House },
   { key: 'library', label: 'Library', Icon: Library },
@@ -42,6 +39,59 @@ const tabs: Array<{ key: TabKey; label: string; Icon: typeof House }> = [
   { key: 'mixes', label: 'Mixes', Icon: AudioLines },
   { key: 'favorites', label: 'Likes', Icon: Heart },
 ];
+
+function loadTrackPlayerModule() {
+  try {
+    const trackPlayerModule = require('react-native-track-player');
+    return {
+      TrackPlayer: trackPlayerModule.default || trackPlayerModule,
+      AppKilledPlaybackBehavior: trackPlayerModule.AppKilledPlaybackBehavior || {},
+      Capability: trackPlayerModule.Capability || {},
+      Event: trackPlayerModule.Event || {},
+      State: trackPlayerModule.State || {},
+    };
+  } catch {
+    return {
+      TrackPlayer: {},
+      AppKilledPlaybackBehavior: {},
+      Capability: {},
+      Event: {},
+      State: {},
+    };
+  }
+}
+
+const nativeTrackPlayer = loadTrackPlayerModule();
+const TrackPlayer = nativeTrackPlayer.TrackPlayer;
+const AppKilledPlaybackBehavior = nativeTrackPlayer.AppKilledPlaybackBehavior;
+const Capability = nativeTrackPlayer.Capability;
+const Event = nativeTrackPlayer.Event;
+const State = nativeTrackPlayer.State;
+
+function isNativeTrackPlayerAvailable() {
+  const player = TrackPlayer as any;
+  const capability = Capability as any;
+  const event = Event as any;
+  const state = State as any;
+  const appKilledPlaybackBehavior = AppKilledPlaybackBehavior as any;
+
+  return Boolean(
+    player?.setupPlayer &&
+      player?.addEventListener &&
+      capability &&
+      'Play' in capability &&
+      event &&
+      'PlaybackProgressUpdated' in event &&
+      state &&
+      'Playing' in state &&
+      appKilledPlaybackBehavior &&
+      'PausePlayback' in appKilledPlaybackBehavior,
+  );
+}
+
+function mergeTrackById(tracks: PlayerTrack[], nextTrack: PlayerTrack) {
+  return tracks.map((track) => (track.id === nextTrack.id ? { ...track, ...nextTrack } : track));
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
@@ -55,6 +105,7 @@ export default function App() {
   const [favoriteTracks, setFavoriteTracks] = useState<FavoriteTrack[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [showTrackMeta, setShowTrackMeta] = useState(true);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
@@ -64,6 +115,10 @@ export default function App() {
   const queueSignatureRef = useRef('');
   const lastTrackIdRef = useRef<string | null>(null);
   const desiredPlayingRef = useRef(false);
+  const positionMsRef = useRef(0);
+  const lastNativeProgressAtRef = useRef(Date.now());
+  const lastNativePositionMsRef = useRef(0);
+  const recoveryInProgressRef = useRef(false);
   const isSeekingRef = useRef(false);
   const pendingSeekMsRef = useRef<number | null>(null);
   const pendingSeekStartedAtRef = useRef(0);
@@ -75,6 +130,14 @@ export default function App() {
     if (isTrackPlayerReadyRef.current) {
       return;
     }
+
+    if (!isNativeTrackPlayerAvailable()) {
+      isTrackPlayerReadyRef.current = true;
+      return;
+    }
+
+    const nativeCapability = Capability as any;
+    const nativeAppKilledPlaybackBehavior = AppKilledPlaybackBehavior as any;
 
     try {
       await TrackPlayer.setupPlayer({
@@ -93,28 +156,28 @@ export default function App() {
 
     await TrackPlayer.updateOptions({
       android: {
-        appKilledPlaybackBehavior: AppKilledPlaybackBehavior.PausePlayback,
+        appKilledPlaybackBehavior: nativeAppKilledPlaybackBehavior.PausePlayback,
       },
       capabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.Skip,
-        Capability.SkipToPrevious,
-        Capability.SkipToNext,
-        Capability.SeekTo,
+        nativeCapability.Play,
+        nativeCapability.Pause,
+        nativeCapability.Skip,
+        nativeCapability.SkipToPrevious,
+        nativeCapability.SkipToNext,
+        nativeCapability.SeekTo,
       ],
       compactCapabilities: [
-        Capability.SkipToPrevious,
-        Capability.Play,
-        Capability.SkipToNext,
+        nativeCapability.SkipToPrevious,
+        nativeCapability.Play,
+        nativeCapability.SkipToNext,
       ],
       notificationCapabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.Skip,
-        Capability.SkipToPrevious,
-        Capability.SkipToNext,
-        Capability.SeekTo,
+        nativeCapability.Play,
+        nativeCapability.Pause,
+        nativeCapability.Skip,
+        nativeCapability.SkipToPrevious,
+        nativeCapability.SkipToNext,
+        nativeCapability.SeekTo,
       ],
       progressUpdateEventInterval: 0.25,
       color: 0xb578ff,
@@ -136,6 +199,37 @@ export default function App() {
     };
   }
 
+  async function refreshPlaybackTrack(track: PlayerTrack) {
+    try {
+      const refreshedTrack = await refreshPlayerTrack(track.id);
+      if (!refreshedTrack.audioUrl) {
+        return track;
+      }
+
+      return { ...track, ...refreshedTrack };
+    } catch (error) {
+      console.warn('Failed to refresh playback URL', error);
+      return track;
+    }
+  }
+
+  function syncRefreshedTrack(nextTrack: PlayerTrack) {
+    const nextQueue = mergeTrackById(queueRef.current, nextTrack);
+    const nextQueuePreview = mergeTrackById(queuePreview, nextTrack);
+
+    queueRef.current = nextQueue;
+    setQueue(nextQueue);
+    setQueuePreview(nextQueuePreview);
+
+    if (currentTrackRef.current?.id === nextTrack.id) {
+      currentTrackRef.current = nextTrack;
+      setCurrentTrack(nextTrack);
+      setDurationMs(nextTrack.durationSec ? nextTrack.durationSec * 1000 : durationMs);
+    }
+
+    return nextQueue;
+  }
+
   async function prepareQueue(nextQueue: PlayerTrack[], startTrackId: string) {
     await ensureTrackPlayerReady();
 
@@ -150,8 +244,14 @@ export default function App() {
     setCurrentTrack(preparedQueue[startIndex] || null);
     currentTrackRef.current = preparedQueue[startIndex] || null;
     lastTrackIdRef.current = preparedQueue[startIndex]?.id || null;
+    positionMsRef.current = 0;
     setPositionMs(0);
     setDurationMs(preparedQueue[startIndex]?.durationSec ? preparedQueue[startIndex].durationSec * 1000 : 0);
+
+    if (!isNativeTrackPlayerAvailable()) {
+      queueSignatureRef.current = queueSignature;
+      return;
+    }
 
     const currentNativeQueue = await TrackPlayer.getQueue();
     if (queueSignatureRef.current === queueSignature && currentNativeQueue.length === preparedQueue.length) {
@@ -169,35 +269,105 @@ export default function App() {
   async function playTrack(track: PlayerTrack, nextQueue?: PlayerTrack[], nextQueuePreview?: PlayerTrack[]) {
     try {
       desiredPlayingRef.current = true;
-      setQueuePreview(nextQueuePreview?.length ? nextQueuePreview : nextQueue?.length ? nextQueue : [track]);
-      await prepareQueue(nextQueue?.length ? nextQueue : [track], track.id);
-      await TrackPlayer.play();
+      const refreshedTrack = await refreshPlaybackTrack(track);
+      const playbackQueue = mergeTrackById(nextQueue?.length ? nextQueue : [track], refreshedTrack);
+      const playbackPreview = mergeTrackById(
+        nextQueuePreview?.length ? nextQueuePreview : nextQueue?.length ? nextQueue : [track],
+        refreshedTrack,
+      );
+      setQueuePreview(playbackPreview);
+      await prepareQueue(playbackQueue, refreshedTrack.id);
+      if (isNativeTrackPlayerAvailable()) {
+        await TrackPlayer.play();
+      }
       setIsPlaying(true);
     } catch (error) {
-      desiredPlayingRef.current = false;
       setIsPlaying(false);
       console.warn('Failed to start playback', error);
+      desiredPlayingRef.current = true;
+      await recoverNativePlayback('start-playback-failed', track);
+    }
+  }
+
+  async function recoverNativePlayback(reason: string, preferredTrack?: PlayerTrack) {
+    if (!isNativeTrackPlayerAvailable() || recoveryInProgressRef.current) {
+      return;
+    }
+
+    const track = preferredTrack || currentTrackRef.current;
+    if (!track) {
+      return;
+    }
+
+    recoveryInProgressRef.current = true;
+    const shouldResume = desiredPlayingRef.current;
+    const savedPositionMs = preferredTrack ? 0 : Math.max(0, positionMsRef.current - 600);
+    const recoveryQueue = queueRef.current.length ? queueRef.current : [track];
+
+    try {
+      console.warn(`Recovering native playback: ${reason}`);
+      await ensureTrackPlayerReady();
+      const refreshedTrack = await refreshPlaybackTrack(track);
+      const refreshedQueue = mergeTrackById(recoveryQueue, refreshedTrack);
+      syncRefreshedTrack(refreshedTrack);
+      queueSignatureRef.current = '';
+      await prepareQueue(refreshedQueue, refreshedTrack.id);
+      if (savedPositionMs > 0) {
+        await TrackPlayer.seekTo(savedPositionMs / 1000);
+        positionMsRef.current = savedPositionMs;
+        setPositionMs(savedPositionMs);
+      }
+      if (shouldResume) {
+        await TrackPlayer.play();
+        setIsPlaying(true);
+      }
+      lastNativeProgressAtRef.current = Date.now();
+    } catch (error) {
+      console.warn('Native playback recovery failed', error);
+      setIsPlaying(false);
+    } finally {
+      recoveryInProgressRef.current = false;
     }
   }
 
   async function setTrackForPlayback(track: PlayerTrack) {
     desiredPlayingRef.current = true;
-    const existingIndex = queueRef.current.findIndex((item) => item.id === track.id);
+    const refreshedTrack = await refreshPlaybackTrack(track);
+    const refreshedQueue = syncRefreshedTrack(refreshedTrack);
+    const existingIndex = refreshedQueue.findIndex((item) => item.id === refreshedTrack.id);
 
-    if (existingIndex >= 0) {
-      await TrackPlayer.skip(existingIndex);
-      const nextTrack = queueRef.current[existingIndex];
-      setCurrentTrack(nextTrack);
-      currentTrackRef.current = nextTrack;
-      lastTrackIdRef.current = nextTrack.id;
-      setPositionMs(0);
-      setDurationMs(nextTrack.durationSec ? nextTrack.durationSec * 1000 : 0);
-    } else {
-      await prepareQueue([track], track.id);
+    try {
+      if (existingIndex >= 0) {
+        const nextTrack = refreshedQueue[existingIndex];
+        const currentNativeQueue = isNativeTrackPlayerAvailable() ? await TrackPlayer.getQueue() : [];
+        const nativeTrack = currentNativeQueue[existingIndex] as TrackPlayerTrack | undefined;
+
+        if (nativeTrack && (nativeTrack as any).url !== (nextTrack.localAudioUrl || nextTrack.audioUrl)) {
+          queueSignatureRef.current = '';
+          await prepareQueue(refreshedQueue, nextTrack.id);
+        }
+
+        if (isNativeTrackPlayerAvailable()) {
+          await TrackPlayer.skip(existingIndex);
+        }
+        setCurrentTrack(nextTrack);
+        currentTrackRef.current = nextTrack;
+        lastTrackIdRef.current = nextTrack.id;
+        positionMsRef.current = 0;
+        setPositionMs(0);
+        setDurationMs(nextTrack.durationSec ? nextTrack.durationSec * 1000 : 0);
+      } else {
+        await prepareQueue([refreshedTrack], refreshedTrack.id);
+      }
+
+      if (isNativeTrackPlayerAvailable()) {
+        await TrackPlayer.play();
+      }
+      setIsPlaying(true);
+    } catch (error) {
+      console.warn('Failed to switch track, recovering playback', error);
+      await recoverNativePlayback('switch-track-failed', track);
     }
-
-    await TrackPlayer.play();
-    setIsPlaying(true);
   }
 
   async function togglePlayback() {
@@ -212,6 +382,10 @@ export default function App() {
 
     await ensureTrackPlayerReady();
 
+    if (!isNativeTrackPlayerAvailable()) {
+      return;
+    }
+
     try {
       if (next) {
         await TrackPlayer.play();
@@ -222,6 +396,9 @@ export default function App() {
       desiredPlayingRef.current = !next;
       setIsPlaying(!next);
       console.warn('Failed to toggle playback', error);
+      if (next) {
+        await recoverNativePlayback('toggle-play-failed');
+      }
     }
   }
 
@@ -263,8 +440,12 @@ export default function App() {
     seekRequestIdRef.current = seekRequestId;
     pendingSeekMsRef.current = nextPositionMs;
     pendingSeekStartedAtRef.current = Date.now();
+    positionMsRef.current = nextPositionMs;
     setPositionMs(nextPositionMs);
     await ensureTrackPlayerReady();
+    if (!isNativeTrackPlayerAvailable()) {
+      return;
+    }
     await TrackPlayer.seekTo(nextPositionMs / 1000);
 
     if (seekResumeTimerRef.current) {
@@ -278,7 +459,7 @@ export default function App() {
 
       if (resumeAfterSeek) {
         TrackPlayer.getPlaybackState()
-          .then((state) => {
+          .then((state: any) => {
             if (seekRequestIdRef.current === seekRequestId && state.state !== State.Playing) {
               return TrackPlayer.play();
             }
@@ -296,7 +477,14 @@ export default function App() {
   useEffect(() => {
     void ensureTrackPlayerReady();
 
-    const progressSubscription = TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (event) => {
+    if (!isNativeTrackPlayerAvailable()) {
+      return;
+    }
+
+    const nativeEvent = Event as any;
+    const nativeState = State as any;
+
+    const progressSubscription = TrackPlayer.addEventListener(nativeEvent.PlaybackProgressUpdated, (event: any) => {
       const fallbackTrack = currentTrackRef.current;
       const nextPositionMs = Math.round(event.position * 1000);
       const pendingSeekMs = pendingSeekMsRef.current;
@@ -308,10 +496,17 @@ export default function App() {
         if (seekConfirmed) {
           pendingSeekMsRef.current = null;
           isSeekingRef.current = false;
+          positionMsRef.current = nextPositionMs;
           setPositionMs(nextPositionMs);
         }
       } else if (!isSeekingRef.current) {
+        positionMsRef.current = nextPositionMs;
         setPositionMs(nextPositionMs);
+      }
+
+      if (Math.abs(nextPositionMs - lastNativePositionMsRef.current) > 250) {
+        lastNativePositionMsRef.current = nextPositionMs;
+        lastNativeProgressAtRef.current = Date.now();
       }
 
       setDurationMs(
@@ -320,19 +515,19 @@ export default function App() {
       );
     });
 
-    const stateSubscription = TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
-      if (event.state === State.Playing) {
+    const stateSubscription = TrackPlayer.addEventListener(nativeEvent.PlaybackState, (event: any) => {
+      if (event.state === nativeState.Playing) {
         desiredPlayingRef.current = true;
         setIsPlaying(true);
         return;
       }
 
-      if (event.state === State.Paused || event.state === State.Stopped || event.state === State.Ended) {
+      if (event.state === nativeState.Paused || event.state === nativeState.Stopped || event.state === nativeState.Ended) {
         setIsPlaying(false);
       }
     });
 
-    const activeTrackSubscription = TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
+    const activeTrackSubscription = TrackPlayer.addEventListener(nativeEvent.PlaybackActiveTrackChanged, async (event: any) => {
       const nextTrack = typeof event.index === 'number' ? queueRef.current[event.index] : null;
 
       if (nextTrack) {
@@ -340,6 +535,7 @@ export default function App() {
         lastTrackIdRef.current = nextTrack.id;
         setCurrentTrack(nextTrack);
         setDurationMs(nextTrack.durationSec ? nextTrack.durationSec * 1000 : 0);
+        positionMsRef.current = 0;
         setPositionMs(0);
         pendingSeekMsRef.current = null;
         isSeekingRef.current = false;
@@ -351,6 +547,25 @@ export default function App() {
       }
     });
 
+    const errorSubscription = nativeEvent.PlaybackError
+      ? TrackPlayer.addEventListener(nativeEvent.PlaybackError, (event: any) => {
+          console.warn('Native playback error', event);
+          void recoverNativePlayback('playback-error');
+        })
+      : null;
+
+    const watchdog = setInterval(() => {
+      if (
+        desiredPlayingRef.current &&
+        currentTrackRef.current &&
+        !isSeekingRef.current &&
+        !recoveryInProgressRef.current &&
+        Date.now() - lastNativeProgressAtRef.current > 18000
+      ) {
+        void recoverNativePlayback('progress-stalled');
+      }
+    }, 6000);
+
     return () => {
       if (seekResumeTimerRef.current) {
         clearTimeout(seekResumeTimerRef.current);
@@ -358,6 +573,8 @@ export default function App() {
       progressSubscription.remove();
       stateSubscription.remove();
       activeTrackSubscription.remove();
+      errorSubscription?.remove();
+      clearInterval(watchdog);
     };
   }, []);
 
@@ -524,6 +741,7 @@ export default function App() {
           onRefreshPlaylists={async () => {
             setPlaylists(await getPlaylists());
           }}
+          showTrackMeta={showTrackMeta}
         />
       );
     }
@@ -550,11 +768,18 @@ export default function App() {
           onRefresh={async () => {
             setFavoriteTracks(await getFavoriteTracks());
           }}
+          showTrackMeta={showTrackMeta}
         />
       );
     }
 
-    return <ProfileScreen onAuthChange={setCurrentUser} />;
+    return (
+      <ProfileScreen
+        onAuthChange={setCurrentUser}
+        showTrackMeta={showTrackMeta}
+        onShowTrackMetaChange={setShowTrackMeta}
+      />
+    );
   }
 
   return (
@@ -584,6 +809,7 @@ export default function App() {
           isPlaying={isPlaying}
           positionMs={positionMs}
           durationMs={durationMs}
+          currentUser={currentUser}
           isFavorite={currentTrack ? favoriteIds.has(currentTrack.id) : false}
           onClose={() => setIsFullPlayerOpen(false)}
           onToggle={togglePlayback}
@@ -594,12 +820,15 @@ export default function App() {
           }}
           queue={queue}
           queuePreview={queuePreview}
+          playlists={playlists}
           isShuffleEnabled={isShuffleEnabled}
           isRepeatEnabled={isRepeatEnabled}
           onPrevious={() => playByOffset(-1)}
           onNext={() => playByOffset(1)}
           onSeek={seekToRatio}
           onSelectQueueTrack={(track) => playTrack(track, queue, queuePreview)}
+          onPlaylistToggle={handlePlaylistToggle}
+          onCreatePlaylist={handleCreatePlaylist}
           onToggleShuffle={() => setIsShuffleEnabled((current) => !current)}
           onToggleRepeat={() => setIsRepeatEnabled((current) => !current)}
           onOpenRelease={openCurrentTrackRelease}

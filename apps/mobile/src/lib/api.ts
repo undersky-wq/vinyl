@@ -1,5 +1,15 @@
 import Constants from 'expo-constants';
-import { AuthUser, PlayerTrack, Playlist, PlaylistSummary, Release, TimelineComment, Track } from '../types';
+import {
+  AuthUser,
+  PlayerTrack,
+  Playlist,
+  PlaylistSummary,
+  ProfileStats,
+  Release,
+  TimelineComment,
+  Track,
+  UserProfile,
+} from '../types';
 
 const configuredApiUrl = Constants.expoConfig?.extra?.apiUrl;
 const API_URL = typeof configuredApiUrl === 'string' ? configuredApiUrl : 'https://mityadima.ru/api';
@@ -74,6 +84,39 @@ export async function getRelease(id: string) {
 
 export async function getReleaseTimelineComments(releaseId: string) {
   return fetchJson<TimelineComment[]>(`/releases/${releaseId}/comments`);
+}
+
+export async function createReleaseTimelineComment(
+  releaseId: string,
+  input: { second: number; text: string },
+) {
+  return fetchJson<TimelineComment>(`/releases/${releaseId}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateReleaseTimelineComment(
+  releaseId: string,
+  commentId: string,
+  input: { text: string },
+) {
+  return fetchJson<TimelineComment>(`/releases/${releaseId}/comments/${commentId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteReleaseTimelineComment(releaseId: string, commentId: string) {
+  return fetchJson<{ deleted: boolean }>(`/releases/${releaseId}/comments/${commentId}`, {
+    method: 'DELETE',
+  });
 }
 
 export async function getReleasesFiltered(
@@ -175,6 +218,10 @@ export async function getLibraryQueueFiltered(
   return fetchJson<PlayerTrack[]>(`/releases/library-queue?${params.toString()}`);
 }
 
+export async function refreshPlayerTrack(trackId: string) {
+  return fetchJson<Partial<PlayerTrack> & { id: string; audioUrl: string }>(`/tracks/${trackId}/player`);
+}
+
 export async function getPlaylistSummaries() {
   return fetchJson<PlaylistSummary[]>('/playlists/summary');
 }
@@ -199,6 +246,65 @@ export async function getFavoriteTracks() {
 
 export async function getFavorites() {
   return fetchJson<string[]>('/favorites');
+}
+
+export async function getProfileStats() {
+  return fetchJson<ProfileStats>('/auth/stats');
+}
+
+export async function getUsers() {
+  return fetchJson<UserProfile[]>('/users');
+}
+
+export type AudioJobStatus = {
+  id: string | null;
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  total: number;
+  processed: number;
+  updated?: number;
+  waveformUpdated?: number;
+  normalized?: number;
+  skipped: number;
+  failed: number;
+  error?: string;
+};
+
+export async function postDiscogsSync() {
+  return fetchJson<unknown>('/discogs/sync', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  });
+}
+
+export async function startAudioWaveformBackfill() {
+  return fetchJson<AudioJobStatus>('/audio/backfill-durations/start', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  });
+}
+
+export async function getAudioWaveformBackfillStatus() {
+  return fetchJson<AudioJobStatus>('/audio/backfill-durations/status');
+}
+
+export async function startAudioNormalizeBackfill() {
+  return fetchJson<AudioJobStatus>('/audio/normalize/start', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  });
+}
+
+export async function getAudioNormalizeBackfillStatus() {
+  return fetchJson<AudioJobStatus>('/audio/normalize/status');
 }
 
 export async function toggleFavoriteTrack(trackId: string) {

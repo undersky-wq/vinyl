@@ -9,7 +9,9 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "traktor:import": "node scripts/import-traktor-nml.js",
+    "traktor:import:apply": "node scripts/import-traktor-nml.js --apply"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.883.0",

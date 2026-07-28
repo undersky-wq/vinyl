@@ -14,6 +14,7 @@ type PlaylistsScreenProps = {
   onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
   onOpenProfile: () => void;
   onRefreshPlaylists: () => Promise<void>;
+  showTrackMeta?: boolean;
   avatarUrl?: string | null;
 };
 
@@ -47,6 +48,7 @@ export function PlaylistsScreen({
   onPlayTrack,
   onOpenProfile,
   onRefreshPlaylists,
+  showTrackMeta = true,
   avatarUrl,
 }: PlaylistsScreenProps) {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState('');
@@ -264,6 +266,20 @@ export function PlaylistsScreen({
                   {playerTrack.title}
                 </Text>
               </View>
+              {showTrackMeta ? (
+                <View style={styles.metaPills}>
+                  {typeof item.item.track.bpm === 'number' ? (
+                    <Text style={[styles.metaPill, isActive && styles.metaPillActive]}>
+                      {Math.round(item.item.track.bpm)} BPM
+                    </Text>
+                  ) : null}
+                  {item.item.track.key ? (
+                    <Text style={[styles.metaPill, isActive && styles.metaPillActive]}>
+                      {item.item.track.key}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
               <TrackDownloadButton track={playerTrack} />
               <Text style={styles.time}>{playerTrack.durationRaw || '-'}</Text>
             </Pressable>
@@ -284,10 +300,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
-    top: Math.max((StatusBar.currentHeight || 0) - 3, 0),
+    top: -6,
     zIndex: 10,
     paddingHorizontal: 12,
-    paddingTop: 9,
+    paddingTop: (StatusBar.currentHeight || 0) + 10,
     paddingBottom: 9,
     gap: 9,
     borderRadius: 24,
@@ -357,7 +373,7 @@ const styles = StyleSheet.create({
   list: {
     gap: 8,
     paddingHorizontal: spacing.md,
-    paddingTop: (StatusBar.currentHeight || 0) + 132,
+    paddingTop: (StatusBar.currentHeight || 0) + 158,
     paddingBottom: 160,
   },
   playlistChips: {
@@ -433,6 +449,19 @@ const styles = StyleSheet.create({
   },
   trackText: {
     flex: 1,
+  },
+  metaPills: {
+    alignItems: 'flex-end',
+    gap: 3,
+    minWidth: 44,
+  },
+  metaPill: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  metaPillActive: {
+    color: colors.accent,
   },
   artist: {
     color: colors.muted,

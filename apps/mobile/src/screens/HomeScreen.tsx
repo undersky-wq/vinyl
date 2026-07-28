@@ -212,10 +212,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
-    top: Math.max((StatusBar.currentHeight || 0) - 3, 0),
+    top: -6,
     zIndex: 10,
     paddingHorizontal: 12,
-    paddingTop: 9,
+    paddingTop: (StatusBar.currentHeight || 0) + 10,
     paddingBottom: 9,
     gap: 9,
     borderRadius: 24,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   list: {
     gap: 12,
     paddingHorizontal: spacing.md,
-    paddingTop: (StatusBar.currentHeight || 0) + 132,
+    paddingTop: (StatusBar.currentHeight || 0) + 158,
     paddingBottom: 172,
   },
   row: {

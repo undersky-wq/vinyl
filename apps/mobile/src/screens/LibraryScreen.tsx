@@ -463,6 +463,26 @@ export function LibraryScreen({
                   );
                 })}
               </View>
+
+              {item.styles.length ? (
+                <View style={styles.releaseStyleChips}>
+                  {item.styles.map((styleName) => {
+                    const active = selectedStyles.includes(styleName);
+
+                    return (
+                      <Pressable
+                        key={`${item.id}-${styleName}`}
+                        style={styles.releaseStyleChip}
+                        onPress={() => toggleStyle(styleName)}
+                      >
+                        <Text style={[styles.releaseStyleChipText, active && styles.releaseStyleChipTextActive]}>
+                          {styleName}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
             </View>
           );
         }}
@@ -547,10 +567,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
-    top: Math.max((StatusBar.currentHeight || 0) - 3, 0),
+    top: -6,
     zIndex: 10,
     paddingHorizontal: 12,
-    paddingTop: 9,
+    paddingTop: (StatusBar.currentHeight || 0) + 10,
     paddingBottom: 9,
     gap: 9,
     borderRadius: 24,
@@ -624,7 +644,7 @@ const styles = StyleSheet.create({
   list: {
     gap: 22,
     paddingHorizontal: spacing.md,
-    paddingTop: (StatusBar.currentHeight || 0) + 132,
+    paddingTop: (StatusBar.currentHeight || 0) + 158,
     paddingBottom: 160,
   },
   filtersBlock: {
@@ -798,6 +818,28 @@ const styles = StyleSheet.create({
   },
   tracks: {
     gap: 2,
+  },
+  releaseStyleChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 6,
+    marginTop: -2,
+  },
+  releaseStyleChip: {
+    minHeight: 24,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.panelSoft,
+  },
+  releaseStyleChipText: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  releaseStyleChipTextActive: {
+    color: colors.accent,
   },
   trackRow: {
     minHeight: 34,
