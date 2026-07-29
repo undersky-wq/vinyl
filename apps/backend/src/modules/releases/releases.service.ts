@@ -463,9 +463,22 @@ export class ReleasesService {
             },
           },
         },
-        orderBy: {
-          updatedAt: 'desc',
-        },
+        orderBy:
+          query.isMix === 'true'
+            ? [
+                {
+                  year: {
+                    sort: 'desc',
+                    nulls: 'last',
+                  },
+                },
+                {
+                  updatedAt: 'desc',
+                },
+              ]
+            : {
+                updatedAt: 'desc',
+              },
       }),
       this.prisma.release.findMany({
         where: {
