@@ -2,6 +2,7 @@
 
 import { Pause, Play } from 'lucide-react';
 import { SiteLang } from '../lib/language';
+import { normalizeDurationLabel } from '../lib/time';
 import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 
@@ -46,6 +47,8 @@ function getKeyColor(key?: string | null) {
 }
 
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
+  return normalizeDurationLabel(durationRaw, durationSec, '-');
+
   if (durationRaw) {
     return durationRaw;
   }
@@ -54,7 +57,7 @@ function formatTrackDuration(durationRaw?: string | null, durationSec?: number |
     return '-';
   }
 
-  const totalSeconds = Math.floor(durationSec);
+  const totalSeconds = Math.floor(durationSec ?? 0);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;

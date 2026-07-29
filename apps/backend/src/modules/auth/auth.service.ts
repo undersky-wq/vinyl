@@ -9,6 +9,7 @@ import { StorageService } from '../storage/storage.service';
 
 const scrypt = promisify(scryptCallback);
 export const SESSION_COOKIE_NAME = 'vinyl_session';
+const REGISTRATION_INVITE_REQUIRED_SETTING = 'registrationInviteRequired';
 
 type CookieResponse = {
   cookie: (name: string, value: string, options: Record<string, unknown>) => void;
@@ -35,13 +36,19 @@ export class AuthService {
     displayName: string;
     inviteCode?: string;
   }, response?: CookieResponse) {
+    const authSettings = await this.getAuthSettings();
     const userInviteCode = this.configService.get<string>('REGISTRATION_INVITE_CODE');
     const adminInviteCode = this.configService.get<string>('REGISTRATION_INVITE_CODE_ADMIN');
     const normalizedInviteCode = input.inviteCode?.trim();
     const matchedAdminCode = Boolean(adminInviteCode && normalizedInviteCode === adminInviteCode);
+    const hasInviteCode = Boolean(normalizedInviteCode);
     const matchedUserCode = Boolean(userInviteCode && normalizedInviteCode === userInviteCode);
 
-    if (!matchedAdminCode && !matchedUserCode) {
+    if (authSettings.registrationInviteRequired && !matchedAdminCode && !matchedUserCode) {
+      throw new BadRequestException('Invalid invite code');
+    }
+
+    if (!authSettings.registrationInviteRequired && hasInviteCode && !matchedAdminCode && !matchedUserCode) {
       throw new BadRequestException('Invalid invite code');
     }
 
@@ -71,6 +78,33 @@ export class AuthService {
     }
 
     return this.signAvatarUrl(this.toPublicUser(user));
+  }
+
+  async getAuthSettings() {
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: REGISTRATION_INVITE_REQUIRED_SETTING },
+    });
+
+    return {
+      registrationInviteRequired: setting?.value === true,
+    };
+  }
+
+  async updateAuthSettings(input: { registrationInviteRequired?: boolean }) {
+    if (typeof input.registrationInviteRequired === 'boolean') {
+      await this.prisma.appSetting.upsert({
+        where: { key: REGISTRATION_INVITE_REQUIRED_SETTING },
+        create: {
+          key: REGISTRATION_INVITE_REQUIRED_SETTING,
+          value: input.registrationInviteRequired,
+        },
+        update: {
+          value: input.registrationInviteRequired,
+        },
+      });
+    }
+
+    return this.getAuthSettings();
   }
 
   async login(input: { email: string; password: string }, response: CookieResponse) {

@@ -11,9 +11,9 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { AuthGuard } from './auth.guards';
+import { AdminGuard, AuthGuard } from './auth.guards';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, UpdateAuthSettingsDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -43,6 +43,18 @@ export class AuthController {
   @UseGuards(AuthGuard)
   stats(@Req() request: any) {
     return this.authService.stats(request.user);
+  }
+
+  @Get('settings')
+  @UseGuards(AdminGuard)
+  settings() {
+    return this.authService.getAuthSettings();
+  }
+
+  @Post('settings')
+  @UseGuards(AdminGuard)
+  updateSettings(@Body() dto: UpdateAuthSettingsDto) {
+    return this.authService.updateAuthSettings(dto);
   }
 
   @Post('avatar')

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPlaylist, getLibraryReleasesFeed } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { normalizeDurationLabel } from '../lib/time';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { useAuth } from '../providers/auth-provider';
 import { useFavorites } from '../providers/favorites-provider';
@@ -161,6 +162,8 @@ function sortPlaylists(playlists: PlaylistSummary[]) {
 }
 
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
+  return normalizeDurationLabel(durationRaw, durationSec, '-');
+
   if (durationRaw) {
     return durationRaw;
   }
@@ -169,7 +172,7 @@ function formatTrackDuration(durationRaw?: string | null, durationSec?: number |
     return '-';
   }
 
-  const totalSeconds = Math.floor(durationSec);
+  const totalSeconds = Math.floor(durationSec ?? 0);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;

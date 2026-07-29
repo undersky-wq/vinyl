@@ -14,6 +14,7 @@ import {
   uploadTrackAudio,
 } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { formatSecondsAsClock, normalizeDurationLabel } from '../lib/time';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayerActions, usePlayerTransport } from '../providers/player-provider';
@@ -105,33 +106,11 @@ function toPlayerTrack(release: Release, track: Track): MixPlayerTrack | null {
 }
 
 function formatDuration(durationRaw?: string | null, durationSec?: number | null) {
-  if (durationRaw) {
-    return durationRaw;
-  }
-
-  if (!durationSec || !Number.isFinite(durationSec)) {
-    return '';
-  }
-
-  const totalSeconds = Math.floor(durationSec);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  return normalizeDurationLabel(durationRaw, durationSec, '');
 }
 
 function formatCommentTime(second: number) {
-  const safeSecond = Math.max(0, Math.floor(second));
-  const hours = Math.floor(safeSecond / 3600);
-  const minutes = Math.floor((safeSecond % 3600) / 60);
-  const seconds = safeSecond % 60;
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  return formatSecondsAsClock(second);
 }
 
 function getAvatarInitial(name?: string | null) {

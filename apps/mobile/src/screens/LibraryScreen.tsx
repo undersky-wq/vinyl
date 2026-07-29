@@ -8,6 +8,7 @@ import {
   getLibraryFeedFiltered,
   getLibraryQueueFiltered,
 } from '../lib/api';
+import { normalizeDurationLabel } from '../lib/time';
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Playlist, Release } from '../types';
 
@@ -457,7 +458,7 @@ export function LibraryScreen({
                             color={isInPlaylist ? colors.accent : colors.muted}
                           />
                         </Pressable>
-                        <Text style={styles.time}>{row.track.durationRaw || '-'}</Text>
+                        <Text style={styles.time}>{normalizeDurationLabel(row.track.durationRaw, row.track.durationSec, '-')}</Text>
                       </View>
                     </View>
                   );

@@ -6,6 +6,7 @@ import {
   AudioJobStatus,
   getAudioNormalizeBackfillStatus,
   getAudioWaveformBackfillStatus,
+  getAuthSettings,
   getCurrentUser,
   getProfileStats,
   getUsers,
@@ -15,6 +16,7 @@ import {
   register,
   startAudioNormalizeBackfill,
   startAudioWaveformBackfill,
+  updateAuthSettings,
 } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
 import { AuthUser, ProfileStats, UserProfile } from '../types';
@@ -67,6 +69,7 @@ export function ProfileScreen({ onAuthChange, showTrackMeta = true, onShowTrackM
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [waveformStatus, setWaveformStatus] = useState<AudioJobStatus | null>(null);
   const [normalizeStatus, setNormalizeStatus] = useState<AudioJobStatus | null>(null);
+  const [isRegistrationInviteRequired, setIsRegistrationInviteRequired] = useState(false);
   const waveformTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const normalizeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -96,6 +99,10 @@ export function ProfileScreen({ onAuthChange, showTrackMeta = true, onShowTrackM
       trackMetaHint: isRu
         ? 'Показывать на страницах Playlists и Likes.'
         : 'Show on Playlists and Likes pages.',
+      registrationInvite: isRu ? 'Пароль регистрации' : 'Registration invite',
+      registrationInviteHint: isRu
+        ? 'Требовать код для обычных новых пользователей.'
+        : 'Require a code for regular new users.',
       logout: isRu ? 'Выйти' : 'Log out',
       signIn: isRu ? 'Вход' : 'Sign in',
       register: isRu ? 'Регистрация' : 'Create account',
@@ -131,6 +138,12 @@ export function ProfileScreen({ onAuthChange, showTrackMeta = true, onShowTrackM
 
       setStats(nextStats);
       setUsers(nextUsers);
+      if (activeUser.role === 'ADMIN') {
+        const nextSettings = await getAuthSettings().catch(() => null);
+        if (nextSettings) {
+          setIsRegistrationInviteRequired(nextSettings.registrationInviteRequired);
+        }
+      }
     } catch {
       setStats(null);
       setUsers([]);
@@ -162,7 +175,7 @@ export function ProfileScreen({ onAuthChange, showTrackMeta = true, onShowTrackM
             email: email.trim(),
             password,
             displayName: displayName.trim(),
-            inviteCode: inviteCode.trim(),
+            inviteCode: inviteCode.trim() || undefined,
           })
         : await login(email.trim(), password);
 
@@ -174,8 +187,8 @@ export function ProfileScreen({ onAuthChange, showTrackMeta = true, onShowTrackM
       setMessage(
         isRegister
           ? isRu
-            ? 'Не удалось зарегистрироваться. Проверь invite code и поля.'
-            : 'Could not register. Check invite code and fields.'
+            ? 'Не удалось зарегистрироваться. Проверь поля.'
+            : 'Could not register. Check the fields.'
           : isRu
             ? 'Не удалось войти. Проверь почту и пароль.'
             : 'Could not sign in. Check email and password.',
@@ -267,6 +280,38 @@ export function ProfileScreen({ onAuthChange, showTrackMeta = true, onShowTrackM
     } catch {
       setBusyAction(null);
       setMessage(kind === 'waveform' ? 'Waveform не удалось пересчитать.' : 'MP3 не удалось подготовить.');
+    }
+  }
+
+  async function toggleRegistrationInvite() {
+    if (busyAction) {
+      return;
+    }
+
+    const nextValue = !isRegistrationInviteRequired;
+    setIsRegistrationInviteRequired(nextValue);
+    setBusyAction('registrationInvite');
+    setMessage('');
+
+    try {
+      const nextSettings = await updateAuthSettings({
+        registrationInviteRequired: nextValue,
+      });
+      setIsRegistrationInviteRequired(nextSettings.registrationInviteRequired);
+      setMessage(
+        nextSettings.registrationInviteRequired
+          ? isRu
+            ? 'Пароль регистрации включён.'
+            : 'Registration invite enabled.'
+          : isRu
+            ? 'Пароль регистрации выключен.'
+            : 'Registration invite disabled.',
+      );
+    } catch {
+      setIsRegistrationInviteRequired(!nextValue);
+      setMessage(isRu ? 'Не удалось сохранить настройку.' : 'Failed to save setting.');
+    } finally {
+      setBusyAction(null);
     }
   }
 
@@ -410,6 +455,15 @@ export function ProfileScreen({ onAuthChange, showTrackMeta = true, onShowTrackM
                     disabled={Boolean(busyAction)}
                   />
                   <ActionRow
+                    icon={<Shield size={18} color={isRegistrationInviteRequired ? colors.accent : colors.muted} strokeWidth={2.5} />}
+                    title={labels.registrationInvite}
+                    subtitle={labels.registrationInviteHint}
+                    valueText={isRegistrationInviteRequired ? 'ON' : 'OFF'}
+                    active={isRegistrationInviteRequired}
+                    onPress={() => void toggleRegistrationInvite()}
+                    disabled={Boolean(busyAction)}
+                  />
+                  <ActionRow
                     icon={<Activity size={18} color={colors.accent} strokeWidth={2.5} />}
                     title={busyAction === 'waveform' ? `Waveform ${waveformPercent}%` : labels.waveform}
                     subtitle={isRu ? 'Пересчитать длительность и волну треков' : 'Rebuild duration and waveform data'}
@@ -487,7 +541,7 @@ export function ProfileScreen({ onAuthChange, showTrackMeta = true, onShowTrackM
               <TextInput
                 value={inviteCode}
                 onChangeText={setInviteCode}
-                placeholder="invite code"
+                placeholder="admin invite code (optional)"
                 placeholderTextColor={colors.muted}
                 style={styles.input}
                 autoCapitalize="none"

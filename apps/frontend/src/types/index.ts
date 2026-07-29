@@ -155,6 +155,10 @@ export type ProfileStats = {
   playlistsCount: number;
 };
 
+export type AuthSettings = {
+  registrationInviteRequired: boolean;
+};
+
 export type LibraryFeedOptions = {
   styles: string[];
   artists: string[];

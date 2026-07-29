@@ -27,19 +27,19 @@ export function AuthScreen({
         ? 'Доступ для пользователя'
         : 'Member access'
       : isRu
-        ? 'Регистрация по инвайту'
-        : 'Invite registration',
+        ? 'Регистрация'
+        : 'Registration',
     title: isLogin ? (isRu ? 'Вход' : 'Sign in') : isRu ? 'Создать аккаунт' : 'Create account',
     description: isLogin
       ? isRu
         ? 'Зарегистрированные пользователи могут слушать треки, сохранять избранное и создавать плейлисты.'
         : 'Registered users can listen to tracks, save favorites and build personal playlists.'
       : isRu
-        ? 'Для регистрации нужен инвайт-код. После входа будут доступны личные плейлисты, избранное и профиль.'
-        : 'New users need your invite code, then they get their own playlists, favorites and profile.',
+        ? 'Создай аккаунт, чтобы слушать треки, сохранять избранное и собирать личные плейлисты.'
+        : 'Create an account to listen to tracks, save favorites and build personal playlists.',
     displayName: isRu ? 'Имя' : 'Display name',
     password: isRu ? 'Пароль' : 'Password',
-    inviteCode: isRu ? 'Инвайт-код' : 'Invite code',
+    inviteCode: isRu ? 'Инвайт-код администратора' : 'Admin invite code',
     submit: isLogin ? (isRu ? 'Войти' : 'Sign in') : isRu ? 'Зарегистрироваться' : 'Register',
     failed: isLogin ? (isRu ? 'Не удалось войти.' : 'Login failed.') : isRu ? 'Не удалось зарегистрироваться.' : 'Registration failed.',
     switchMode: isLogin ? (isRu ? 'Нужен аккаунт?' : 'Need an account?') : isRu ? 'Уже есть аккаунт?' : 'Already have an account?',
@@ -61,7 +61,7 @@ export function AuthScreen({
               email: String(form.get('email') || ''),
               password: String(form.get('password') || ''),
               displayName: String(form.get('displayName') || ''),
-              inviteCode: String(form.get('inviteCode') || ''),
+              inviteCode: String(form.get('inviteCode') || '').trim() || undefined,
             };
 
             setStatus('');
@@ -101,7 +101,11 @@ export function AuthScreen({
           {currentMode === 'register' ? (
             <div className="field">
               <label htmlFor="inviteCode">{copy.inviteCode}</label>
-              <input id="inviteCode" name="inviteCode" required />
+              <input
+                id="inviteCode"
+                name="inviteCode"
+                placeholder={isRu ? 'Можно оставить пустым' : 'Optional'}
+              />
             </div>
           ) : null}
 

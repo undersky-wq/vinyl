@@ -3,6 +3,7 @@ import { Image, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 
 import { ChevronLeft, Pause, Play } from 'lucide-react-native';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { getCoverUrl, getRelease } from '../lib/api';
+import { normalizeDurationLabel } from '../lib/time';
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Release } from '../types';
 
@@ -154,7 +155,7 @@ export function ReleaseDetailScreen({
                   </Text>
                 </View>
                 {playerTrack ? <TrackDownloadButton track={playerTrack} /> : null}
-                <Text style={styles.duration}>{track.durationRaw || '—'}</Text>
+                <Text style={styles.duration}>{normalizeDurationLabel(track.durationRaw, track.durationSec, '—')}</Text>
               </Pressable>
             );
           })}

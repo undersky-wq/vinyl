@@ -200,3 +200,9 @@ model TrackStoreLink {
   createdAt DateTime @default(now())
   track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
 }
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Topbar } from '../../components/topbar';
-import { getCurrentUser, getProfileStats, getUsers } from '../../lib/api';
+import { getAuthSettings, getCurrentUser, getProfileStats, getUsers } from '../../lib/api';
 import { normalizeSiteLang } from '../../lib/language';
 import { AuthScreen } from '../../components/auth-screen';
 import { ProfileScreen } from '../../components/profile-screen';
@@ -34,9 +34,12 @@ export default async function ProfilePage({
     redirect('/profile');
   }
 
-  const [stats, users] = await Promise.all([
+  const [stats, users, authSettings] = await Promise.all([
     getProfileStats(cookieHeader),
     currentUser.role === 'ADMIN' ? getUsers(cookieHeader) : Promise.resolve([]),
+    currentUser.role === 'ADMIN'
+      ? getAuthSettings(cookieHeader).catch(() => ({ registrationInviteRequired: false }))
+      : Promise.resolve({ registrationInviteRequired: false }),
   ]);
 
   return (
@@ -49,6 +52,7 @@ export default async function ProfilePage({
         tracksCount={stats.tracksCount}
         playlistsCount={stats.playlistsCount}
         users={users}
+        authSettings={authSettings}
       />
     </main>
   );

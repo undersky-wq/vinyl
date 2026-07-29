@@ -195,9 +195,22 @@ export class ReleasesService {
               },
             },
           },
-          orderBy: {
-            updatedAt: 'desc',
-          },
+          orderBy:
+            query.isMix === 'true'
+              ? [
+                  {
+                    year: {
+                      sort: 'desc',
+                      nulls: 'last',
+                    },
+                  },
+                  {
+                    updatedAt: 'desc',
+                  },
+                ]
+              : {
+                  updatedAt: 'desc',
+                },
         })
       : await this.prisma.release.findMany({
           where,
@@ -215,9 +228,22 @@ export class ReleasesService {
               },
             },
           },
-          orderBy: {
-            updatedAt: 'desc',
-          },
+          orderBy:
+            query.isMix === 'true'
+              ? [
+                  {
+                    year: {
+                      sort: 'desc',
+                      nulls: 'last',
+                    },
+                  },
+                  {
+                    updatedAt: 'desc',
+                  },
+                ]
+              : {
+                  updatedAt: 'desc',
+                },
         });
 
     return Promise.all(releases.map((release) => this.signReleaseUrls(release, includeAudioUrls)));

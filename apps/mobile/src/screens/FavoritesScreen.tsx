@@ -4,6 +4,7 @@ import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { getCoverUrl } from '../lib/api';
+import { normalizeDurationLabel } from '../lib/time';
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Release, Track } from '../types';
 
@@ -164,7 +165,7 @@ export function FavoritesScreen({
                 </View>
               ) : null}
               <TrackDownloadButton track={playerTrack} />
-              <Text style={styles.time}>{playerTrack.durationRaw || '-'}</Text>
+              <Text style={styles.time}>{normalizeDurationLabel(playerTrack.durationRaw, playerTrack.durationSec, '-')}</Text>
             </Pressable>
           );
         }}

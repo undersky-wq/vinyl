@@ -1,5 +1,6 @@
 import {
   AuthUser,
+  AuthSettings,
   HomeRelease,
   HomeReleaseApi,
   LibraryFeedResponse,
@@ -272,6 +273,23 @@ export async function getCurrentUser(cookieHeader?: string) {
 export async function getProfileStats(cookieHeader?: string) {
   return fetchJson<ProfileStats>('/auth/stats', {
     headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+  });
+}
+
+export async function getAuthSettings(cookieHeader?: string) {
+  return fetchJson<AuthSettings>('/auth/settings', {
+    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+  });
+}
+
+export async function updateAuthSettings(input: Partial<AuthSettings>) {
+  return fetchJson<AuthSettings>('/auth/settings', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
   });
 }
 

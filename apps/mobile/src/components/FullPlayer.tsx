@@ -20,6 +20,7 @@ import {
 import { Heart, ListMusic, ListPlus, MessageCircle, Pause, Pencil, Play, Repeat, Shuffle, SkipBack, SkipForward, Trash2 } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
 import { colors, radius, spacing } from '../theme';
+import { normalizeDurationLabel } from '../lib/time';
 import { AuthUser, PlayerTrack, Playlist, TimelineComment } from '../types';
 import {
   createReleaseTimelineComment,
@@ -675,7 +676,7 @@ export function FullPlayer({
             </View>
             <View style={styles.times}>
               <Text style={styles.time}>{formatMs(visiblePositionMs)}</Text>
-              <Text style={styles.time}>{track.durationRaw || formatMs(durationMs)}</Text>
+              <Text style={styles.time}>{normalizeDurationLabel(track.durationRaw, durationMs / 1000, formatMs(durationMs))}</Text>
             </View>
           </View>
 
@@ -816,7 +817,7 @@ export function FullPlayer({
                         </Text>
                       </View>
                       <TrackDownloadButton track={queueTrack} size={15} />
-                      <Text style={styles.queueTime}>{queueTrack.durationRaw || ''}</Text>
+                      <Text style={styles.queueTime}>{normalizeDurationLabel(queueTrack.durationRaw, queueTrack.durationSec, '')}</Text>
                     </Pressable>
                   );
                 })}

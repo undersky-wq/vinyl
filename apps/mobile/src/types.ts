@@ -69,6 +69,10 @@ export type ProfileStats = {
   playlistsCount: number;
 };
 
+export type AuthSettings = {
+  registrationInviteRequired: boolean;
+};
+
 export type UserProfile = {
   id: string;
   email: string | null;

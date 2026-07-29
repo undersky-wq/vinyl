@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import {
   AuthUser,
+  AuthSettings,
   PlayerTrack,
   Playlist,
   PlaylistSummary,
@@ -252,6 +253,20 @@ export async function getProfileStats() {
   return fetchJson<ProfileStats>('/auth/stats');
 }
 
+export async function getAuthSettings() {
+  return fetchJson<AuthSettings>('/auth/settings');
+}
+
+export async function updateAuthSettings(input: Partial<AuthSettings>) {
+  return fetchJson<AuthSettings>('/auth/settings', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+}
+
 export async function getUsers() {
   return fetchJson<UserProfile[]>('/users');
 }
@@ -371,7 +386,7 @@ export async function register(input: {
   email: string;
   password: string;
   displayName: string;
-  inviteCode: string;
+  inviteCode?: string;
 }) {
   return fetchJson<AuthUser>('/auth/register', {
     method: 'POST',

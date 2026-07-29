@@ -14,10 +14,11 @@ import {
   startAudioNormalizeBackfill,
   startAudioWaveformBackfill,
   uploadAvatar,
+  updateAuthSettings,
 } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
-import { AuthUser, UserProfile } from '../types';
+import { AuthSettings, AuthUser, UserProfile } from '../types';
 import {
   ADMIN_EDIT_MODE_EVENT,
   ADMIN_EDIT_MODE_STORAGE_KEY,
@@ -43,6 +44,7 @@ export function ProfileScreen({
   tracksCount,
   playlistsCount,
   users,
+  authSettings,
 }: {
   lang: SiteLang;
   user: AuthUser;
@@ -50,6 +52,7 @@ export function ProfileScreen({
   tracksCount: number;
   playlistsCount: number;
   users?: UserProfile[];
+  authSettings?: AuthSettings;
 }) {
   const router = useRouter();
   const { setUser, user: authUser } = useAuth();
@@ -62,6 +65,10 @@ export function ProfileScreen({
   const [waveformProgress, setWaveformProgress] = useState(0);
   const [isNormalizingAudio, setIsNormalizingAudio] = useState(false);
   const [normalizeProgress, setNormalizeProgress] = useState(0);
+  const [isRegistrationInviteRequired, setIsRegistrationInviteRequired] = useState(
+    authSettings?.registrationInviteRequired ?? false,
+  );
+  const [isSavingAuthSettings, setIsSavingAuthSettings] = useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(
     activeUser.avatarStorageUrl || null,
   );
@@ -334,6 +341,34 @@ export function ProfileScreen({
     router.refresh();
   }
 
+  async function handleRegistrationInviteToggle() {
+    const nextValue = !isRegistrationInviteRequired;
+    setIsRegistrationInviteRequired(nextValue);
+    setIsSavingAuthSettings(true);
+    setStatus('');
+
+    try {
+      const nextSettings = await updateAuthSettings({
+        registrationInviteRequired: nextValue,
+      });
+      setIsRegistrationInviteRequired(nextSettings.registrationInviteRequired);
+      setStatus(
+        lang === 'ru'
+          ? nextSettings.registrationInviteRequired
+            ? 'Пароль регистрации включён.'
+            : 'Пароль регистрации выключен.'
+          : nextSettings.registrationInviteRequired
+            ? 'Registration invite is enabled.'
+            : 'Registration invite is disabled.',
+      );
+    } catch {
+      setIsRegistrationInviteRequired(!nextValue);
+      setStatus(lang === 'ru' ? 'Не удалось сохранить настройку регистрации.' : 'Failed to save registration setting.');
+    } finally {
+      setIsSavingAuthSettings(false);
+    }
+  }
+
   function handleAdminEditModeToggle() {
     const nextValue = !isAdminEditModeEnabled;
     setIsAdminEditModeEnabled(nextValue);
@@ -448,6 +483,18 @@ export function ProfileScreen({
                   {lang === 'ru' ? 'Редактирование с телефона' : 'Mobile editing'}
                 </span>
                 <strong>{isAdminEditModeEnabled ? 'ON' : 'OFF'}</strong>
+              </button>
+
+              <button
+                type="button"
+                className={`profile-action-button profile-action-button--switch${isRegistrationInviteRequired ? ' active' : ''}`}
+                onClick={handleRegistrationInviteToggle}
+                disabled={isSavingAuthSettings}
+              >
+                <span className="profile-action-button__label">
+                  {lang === 'ru' ? 'Пароль для регистрации' : 'Registration invite'}
+                </span>
+                <strong>{isRegistrationInviteRequired ? 'ON' : 'OFF'}</strong>
               </button>
 
             </>

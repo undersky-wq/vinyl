@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getPlaylist, reorderPlaylist, reorderPlaylists, updatePlaylist } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { normalizeDurationLabel } from '../lib/time';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Playlist, PlaylistSummary } from '../types';
@@ -18,6 +19,8 @@ type PlaylistBrowserProps = {
 type PlaylistDropSide = 'before' | 'after';
 
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
+  return normalizeDurationLabel(durationRaw, durationSec, '-');
+
   if (durationRaw) {
     return durationRaw;
   }
@@ -26,7 +29,7 @@ function formatTrackDuration(durationRaw?: string | null, durationSec?: number |
     return '—';
   }
 
-  const totalSeconds = Math.floor(durationSec);
+  const totalSeconds = Math.floor(durationSec ?? 0);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;

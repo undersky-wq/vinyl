@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Heart, Pause, Play } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { colors, radius, spacing } from '../theme';
+import { normalizeDurationLabel } from '../lib/time';
 import { PlayerTrack } from '../types';
 
 type MiniPlayerProps = {
@@ -101,7 +102,7 @@ export function MiniPlayer({
           fill={isFavorite ? colors.accent : 'none'}
         />
       </Pressable>
-      <Text style={styles.time}>{track.durationRaw || formatMs(durationMs)}</Text>
+      <Text style={styles.time}>{normalizeDurationLabel(track.durationRaw, durationMs / 1000, formatMs(durationMs))}</Text>
     </Pressable>
   );
 }

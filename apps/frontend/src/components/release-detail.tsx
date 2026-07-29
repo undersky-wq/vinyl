@@ -18,6 +18,7 @@ import {
   uploadReleaseCover,
 } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { formatSecondsAsClock, normalizeDurationLabel } from '../lib/time';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayer } from '../providers/player-provider';
 import { Release, TimelineComment } from '../types';
@@ -39,22 +40,7 @@ type ReleasePlayerTrack = PlayerTrack & {
 };
 
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
-  if (durationRaw) {
-    return durationRaw;
-  }
-
-  if (!durationSec || !Number.isFinite(durationSec)) {
-    return '-';
-  }
-
-  const totalSeconds = Math.floor(durationSec);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  return normalizeDurationLabel(durationRaw, durationSec, '-');
 }
 
 function getTrackArtist(track: { artists?: string[] }, releaseArtist: string) {
@@ -364,14 +350,7 @@ function ReleaseWaveform({
 }
 
 function formatCommentTime(second: number) {
-  const safeSecond = Math.max(0, Math.floor(second));
-  const hours = Math.floor(safeSecond / 3600);
-  const minutes = Math.floor((safeSecond % 3600) / 60);
-  const seconds = safeSecond % 60;
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  return formatSecondsAsClock(second);
 }
 
 function getAvatarInitial(name?: string | null) {
