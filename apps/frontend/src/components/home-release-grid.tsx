@@ -175,6 +175,7 @@ export function HomeReleaseGrid({
   const [hasMore, setHasMore] = useState(() => restoredViewStateRef.current?.hasMore ?? initialReleases.length === pageSize);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(false);
+  const isNavigatingAwayRef = useRef(false);
 
   useEffect(() => {
     if (restoredViewStateRef.current) {
@@ -236,6 +237,7 @@ export function HomeReleaseGrid({
   }, []);
 
   const persistCurrentViewState = useCallback(() => {
+    isNavigatingAwayRef.current = true;
     writeHomeViewState({
       queryString,
       releases,
@@ -243,6 +245,17 @@ export function HomeReleaseGrid({
       scrollY: typeof window === 'undefined' ? 0 : window.scrollY,
     });
   }, [hasMore, queryString, releases]);
+
+  useEffect(() => {
+    function captureViewStateBeforeNavigation() {
+      persistCurrentViewState();
+    }
+
+    window.addEventListener('vinyl:capture-home-view', captureViewStateBeforeNavigation);
+    return () => {
+      window.removeEventListener('vinyl:capture-home-view', captureViewStateBeforeNavigation);
+    };
+  }, [persistCurrentViewState]);
 
   useEffect(() => {
     if (isRestoringScrollRef.current) {
@@ -267,7 +280,7 @@ export function HomeReleaseGrid({
 
       frame = window.requestAnimationFrame(() => {
         frame = 0;
-        if (isRestoringScrollRef.current) {
+        if (isRestoringScrollRef.current || isNavigatingAwayRef.current) {
           return;
         }
 

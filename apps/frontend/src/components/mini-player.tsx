@@ -170,6 +170,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       return;
     }
 
+    window.dispatchEvent(new Event('vinyl:capture-home-view'));
     router.push(playerUrl);
   }
 
