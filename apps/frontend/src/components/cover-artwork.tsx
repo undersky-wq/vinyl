@@ -31,6 +31,7 @@ export function CoverArtwork({
         src={src}
         alt={alt}
         fill
+        unoptimized
         sizes={sizes}
         className={`cover-image${imageClassName ? ` ${imageClassName}` : ''}`}
         onLoad={() => setIsLoaded(true)}

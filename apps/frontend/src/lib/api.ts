@@ -18,7 +18,7 @@ import type { PlayerTrack } from '../providers/player-provider';
 const API_URL =
   typeof window === 'undefined'
     ? process.env.API_URL_INTERNAL || process.env.NEXT_PUBLIC_API_URL || 'http://backend:3001/api'
-    : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    : '/api';
 
 async function delay(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));

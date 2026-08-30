@@ -149,13 +149,13 @@ export function PlaylistTrackRow({
         <span>{title}</span>
       </button>
 
+      <div className="playlist-track__bpm">{bpm ? `${bpm} BPM` : '—'}</div>
+
+      <div className="playlist-track__key" style={{ color: getKeyColor(keyValue) || undefined }}>
+        {keyValue || '—'}
+      </div>
+
       <div className="playlist-track__actions">
-        {bpm ? <span className="playlist-track__bpm">{bpm} BPM</span> : null}
-        {keyValue ? (
-          <span className="playlist-track__key" style={{ color: getKeyColor(keyValue) || undefined }}>
-            {keyValue}
-          </span>
-        ) : null}
         {showFavorite ? <FavoriteButton trackId={trackId} lang={lang} /> : null}
         {showPlaylistMenu ? <TrackPlaylistMenu trackId={trackId} lang={lang} /> : null}
       </div>

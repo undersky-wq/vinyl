@@ -22,6 +22,7 @@ RUN apk add --no-cache ffmpeg
 COPY --from=builder /app/apps/backend/node_modules ./node_modules
 COPY --from=builder /app/apps/backend/dist ./dist
 COPY --from=builder /app/apps/backend/prisma ./prisma
+COPY --from=builder /app/apps/backend/scripts ./scripts
 COPY --from=builder /app/apps/backend/package.json ./package.json
 
 CMD ["sh", "-c", "npm run prisma:push && node dist/main.js"]

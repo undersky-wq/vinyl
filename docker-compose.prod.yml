@@ -16,6 +16,39 @@ services:
       retries: 10
       start_period: 10s
 
+  umami-db-init:
+    image: postgres:16-alpine
+    container_name: vinyl-umami-db-init
+    restart: "no"
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        if ! psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='umami'" | grep -q 1; then
+          psql -d postgres -c "CREATE DATABASE umami"
+        fi
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  umami:
+    image: docker.umami.is/umami-software/umami:postgresql-latest
+    container_name: vinyl-umami
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/umami
+      APP_SECRET: ${UMAMI_APP_SECRET:?Add UMAMI_APP_SECRET to .env}
+      DISABLE_TELEMETRY: 1
+      CLIENT_IP_HEADER: X-Forwarded-For
+      SKIP_LOCATION_HEADERS: 1
+    depends_on:
+      umami-db-init:
+        condition: service_completed_successfully
+
   backend:
     build:
       context: .
@@ -28,8 +61,14 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      LOCAL_STORAGE_PATH: ${LOCAL_STORAGE_PATH:-/data/storage}
+      APP_URL: https://mityadima.ru
+      BACKEND_PUBLIC_URL: https://mityadima.ru
     ports:
       - "127.0.0.1:${BACKEND_PORT:-3001}:3001"
+    volumes:
+      - ./data/storage:/data/storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,13 +79,31 @@ services:
       retries: 20
       start_period: 60s
 
+  media-migrator:
+    image: vinyl-backend-prod
+    container_name: vinyl-media-migrator
+    restart: on-failure:10
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      LOCAL_STORAGE_PATH: /data/storage
+      MIGRATION_RETRY_DELAY_MS: ${MIGRATION_RETRY_DELAY_MS:-300000}
+    command: ["node", "/app/apps/backend/scripts/migrate-s3-to-local.js"]
+    volumes:
+      - ./data/storage:/data/storage
+      - ./apps/backend/scripts/migrate-s3-to-local.js:/app/apps/backend/scripts/migrate-s3-to-local.js:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   frontend:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
       target: runner
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+        NEXT_PUBLIC_API_URL: /api
         API_URL_INTERNAL: ${API_URL_INTERNAL:-http://backend:3001/api}
     image: vinyl-frontend-prod
     container_name: vinyl-frontend
@@ -55,8 +112,9 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      APP_URL: https://mityadima.ru
       API_URL_INTERNAL: ${API_URL_INTERNAL:-http://backend:3001/api}
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+      NEXT_PUBLIC_API_URL: /api
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     depends_on:
@@ -69,5 +127,27 @@ services:
       retries: 20
       start_period: 60s
 
+  caddy:
+    image: caddy:2.9-alpine
+    container_name: vinyl-caddy
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+      - "0.0.0.0:443:443/udp"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      umami:
+        condition: service_started
+
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

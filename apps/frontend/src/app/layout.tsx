@@ -1,5 +1,6 @@
 import './globals.css';
 import { cookies } from 'next/headers';
+import Script from 'next/script';
 import { MobileNav } from '../components/mobile-nav';
 import { PlayerChrome } from '../components/player-chrome';
 import { AdminEditModeSync } from '../components/admin-edit-mode-sync';
@@ -28,6 +29,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang={lang}>
       <body>
+        <Script
+          src="https://stats.mityadima.ru/script.js"
+          data-website-id="c806c076-3efa-47ff-8d15-f5d913be11be"
+          strategy="afterInteractive"
+        />
         <AdminEditModeSync />
         <AuthProvider initialUser={currentUser}>
           <FavoritesProvider initialFavoriteTrackIds={favoriteTrackIds}>

@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getPlaylist, reorderPlaylist, reorderPlaylists, updatePlaylist } from '../lib/api';
 import { SiteLang } from '../lib/language';
@@ -17,6 +18,38 @@ type PlaylistBrowserProps = {
 };
 
 type PlaylistDropSide = 'before' | 'after';
+type TrackSortField = 'key' | 'bpm';
+type TrackSortDirection = 'asc' | 'desc';
+type TrackSort = { field: TrackSortField; direction: TrackSortDirection } | null;
+
+// Camelot wheel order. Conventional keys are mapped to their Traktor/Camelot equivalent.
+const CAMELOT_KEY_ORDER: Record<string, number> = {
+  '1A': 0, 'G#M': 0, ABM: 0, '1B': 1, B: 1,
+  '2A': 2, 'D#M': 2, EBM: 2, '2B': 3, 'F#': 3, GB: 3,
+  '3A': 4, 'A#M': 4, BBM: 4, '3B': 5, 'C#': 5, DB: 5,
+  '4A': 6, FM: 6, '4B': 7, 'G#': 7, AB: 7,
+  '5A': 8, CM: 8, '5B': 9, 'D#': 9, EB: 9,
+  '6A': 10, GM: 10, '6B': 11, 'A#': 11, BB: 11,
+  '7A': 12, DM: 12, '7B': 13, F: 13,
+  '8A': 14, AM: 14, '8B': 15, C: 15,
+  '9A': 16, EM: 16, '9B': 17, G: 17,
+  '10A': 18, BM: 18, '10B': 19, D: 19,
+  '11A': 20, 'F#M': 20, GBM: 20, '11B': 21, A: 21,
+  '12A': 22, 'C#M': 22, DBM: 22, '12B': 23, E: 23,
+};
+
+function getCamelotKeyOrder(value?: string | null) {
+  if (!value?.trim()) return null;
+  const normalized = value.trim().replace(/♯/g, '#').replace(/♭/g, 'b').toUpperCase();
+  return CAMELOT_KEY_ORDER[normalized] ?? null;
+}
+
+function compareNullableNumbers(a: number | null, b: number | null, direction: TrackSortDirection) {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return direction === 'asc' ? a - b : b - a;
+}
 
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
   return normalizeDurationLabel(durationRaw, durationSec, '-');
@@ -165,6 +198,7 @@ export function PlaylistBrowser({
   const [isPlaylistOrderDirty, setIsPlaylistOrderDirty] = useState(false);
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [isReorderDirty, setIsReorderDirty] = useState(false);
+  const [trackSort, setTrackSort] = useState<TrackSort>(null);
   const [isPlaylistLoading, setIsPlaylistLoading] = useState(false);
   const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
   const [editingPlaylistName, setEditingPlaylistName] = useState('');
@@ -257,13 +291,40 @@ export function PlaylistBrowser({
       .filter((track) => Boolean(track.audioUrl));
   }, [activePlaylist]);
 
+  const displayedTracks = useMemo(() => {
+    if (!trackSort) return tracks;
+
+    return tracks
+      .map((track, manualIndex) => ({ track, manualIndex }))
+      .sort((a, b) => {
+        const comparison = trackSort.field === 'bpm'
+          ? compareNullableNumbers(a.track.bpm ?? null, b.track.bpm ?? null, trackSort.direction)
+          : compareNullableNumbers(
+              getCamelotKeyOrder(a.track.keyValue),
+              getCamelotKeyOrder(b.track.keyValue),
+              trackSort.direction,
+            );
+        return comparison || a.manualIndex - b.manualIndex;
+      })
+      .map(({ track }) => track);
+  }, [trackSort, tracks]);
+
+  function cycleTrackSort(field: TrackSortField) {
+    setDraggedTrackId(null);
+    setTrackSort((current) => {
+      if (!current || current.field !== field) return { field, direction: 'asc' };
+      if (current.direction === 'asc') return { field, direction: 'desc' };
+      return null;
+    });
+  }
+
   function playFromPlaylist(trackId: string) {
-    const index = tracks.findIndex((track) => track.id === trackId);
+    const index = displayedTracks.findIndex((track) => track.id === trackId);
     if (index < 0) {
       return;
     }
 
-    playQueue(tracks, index);
+    playQueue(displayedTracks, index);
   }
 
   function moveTrack(activeTrackId: string, overTrackId: string) {
@@ -511,7 +572,34 @@ export function PlaylistBrowser({
         ) : null}
 
         <div className="playlist-tracklist">
-          {tracks.map((track, index) => {
+          {activePlaylist && tracks.length ? (
+            <div className="playlist-track-sort" role="group" aria-label={lang === 'ru' ? 'Сортировка треков' : 'Track sorting'}>
+              <button
+                type="button"
+                className={`playlist-track-sort__button playlist-track-sort__button--bpm${trackSort?.field === 'bpm' ? ' active' : ''}`}
+                aria-pressed={trackSort?.field === 'bpm'}
+                title={lang === 'ru' ? 'Сортировать по скорости' : 'Sort by tempo'}
+                onClick={() => cycleTrackSort('bpm')}
+              >
+                <span>BPM</span>
+                {trackSort?.field === 'bpm' && trackSort.direction === 'asc' ? <ArrowUp size={15} /> : null}
+                {trackSort?.field === 'bpm' && trackSort.direction === 'desc' ? <ArrowDown size={15} /> : null}
+              </button>
+              <button
+                type="button"
+                className={`playlist-track-sort__button playlist-track-sort__button--key${trackSort?.field === 'key' ? ' active' : ''}`}
+                aria-pressed={trackSort?.field === 'key'}
+                title={lang === 'ru' ? 'Сортировать по кругу Camelot' : 'Sort by Camelot wheel'}
+                onClick={() => cycleTrackSort('key')}
+              >
+                <span>KEY</span>
+                {trackSort?.field === 'key' && trackSort.direction === 'asc' ? <ArrowUp size={15} /> : null}
+                {trackSort?.field === 'key' && trackSort.direction === 'desc' ? <ArrowDown size={15} /> : null}
+              </button>
+            </div>
+          ) : null}
+
+          {displayedTracks.map((track, index) => {
             const isCurrentTrack = currentTrack?.id === track.id;
 
             return (
@@ -529,14 +617,20 @@ export function PlaylistBrowser({
                 isCurrentTrack={isCurrentTrack}
                 isPlaying={isPlaying}
                 isDragging={draggedTrackId === track.id}
-                draggable
+                className={trackSort ? 'playlist-track--sorted' : ''}
+                draggable={!trackSort}
                 key={track.id}
                 onDragStart={(event) => {
+                  if (trackSort) {
+                    event.preventDefault();
+                    return;
+                  }
                   setDraggedTrackId(track.id);
                   event.dataTransfer.effectAllowed = 'move';
                   event.dataTransfer.setData('text/plain', track.id);
                 }}
                 onDragOver={(event) => {
+                  if (trackSort) return;
                   event.preventDefault();
                   event.dataTransfer.dropEffect = 'move';
                   const activeTrackId = event.dataTransfer.getData('text/plain') || draggedTrackId;

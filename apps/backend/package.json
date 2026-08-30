@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "traktor:import": "node scripts/import-traktor-nml.js",
-    "traktor:import:apply": "node scripts/import-traktor-nml.js --apply"
+    "traktor:import:apply": "node scripts/import-traktor-nml.js --apply",
+    "storage:migrate-local": "node scripts/migrate-s3-to-local.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.883.0",

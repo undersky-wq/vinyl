@@ -30,11 +30,16 @@ services:
     command: sh -c "npm run prisma:generate && npm run prisma:push && npm run start:dev"
     env_file:
       - .env
+    environment:
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      LOCAL_STORAGE_PATH: ${LOCAL_STORAGE_PATH:-/data/storage}
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:${BACKEND_PORT:-3001}}
     ports:
       - "${BACKEND_PORT:-3001}:3001"
     volumes:
       - ./:/app
       - backend_node_modules:/app/apps/backend/node_modules
+      - ./data/storage:/data/storage
     depends_on:
       postgres:
         condition: service_healthy

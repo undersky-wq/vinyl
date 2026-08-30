@@ -10,3 +10,4 @@ apps/backend/generated
 backups/
 tmp_*.json
 *.tsbuildinfo
+data/

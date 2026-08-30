@@ -2,6 +2,8 @@ import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } fro
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import sanitizeFilename from 'sanitize-filename';
 
 @Injectable()
@@ -69,6 +71,13 @@ export class StorageService {
     body: Buffer;
     contentType: string;
   }) {
+    if (this.isLocalBucket(params.bucket)) {
+      const filePath = this.resolveLocalObjectPath(params.bucket, params.key);
+      await mkdir(path.dirname(filePath), { recursive: true });
+      await writeFile(filePath, params.body);
+      return this.buildLocalObjectUrl(params.bucket, params.key);
+    }
+
     if (!this.client) {
       throw new Error('S3 client is not configured');
     }
@@ -86,6 +95,11 @@ export class StorageService {
   }
 
   async deleteObject(bucket: string, key: string) {
+    if (this.isLocalBucket(bucket)) {
+      await rm(this.resolveLocalObjectPath(bucket, key), { force: true });
+      return;
+    }
+
     if (!this.client) {
       throw new Error('S3 client is not configured');
     }
@@ -99,6 +113,15 @@ export class StorageService {
   }
 
   async getSignedObjectUrl(bucket: string, key: string, expiresIn = 3600) {
+    if (this.isLocalBucket(bucket)) {
+      try {
+        await stat(this.resolveLocalObjectPath(bucket, key));
+        return this.buildLocalObjectUrl(bucket, key);
+      } catch {
+        return null;
+      }
+    }
+
     if (!this.client) {
       return null;
     }
@@ -129,6 +152,10 @@ export class StorageService {
   }
 
   buildObjectUrl(bucket: string, key: string) {
+    if (this.isLocalBucket(bucket)) {
+      return this.buildLocalObjectUrl(bucket, key);
+    }
+
     if (!this.endpoint) {
       return null;
     }
@@ -146,5 +173,46 @@ export class StorageService {
     }
 
     return `https://${endpoint}`;
+  }
+
+  isLocalBucket(bucket: string) {
+    const driver =
+      this.configService.get<string>('STORAGE_DRIVER') ||
+      this.configService.get<string>('AUDIO_STORAGE_DRIVER') ||
+      'local';
+    const localBuckets = new Set([
+      this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio',
+      this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers',
+      this.configService.get<string>('SELECTEL_S3_BUCKET_AVATARS') || 'avatars',
+    ]);
+    return driver.toLowerCase() === 'local' && localBuckets.has(bucket);
+  }
+
+  resolveLocalObjectPath(bucket: string, key: string) {
+    if (!this.isLocalBucket(bucket)) {
+      throw new Error('This bucket is not configured for local storage');
+    }
+
+    const root = path.resolve(
+      this.configService.get<string>('LOCAL_STORAGE_PATH') || '/data/storage',
+    );
+    const filePath = path.resolve(root, key);
+    const allowedPrefix = `${root}${path.sep}`;
+
+    if (!filePath.startsWith(allowedPrefix)) {
+      throw new Error('Invalid local storage key');
+    }
+
+    return filePath;
+  }
+
+  private buildLocalObjectUrl(bucket: string, key: string) {
+    const publicBase = (
+      this.configService.get<string>('BACKEND_PUBLIC_URL') || 'http://localhost:3001'
+    ).replace(/\/$/, '');
+    const encodedPath = [bucket, ...key.split('/')]
+      .map((part) => encodeURIComponent(part))
+      .join('/');
+    return `${publicBase}/api/media/${encodedPath}`;
   }
 }

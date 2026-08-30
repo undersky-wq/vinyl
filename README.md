@@ -6,7 +6,7 @@
 
 - Backend: NestJS + Prisma + PostgreSQL
 - Frontend: Next.js App Router + TypeScript
-- Storage: Selectel S3
+- Storage: локальный диск для MP3, обложек, галереи и аватаров
 - Local dev: Docker Compose
 - Future deploy: VPS + Docker Compose + Nginx
 
@@ -56,7 +56,7 @@ npm run mobile
 
 - импорт коллекции Discogs с upsert без дублей;
 - хранение релизов, треков, обложек, аудиофайлов и плейлистов;
-- загрузка обложек и MP3 в Selectel S3;
+- загрузка MP3, обложек и аватаров на локальный диск сервера;
 - фильтры по артисту, релизу, треку, жанру, стилю, BPM, тональности, аудио;
 - мини-плеер и waveform на странице релиза;
 - подготовка к деплою на VPS.
@@ -68,12 +68,37 @@ npm run mobile
 - `POST /api/audio/upload` и `DELETE /api/audio/:id` для ручной загрузки MP3;
 - `GET /api/playlists`, `GET /api/playlists/:id`, `POST /api/playlists`;
 - Prisma schema для `User`, `Release`, `Track`, `CollectionItem`, `Image`, `AudioFile`, `Playlist`, `PlaylistItem`, `TrackStoreLink`;
-- сохранение обложек и аудио в Selectel S3 с безопасной генерацией ключей;
+- сохранение аудио и изображений в `data/storage` с безопасной генерацией ключей;
 - русскоязычный тёмный интерфейс с grid-каталогом, страницей релиза, мини-плеером и waveform через `wavesurfer.js`.
 
 ## Переменные окружения
 
 См. `.env.example`.
+
+## Локальное файловое хранилище
+
+По умолчанию `STORAGE_DRIVER=local`. Docker подключает каталог
+`./data/storage` с компьютера к `/data/storage` внутри backend-контейнера.
+MP3, обложки, галерея и аватары переживают пересборку и удаление контейнеров.
+Каталог исключён из Git.
+
+Для публикации задайте внешний адрес backend, например:
+
+```env
+BACKEND_PUBLIC_URL=https://mityadima.ru
+```
+
+Чтобы временно вернуть S3 для всех файлов, установите `STORAGE_DRIVER=s3` и
+заполните переменные Selectel.
+
+Для однократного переноса файлов из прежнего S3 в локальное хранилище:
+
+```bash
+docker compose -f docker-compose.prod.yml exec backend npm run storage:migrate-local
+```
+
+Мигратор берёт ключи из PostgreSQL, пропускает существующие локальные файлы и
+может безопасно запускаться повторно.
 
 ## Продакшн позже
 
@@ -82,7 +107,7 @@ npm run mobile
 - собрать `apps/backend/Dockerfile` и `apps/frontend/Dockerfile`;
 - поднять `frontend`, `backend`, `postgres`;
 - добавить Nginx как reverse proxy для `frontend` и `backend` через `infra/nginx/nginx.conf.example`;
-- для object storage использовать те же Selectel S3 credentials.
+- при необходимости можно вернуть Selectel S3 через `STORAGE_DRIVER=s3`.
 
 ## Важно
 
