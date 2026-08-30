@@ -127,6 +127,9 @@ export async function getLibraryReleasesFeed(searchParams?: URLSearchParams, coo
 function mapHomeRelease(release: HomeReleaseApi): HomeRelease {
   return {
     id: release.id,
+    audioComplete: release.audioComplete ?? (
+      release.tracks.length > 0 && release.tracks.every((track) => track.audioFiles.length > 0)
+    ),
     artist: release.artist,
     title: release.title,
     year: release.year,

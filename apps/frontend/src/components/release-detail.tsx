@@ -23,6 +23,7 @@ import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayer } from '../providers/player-provider';
 import { Release, TimelineComment } from '../types';
 import { CoverArtwork } from './cover-artwork';
+import { isReleaseAudioComplete, rememberReleaseAudioStatus } from '../lib/release-audio';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { MixShareSheet } from './mix-share-sheet';
 import { TrackUploadButton } from './track-upload-button';
@@ -950,6 +951,9 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
 
   const meta = [release.year, release.country].filter(Boolean).join(' • ');
   const isAdmin = user?.role === 'ADMIN';
+  useEffect(() => {
+    if (isAdmin) rememberReleaseAudioStatus(release.id, isReleaseAudioComplete({ tracks }));
+  }, [isAdmin, release.id, tracks]);
 
   useEffect(() => {
     setStyleTags([...release.styles]);
@@ -1256,6 +1260,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
             <CoverArtwork
               src={coverSrc}
               alt={release.title}
+              grayscale={isAdmin && !isReleaseAudioComplete({ tracks })}
               sizes="(max-width: 900px) 90vw, 340px"
               priority
             />

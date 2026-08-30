@@ -19,6 +19,7 @@ export type Track = {
 
 export type Release = {
   id: string;
+  audioComplete?: boolean;
   artist: string;
   title: string;
   year: number | null;

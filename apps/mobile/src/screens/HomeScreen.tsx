@@ -8,6 +8,8 @@ import { colors, radius, spacing } from '../theme';
 import { Release } from '../types';
 
 type HomeScreenProps = {
+  isActive?: boolean;
+  isAdmin?: boolean;
   onOpenProfile: () => void;
   onOpenRelease: (release: Release) => void;
   avatarUrl?: string | null;
@@ -15,7 +17,7 @@ type HomeScreenProps = {
 
 const PAGE_SIZE = 32;
 
-export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScreenProps) {
+export function HomeScreen({ isActive = true, isAdmin = false, onOpenProfile, onOpenRelease, avatarUrl }: HomeScreenProps) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [stylesList, setStylesList] = useState<Array<{ name: string; count: number }>>([]);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
@@ -48,7 +50,7 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
   }
 
   async function loadMore() {
-    if (isLoading || isLoadingMore || !hasMore) {
+    if (!isActive || isLoading || isLoadingMore || !hasMore) {
       return;
     }
 
@@ -195,6 +197,7 @@ export function HomeScreen({ onOpenProfile, onOpenRelease, avatarUrl }: HomeScre
         renderItem={({ item }) => (
           <ReleaseTile
             release={item}
+            isAdmin={isAdmin}
             onPress={onOpenRelease}
           />
         )}

@@ -482,7 +482,13 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
               aria-label={release.title}
               onClick={(event) => handleCoverOpen(event, release, tracks)}
             >
-              <img src={getCoverUrl(release)} alt={release.title} loading="lazy" decoding="async" />
+              <img
+                src={getCoverUrl(release)}
+                alt={release.title}
+                loading="lazy"
+                decoding="async"
+                style={{ filter: isAdmin && release.audioComplete === false ? 'grayscale(1)' : undefined }}
+              />
             </Link>
 
             <div className="mix-card__body">

@@ -4,6 +4,7 @@ import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { getCoverUrl, reorderPlaylists, updatePlaylist } from '../lib/api';
+import { getKeyColor } from '../lib/key-color';
 import { normalizeDurationLabel } from '../lib/time';
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Playlist } from '../types';
@@ -275,7 +276,13 @@ export function PlaylistsScreen({
                     </Text>
                   ) : null}
                   {item.item.track.key ? (
-                    <Text style={[styles.metaPill, isActive && styles.metaPillActive]}>
+                    <Text
+                      style={[
+                        styles.metaPill,
+                        isActive && styles.metaPillActive,
+                        { color: getKeyColor(item.item.track.key) },
+                      ]}
+                    >
                       {item.item.track.key}
                     </Text>
                   ) : null}
@@ -471,7 +478,7 @@ const styles = StyleSheet.create({
   },
   trackTitle: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
   },
   trackActiveText: {

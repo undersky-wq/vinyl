@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { ChevronLeft, Pause, Play } from 'lucide-react-native';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
+import { ReleaseCover } from '../components/ReleaseCover';
 import { getCoverUrl, getRelease } from '../lib/api';
 import { normalizeDurationLabel } from '../lib/time';
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Release } from '../types';
 
 type ReleaseDetailScreenProps = {
+  isAdmin?: boolean;
   initialRelease: Release;
   activeTrackId: string | null;
   isPlaying: boolean;
@@ -45,6 +47,7 @@ function buildPlayableTracks(release: Release) {
 }
 
 export function ReleaseDetailScreen({
+  isAdmin = false,
   initialRelease,
   activeTrackId,
   isPlaying,
@@ -93,7 +96,7 @@ export function ReleaseDetailScreen({
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Image source={{ uri: getCoverUrl(release) }} style={styles.cover} />
+        <ReleaseCover release={release} isAdmin={isAdmin} style={styles.cover} />
 
         <View style={styles.releaseMeta}>
           <Text style={styles.artist}>{release.artist}</Text>

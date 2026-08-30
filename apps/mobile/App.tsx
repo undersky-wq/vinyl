@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { AudioLines, Heart, House, Library, ListMusic } from 'lucide-react-native';
 import type { Track as TrackPlayerTrack } from 'react-native-track-player';
 import { MiniPlayer } from './src/components/MiniPlayer';
@@ -110,6 +110,7 @@ export default function App() {
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
   const [activeRelease, setActiveRelease] = useState<Release | null>(null);
+  const isHomeVisible = activeTab === 'home' && !activeRelease;
   const currentTrackRef = useRef<PlayerTrack | null>(null);
   const queueRef = useRef<PlayerTrack[]>([]);
   const queueSignatureRef = useRef('');
@@ -688,10 +689,23 @@ export default function App() {
     }
   }, [positionMs, durationMs, isRepeatEnabled]);
 
+  useEffect(() => {
+    if (!activeRelease || isFullPlayerOpen) {
+      return;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setActiveRelease(null);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [activeRelease, isFullPlayerOpen]);
+
   function renderScreen() {
     if (activeRelease) {
       return (
         <ReleaseDetailScreen
+          isAdmin={currentUser?.role === 'ADMIN'}
           initialRelease={activeRelease}
           activeTrackId={currentTrack?.id || null}
           isPlaying={isPlaying}
@@ -703,18 +717,13 @@ export default function App() {
     }
 
     if (activeTab === 'home') {
-      return (
-        <HomeScreen
-          avatarUrl={currentUser?.avatarStorageUrl}
-          onOpenProfile={() => setActiveTab('profile')}
-          onOpenRelease={setActiveRelease}
-        />
-      );
+      return null;
     }
 
     if (activeTab === 'library') {
       return (
         <LibraryScreen
+          isAdmin={currentUser?.role === 'ADMIN'}
           activeTrackId={currentTrack?.id || null}
           avatarUrl={currentUser?.avatarStorageUrl}
           favoriteIds={favoriteIds}
@@ -749,6 +758,7 @@ export default function App() {
     if (activeTab === 'mixes') {
       return (
         <MixesScreen
+          isAdmin={currentUser?.role === 'ADMIN'}
           avatarUrl={currentUser?.avatarStorageUrl}
           activeTrackId={currentTrack?.id || null}
           onOpenProfile={() => setActiveTab('profile')}
@@ -786,6 +796,21 @@ export default function App() {
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" />
       <View style={styles.root}>
+        {/* Keep the same list and layout mounted so paginated data and scroll survive navigation. */}
+        <View
+          style={[styles.homeLayer, !isHomeVisible && styles.homeLayerHidden]}
+          pointerEvents={isHomeVisible ? 'auto' : 'none'}
+          accessibilityElementsHidden={!isHomeVisible}
+          importantForAccessibility={isHomeVisible ? 'auto' : 'no-hide-descendants'}
+        >
+          <HomeScreen
+            isAdmin={currentUser?.role === 'ADMIN'}
+            isActive={isHomeVisible && !isFullPlayerOpen}
+            avatarUrl={currentUser?.avatarStorageUrl}
+            onOpenProfile={() => setActiveTab('profile')}
+            onOpenRelease={setActiveRelease}
+          />
+        </View>
         {renderScreen()}
 
         <MiniPlayer
@@ -872,6 +897,12 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  homeLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  homeLayerHidden: {
+    opacity: 0,
   },
   tabbar: {
     position: 'absolute',

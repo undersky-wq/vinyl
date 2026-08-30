@@ -1,17 +1,18 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { getCoverUrl } from '../lib/api';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ReleaseCover } from './ReleaseCover';
 import { colors, radius, spacing } from '../theme';
 import { Release } from '../types';
 
 type ReleaseTileProps = {
   release: Release;
+  isAdmin?: boolean;
   onPress?: (release: Release) => void;
 };
 
-export function ReleaseTile({ release, onPress }: ReleaseTileProps) {
+export function ReleaseTile({ release, isAdmin = false, onPress }: ReleaseTileProps) {
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={() => onPress?.(release)}>
-      <Image source={{ uri: getCoverUrl(release) }} style={styles.cover} />
+      <ReleaseCover release={release} isAdmin={isAdmin} style={styles.cover} />
       <View style={styles.meta}>
         <Text numberOfLines={1} style={styles.title}>
           {release.title}

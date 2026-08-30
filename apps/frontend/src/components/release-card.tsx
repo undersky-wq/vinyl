@@ -14,7 +14,7 @@ type ReleaseCardProps = {
 };
 
 export function ReleaseCard({ release, onOpenRelease, priority = false }: ReleaseCardProps) {
-  const { requireAuth } = useAuth();
+  const { user, requireAuth } = useAuth();
   const { playQueue } = usePlayerActions();
   const coverSrc =
     release.coverThumbStorageUrl ||
@@ -59,7 +59,12 @@ export function ReleaseCard({ release, onOpenRelease, priority = false }: Releas
           className="cover-link"
           onClick={onOpenRelease}
         >
-          <CoverArtwork src={coverSrc} alt={release.title} priority={priority} />
+          <CoverArtwork
+            src={coverSrc}
+            alt={release.title}
+            priority={priority}
+            grayscale={user?.role === 'ADMIN' && release.audioComplete === false}
+          />
         </Link>
 
         <div className="cover-overlay">

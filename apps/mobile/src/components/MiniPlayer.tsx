@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Heart, Pause, Play } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { colors, radius, spacing } from '../theme';
@@ -57,6 +57,25 @@ export function MiniPlayer({
 
   return (
     <Pressable style={styles.shell} onPress={onOpen}>
+      <View
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        {track.coverUrl ? (
+          <Image
+            key={track.coverUrl}
+            source={{ uri: track.coverUrl }}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="stretch"
+            blurRadius={26}
+            fadeDuration={0}
+            accessible={false}
+          />
+        ) : null}
+        <View style={styles.ambientOverlay} />
+      </View>
       <Pressable style={styles.playOuter} onPress={onToggle}>
         <Svg width={ringSize} height={ringSize} style={styles.playProgressRing}>
           <Circle
@@ -134,6 +153,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
+  },
+  ambientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10,10,10,0.78)',
   },
   playProgressRing: {
     position: 'absolute',

@@ -453,6 +453,12 @@ export class ReleasesService {
         skip,
         take,
         include: {
+          // Count missing audio across the whole release, not just the filtered library rows.
+          _count: {
+            select: {
+              tracks: { where: { audioFiles: { none: {} } } },
+            },
+          },
           tracks: {
             where: trackWhere,
             include: {
@@ -515,7 +521,12 @@ export class ReleasesService {
     ]);
 
     const signedReleases = await Promise.all(
-      releases.map((release) => this.signReleaseUrls(release, true)),
+      releases.map(({ _count, ...release }) =>
+        this.signReleaseUrls({
+          ...release,
+          audioComplete: release.tracks.length > 0 && _count.tracks === 0,
+        }, true),
+      ),
     );
 
     return {
@@ -1261,6 +1272,7 @@ export class ReleasesService {
       coverThumbStorageUrl?: string | null;
       coverMediumStorageKey?: string | null;
       coverMediumStorageUrl?: string | null;
+      audioComplete?: boolean;
       images?: Array<{
         storageKey: string;
         url: string;
@@ -1283,6 +1295,9 @@ export class ReleasesService {
 
     return {
       ...release,
+      audioComplete: release.audioComplete ?? (
+        release.tracks.length > 0 && release.tracks.every((track) => track.audioFiles.length > 0)
+      ),
       coverStorageUrl:
         release.coverStorageKey
           ? (await this.storageService.getSignedObjectUrl(coversBucket, release.coverStorageKey)) ||

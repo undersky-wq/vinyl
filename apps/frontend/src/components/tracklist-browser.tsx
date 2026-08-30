@@ -300,7 +300,7 @@ export function TracklistBrowser({
   pageSize = 10,
 }: TracklistBrowserProps) {
   const restoredViewStateRef = useRef<LibraryViewState | null>(readLibraryViewState());
-  const { requireAuth } = useAuth();
+  const { user, requireAuth } = useAuth();
   const { favoriteTrackIds, toggleFavorite } = useFavorites();
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { playQueue, replaceQueuePreservingCurrent, togglePlayback } = usePlayerActions();
@@ -840,6 +840,7 @@ export function TracklistBrowser({
                         'https://placehold.co/320x320/png'
                       }
                       alt={release.title}
+                      style={{ filter: user?.role === 'ADMIN' && release.audioComplete === false ? 'grayscale(1)' : undefined }}
                       width={180}
                       height={180}
                       loading="lazy"

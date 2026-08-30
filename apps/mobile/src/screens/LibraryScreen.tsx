@@ -3,6 +3,7 @@ import { FlatList, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, T
 import { Heart, ListMusic, Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
+import { ReleaseCover } from '../components/ReleaseCover';
 import {
   getCoverUrl,
   getLibraryFeedFiltered,
@@ -17,6 +18,7 @@ const PAGE_SIZE_OPTIONS = [20, 40, 60];
 const VISIBLE_PAGE_WINDOW_SIZE = 5;
 
 type LibraryScreenProps = {
+  isAdmin?: boolean;
   activeTrackId: string | null;
   favoriteIds: Set<string>;
   playlists: Playlist[];
@@ -67,6 +69,7 @@ function buildPlayableTracks(release: Release) {
 }
 
 export function LibraryScreen({
+  isAdmin = false,
   activeTrackId,
   favoriteIds,
   playlists,
@@ -405,7 +408,7 @@ export function LibraryScreen({
           return (
             <View style={styles.releaseCard}>
               <View style={styles.releaseHeader}>
-                <Image source={{ uri: getCoverUrl(item) }} style={styles.releaseCover} />
+                <ReleaseCover release={item} isAdmin={isAdmin} style={styles.releaseCover} />
                 <View style={styles.releaseMeta}>
                   <Text numberOfLines={1} style={styles.releaseArtist}>
                     {item.artist}

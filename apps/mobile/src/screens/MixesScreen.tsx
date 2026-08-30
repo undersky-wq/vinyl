@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, RefreshControl, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
+import { ReleaseCover } from '../components/ReleaseCover';
 import { getCoverUrl, getLibraryFeedFiltered } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
 import { PlayerTrack, Release, Track } from '../types';
 
 type MixesScreenProps = {
+  isAdmin?: boolean;
   activeTrackId: string | null;
   onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
   onOpenProfile: () => void;
@@ -39,7 +41,7 @@ function toPlayerTrack(release: Release, track: Track): PlayerTrack | null {
   };
 }
 
-export function MixesScreen({ activeTrackId, onPlayTrack, onOpenProfile, avatarUrl }: MixesScreenProps) {
+export function MixesScreen({ isAdmin = false, activeTrackId, onPlayTrack, onOpenProfile, avatarUrl }: MixesScreenProps) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lang, setLang] = useState<'ru' | 'en'>('en');
@@ -115,7 +117,7 @@ export function MixesScreen({ activeTrackId, onPlayTrack, onOpenProfile, avatarU
                 }
               }}
             >
-              <Image source={{ uri: getCoverUrl(item) }} style={[styles.cover, isActive && styles.coverActive]} />
+              <ReleaseCover release={item} isAdmin={isAdmin} style={[styles.cover, isActive && styles.coverActive]} />
               <Text numberOfLines={1} style={[styles.artist, isActive && styles.activeText]}>
                 {item.artist}
               </Text>
@@ -222,7 +224,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
   },
   activeText: {

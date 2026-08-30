@@ -25,6 +25,7 @@ export type Track = {
 
 export type Release = {
   id: string;
+  audioComplete?: boolean;
   artist: string;
   title: string;
   year: number | null;
@@ -47,6 +48,7 @@ export type Release = {
 
 export type HomeRelease = {
   id: string;
+  audioComplete?: boolean;
   artist: string;
   title: string;
   year: number | null;
@@ -66,6 +68,7 @@ export type HomeRelease = {
 
 export type HomeReleaseApi = {
   id: string;
+  audioComplete?: boolean;
   artist: string;
   title: string;
   year: number | null;

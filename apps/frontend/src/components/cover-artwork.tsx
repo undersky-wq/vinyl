@@ -10,6 +10,7 @@ type CoverArtworkProps = {
   className?: string;
   imageClassName?: string;
   priority?: boolean;
+  grayscale?: boolean;
 };
 
 export function CoverArtwork({
@@ -19,6 +20,7 @@ export function CoverArtwork({
   className = '',
   imageClassName = '',
   priority = false,
+  grayscale = false,
 }: CoverArtworkProps) {
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -34,6 +36,7 @@ export function CoverArtwork({
         unoptimized
         sizes={sizes}
         className={`cover-image${imageClassName ? ` ${imageClassName}` : ''}`}
+        style={{ filter: grayscale ? 'grayscale(1)' : undefined }}
         onLoad={() => setIsLoaded(true)}
         priority={priority}
       />

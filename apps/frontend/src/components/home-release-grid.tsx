@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getHomeReleases } from '../lib/api';
+import { restoreReleaseAudioStatuses } from '../lib/release-audio';
 import { SiteLang } from '../lib/language';
 import { HomeRelease } from '../types';
 import { ReleaseCard } from './release-card';
@@ -51,7 +52,7 @@ function readHomeViewState(queryString: string) {
     if (homeViewStateMemory?.queryString === queryString) {
       return {
         ...homeViewStateMemory,
-        releases: uniqueByReleaseId(homeViewStateMemory.releases),
+        releases: restoreReleaseAudioStatuses(uniqueByReleaseId(homeViewStateMemory.releases)),
       } satisfies HomeViewState;
     }
 
@@ -67,7 +68,7 @@ function readHomeViewState(queryString: string) {
 
     return {
       queryString,
-      releases: uniqueByReleaseId(parsed.releases),
+      releases: restoreReleaseAudioStatuses(uniqueByReleaseId(parsed.releases)),
       hasMore: Boolean(parsed.hasMore),
       scrollY: typeof parsed.scrollY === 'number' ? parsed.scrollY : 0,
     } satisfies HomeViewState;
