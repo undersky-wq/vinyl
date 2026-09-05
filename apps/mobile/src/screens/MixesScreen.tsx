@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, RefreshControl, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { ReleaseCover } from '../components/ReleaseCover';
 import { getCoverUrl, getLibraryFeedFiltered } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
+import { LanguageProps } from '../types';
 import { PlayerTrack, Release, Track } from '../types';
 
-type MixesScreenProps = {
+type MixesScreenProps = LanguageProps & {
   isAdmin?: boolean;
   activeTrackId: string | null;
   onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
@@ -41,10 +42,9 @@ function toPlayerTrack(release: Release, track: Track): PlayerTrack | null {
   };
 }
 
-export function MixesScreen({ isAdmin = false, activeTrackId, onPlayTrack, onOpenProfile, avatarUrl }: MixesScreenProps) {
+export function MixesScreen({ lang, onLanguageChange: setLang, isAdmin = false, activeTrackId, onPlayTrack, onOpenProfile, avatarUrl }: MixesScreenProps) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [lang, setLang] = useState<'ru' | 'en'>('en');
 
   async function load() {
     setIsLoading(true);
@@ -60,8 +60,15 @@ export function MixesScreen({ isAdmin = false, activeTrackId, onPlayTrack, onOpe
     void load();
   }, []);
 
-  const queue = releases.flatMap((release) =>
-    release.tracks.map((track) => toPlayerTrack(release, track)).filter((track): track is PlayerTrack => Boolean(track)),
+  const tracksByReleaseId = useMemo(() => new Map(releases.map((release) => [
+    release.id,
+    release.tracks
+      .map((track) => toPlayerTrack(release, track))
+      .filter((track): track is PlayerTrack => Boolean(track)),
+  ])), [releases]);
+  const queue = useMemo(
+    () => releases.flatMap((release) => tracksByReleaseId.get(release.id) || []),
+    [releases, tracksByReleaseId],
   );
 
   return (
@@ -97,13 +104,16 @@ export function MixesScreen({ isAdmin = false, activeTrackId, onPlayTrack, onOpe
         data={releases}
         keyExtractor={(item) => item.id}
         numColumns={2}
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        updateCellsBatchingPeriod={60}
+        windowSize={5}
+        removeClippedSubviews
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={load} tintColor={colors.accent} />}
         renderItem={({ item }) => {
-          const tracks = item.tracks
-            .map((track) => toPlayerTrack(item, track))
-            .filter((track): track is PlayerTrack => Boolean(track));
+          const tracks = tracksByReleaseId.get(item.id) || [];
           const firstTrack = tracks[0];
           const isActive = tracks.some((track) => track.id === activeTrackId);
 

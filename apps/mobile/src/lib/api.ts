@@ -55,6 +55,7 @@ export async function getHomeReleases(
   limit = 24,
   offset = 0,
   filters: { style?: string; styles?: string[]; hasAudio?: boolean; search?: string } = {},
+  signal?: AbortSignal,
 ) {
   const params = new URLSearchParams({
     summary: 'true',
@@ -76,7 +77,7 @@ export async function getHomeReleases(
     params.set('search', filters.search.trim());
   }
 
-  return fetchJson<Release[]>(`/releases?${params.toString()}`);
+  return fetchJson<Release[]>(`/releases?${params.toString()}`, { signal });
 }
 
 export async function getRelease(id: string) {
@@ -158,6 +159,7 @@ export async function getLibraryFeedFiltered(
   limit = 20,
   offset = 0,
   filters: { styles?: string[]; artist?: string; key?: string | string[]; search?: string; isMix?: boolean } = {},
+  signal?: AbortSignal,
 ) {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -194,6 +196,7 @@ export async function getLibraryFeedFiltered(
     options: { styles: string[]; artists: string[]; keys: string[] };
   }>(
     `/releases/library-feed?${params.toString()}`,
+    { signal },
   );
 }
 
@@ -365,6 +368,16 @@ export async function reorderPlaylists(playlistIds: string[]) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ playlistIds }),
+  });
+}
+
+export async function reorderPlaylist(playlistId: string, trackIds: string[]) {
+  return fetchJson<Playlist>(`/playlists/${playlistId}/reorder`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ trackIds }),
   });
 }
 

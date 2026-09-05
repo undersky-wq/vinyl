@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react';
-import { FlatList, Image, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Search } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
+import { GripVertical, Search } from 'lucide-react-native';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
-import { getCoverUrl, reorderPlaylists, updatePlaylist } from '../lib/api';
+import { getCoverUrl, reorderPlaylist, reorderPlaylists, updatePlaylist } from '../lib/api';
 import { getKeyColor } from '../lib/key-color';
 import { normalizeDurationLabel } from '../lib/time';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 import { colors, radius, spacing } from '../theme';
+import { LanguageProps } from '../types';
 import { PlayerTrack, Playlist } from '../types';
 
-type PlaylistsScreenProps = {
+type PlaylistsScreenProps = LanguageProps & {
   activeTrackId: string | null;
   playlists: Playlist[];
   onPlaylistsChange: (playlists: Playlist[]) => void;
@@ -43,7 +47,18 @@ function toPlayerTrack(item: Playlist['items'][number]): PlayerTrack | null {
   };
 }
 
+type PlaylistTrackRow = {
+  item: Playlist['items'][number];
+  playerTrack: PlayerTrack | null;
+};
+
+function getTrackOrderSignature(rows: PlaylistTrackRow[]) {
+  return rows.map(({ item }) => item.track.id).join('|');
+}
+
 export function PlaylistsScreen({
+  lang,
+  onLanguageChange: setLang,
   activeTrackId,
   playlists,
   onPlaylistsChange,
@@ -55,11 +70,14 @@ export function PlaylistsScreen({
 }: PlaylistsScreenProps) {
   const [selectedPlaylistId, setSelectedPlaylistId] = useState('');
   const [query, setQuery] = useState('');
-  const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
   const [editingPlaylistName, setEditingPlaylistName] = useState('');
   const [draggedPlaylistId, setDraggedPlaylistId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const trackOrderRequestRef = useRef(0);
+  const trackOrderSaveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingTrackOrderSignatureRef = useRef<string | null>(null);
+  const debouncedQuery = useDebouncedValue(query);
 
   async function load() {
     setIsLoading(true);
@@ -81,8 +99,8 @@ export function PlaylistsScreen({
   }, [playlists]);
 
   const selectedPlaylist = playlists.find((playlist) => playlist.id === selectedPlaylistId) || playlists[0];
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const tracks =
+  const normalizedQuery = debouncedQuery.trim().toLocaleLowerCase();
+  const sourceTracks = useMemo<PlaylistTrackRow[]>(() => (
     selectedPlaylist?.items
       .map((item) => ({ item, playerTrack: toPlayerTrack(item) }))
       .filter(({ playerTrack }) => {
@@ -94,8 +112,29 @@ export function PlaylistsScreen({
           playerTrack.artist.toLocaleLowerCase().includes(normalizedQuery) ||
           playerTrack.title.toLocaleLowerCase().includes(normalizedQuery)
         );
-      }) || [];
-  const queue = tracks.flatMap(({ playerTrack }) => (playerTrack ? [playerTrack] : []));
+      }) || []
+  ), [normalizedQuery, selectedPlaylist]);
+  const [tracks, setTracks] = useState<PlaylistTrackRow[]>(sourceTracks);
+
+  useEffect(() => {
+    const sourceSignature = getTrackOrderSignature(sourceTracks);
+    setTracks((current) => {
+      if (
+        pendingTrackOrderSignatureRef.current === sourceSignature &&
+        getTrackOrderSignature(current) === sourceSignature
+      ) {
+        pendingTrackOrderSignatureRef.current = null;
+        return current;
+      }
+      pendingTrackOrderSignatureRef.current = null;
+      return sourceTracks;
+    });
+  }, [sourceTracks]);
+
+  const queue = useMemo(
+    () => tracks.flatMap(({ playerTrack }) => (playerTrack ? [playerTrack] : [])),
+    [tracks],
+  );
 
   function startRename(playlist: Playlist) {
     setEditingPlaylistId(playlist.id);
@@ -147,6 +186,32 @@ export function PlaylistsScreen({
     }
   }
 
+  function saveTrackOrder(nextTracks: PlaylistTrackRow[]) {
+    if (!selectedPlaylist || normalizedQuery) return;
+
+    const request = trackOrderRequestRef.current + 1;
+    trackOrderRequestRef.current = request;
+    const playlistId = selectedPlaylist.id;
+    const trackIds = nextTracks.map(({ item }) => item.track.id);
+    pendingTrackOrderSignatureRef.current = trackIds.join('|');
+    setTracks(nextTracks);
+
+    trackOrderSaveChainRef.current = trackOrderSaveChainRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const updatedPlaylist = await reorderPlaylist(playlistId, trackIds);
+        if (request !== trackOrderRequestRef.current) return;
+        onPlaylistsChange(playlists.map((playlist) => (
+          playlist.id === updatedPlaylist.id ? updatedPlaylist : playlist
+        )));
+      })
+      .catch(() => {
+        if (request !== trackOrderRequestRef.current) return;
+        pendingTrackOrderSignatureRef.current = null;
+        setTracks(sourceTracks);
+      });
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.headerShell}>
@@ -188,11 +253,20 @@ export function PlaylistsScreen({
         </View>
       </View>
 
-      <FlatList
+      <DraggableFlatList
         data={tracks}
         keyExtractor={({ item }) => item.track.id}
         refreshing={isLoading}
         onRefresh={load}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={50}
+        windowSize={7}
+        activationDistance={8}
+        dragItemOverflow
+        onDragEnd={({ data, from, to }) => {
+          if (from !== to) void saveTrackOrder(data);
+        }}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View>
@@ -247,7 +321,8 @@ export function PlaylistsScreen({
             </View>
           </View>
         }
-        renderItem={({ item, index }) => {
+        renderItem={({ item, getIndex, drag, isActive: isDragging }) => {
+          const index = getIndex() ?? 0;
           const playerTrack = item.playerTrack;
           const release = item.item.track.release;
           const isActive = playerTrack?.id === activeTrackId;
@@ -257,8 +332,22 @@ export function PlaylistsScreen({
           }
 
           return (
-            <Pressable style={styles.trackRow} onPress={() => onPlayTrack(playerTrack, queue)}>
-              <Image source={{ uri: getCoverUrl(release) }} style={styles.cover} />
+            <ScaleDecorator activeScale={1.025}>
+            <Pressable
+              style={[styles.trackRow, isDragging && styles.trackRowDragging]}
+              disabled={isDragging}
+              onPress={() => onPlayTrack(playerTrack, queue)}
+              onLongPress={normalizedQuery ? undefined : drag}
+              delayLongPress={260}
+            >
+              <Image
+                source={{ uri: getCoverUrl(release) }}
+                style={styles.cover}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={playerTrack.id}
+                transition={90}
+              />
               <Text style={styles.number}>{index + 1}</Text>
               <View style={styles.trackText}>
                 <Text numberOfLines={1} style={[styles.artist, isActive && styles.trackActiveText]}>
@@ -290,7 +379,9 @@ export function PlaylistsScreen({
               ) : null}
               <TrackDownloadButton track={playerTrack} />
               <Text style={styles.time}>{normalizeDurationLabel(playerTrack.durationRaw, playerTrack.durationSec, '-')}</Text>
+              <GripVertical size={17} color={isDragging ? colors.accent : colors.muted} strokeWidth={2.2} />
             </Pressable>
+            </ScaleDecorator>
           );
         }}
         ListEmptyComponent={isLoading ? null : <Text style={styles.empty}>Плейлистов пока нет.</Text>}
@@ -480,6 +571,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     fontWeight: '800',
+  },
+  trackRowDragging: {
+    borderRadius: radius.md,
+    backgroundColor: colors.panel,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   trackActiveText: {
     color: colors.accent,

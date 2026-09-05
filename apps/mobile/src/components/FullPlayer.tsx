@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  AccessibilityInfo,
   Easing,
   Image,
   KeyboardAvoidingView,
@@ -20,7 +21,16 @@ import {
 import { Heart, ListMusic, ListPlus, MessageCircle, Pause, Pencil, Play, Repeat, Shuffle, SkipBack, SkipForward, Trash2 } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
 import { colors, radius, spacing } from '../theme';
+import { PlayerBackdrop } from './PlayerBackdrop';
 import { normalizeDurationLabel } from '../lib/time';
+import { getHeldSeekPosition, HELD_SEEK_INTERVAL_MS } from '../lib/held-seek';
+import {
+  getMarqueeMotion,
+  MARQUEE_END_PAUSE_MS,
+  MARQUEE_RESTART_PAUSE_MS,
+  MARQUEE_RETURN_MS,
+  MARQUEE_START_DELAY_MS,
+} from '../lib/marquee';
 import { AuthUser, PlayerTrack, Playlist, TimelineComment } from '../types';
 import {
   createReleaseTimelineComment,
@@ -93,6 +103,27 @@ function sampleWaveform(source: number[] | null | undefined, count: number) {
   });
 }
 
+const WaveformBars = memo(function WaveformBars({
+  bars,
+  color,
+  width,
+}: {
+  bars: number[];
+  color: string;
+  width: number | `${number}%`;
+}) {
+  return (
+    <View style={[styles.waveformBars, { width }]} pointerEvents="none">
+      {bars.map((bar, index) => (
+        <View
+          key={`${index}-${bar.toFixed(3)}`}
+          style={[styles.waveformBar, { height: 8 + bar * 48, backgroundColor: color }]}
+        />
+      ))}
+    </View>
+  );
+});
+
 function getAvatarInitial(name?: string | null) {
   return (name || 'U').trim().charAt(0).toUpperCase() || 'U';
 }
@@ -123,39 +154,63 @@ function getNearestTimelineComment(comments: TimelineComment[], ratio: number, d
 function MarqueeText({
   text,
   style,
+  active,
 }: {
   text: string;
   style: StyleProp<TextStyle>;
+  active: boolean;
 }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const [containerWidth, setContainerWidth] = useState(0);
   const [textWidth, setTextWidth] = useState(0);
-  const gap = 42;
-  const distance = textWidth + gap;
-  const shouldScroll = textWidth > containerWidth + 4;
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [isStarted, setIsStarted] = useState(false);
+  const motion = getMarqueeMotion(textWidth, containerWidth, reduceMotion);
+
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    translateX.stopAnimation();
+    translateX.setValue(0);
+    setTextWidth(0);
+    setIsStarted(false);
+  }, [text, translateX]);
+
+  useEffect(() => {
+    setIsStarted(false);
+    if (!active || !motion.shouldScroll) return;
+    const timer = setTimeout(() => setIsStarted(true), MARQUEE_START_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [active, motion.shouldScroll, textWidth, containerWidth]);
 
   useEffect(() => {
     translateX.stopAnimation();
     translateX.setValue(0);
 
-    if (!shouldScroll) {
+    if (!active || !motion.shouldScroll || !isStarted) {
       return;
     }
 
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.delay(3000),
         Animated.timing(translateX, {
-          toValue: -distance,
-          duration: Math.max(5200, distance * 38),
+          toValue: -motion.overflow,
+          duration: motion.durationMs,
           easing: Easing.linear,
           useNativeDriver: true,
         }),
+        Animated.delay(MARQUEE_END_PAUSE_MS),
         Animated.timing(translateX, {
           toValue: 0,
-          duration: 0,
+          duration: MARQUEE_RETURN_MS,
+          easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true,
         }),
+        Animated.delay(MARQUEE_RESTART_PAUSE_MS),
       ]),
     );
 
@@ -164,28 +219,38 @@ function MarqueeText({
     return () => {
       animation.stop();
     };
-  }, [distance, shouldScroll, text, translateX]);
+  }, [active, isStarted, motion.durationMs, motion.overflow, motion.shouldScroll, text, translateX]);
+
+  const isMoving = motion.shouldScroll && isStarted;
 
   return (
     <View
       style={styles.marqueeViewport}
       onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
     >
-      <Animated.View
-        style={[styles.marqueeTrack, { transform: [{ translateX }] }]}
-      >
+      <View style={styles.marqueeMeasureBox} pointerEvents="none" accessibilityElementsHidden>
         <Text
           numberOfLines={1}
           onLayout={(event) => setTextWidth(event.nativeEvent.layout.width)}
-          style={style}
+          style={[style, styles.marqueeMeasuredText]}
         >
           {text}
         </Text>
-        {shouldScroll ? (
-          <Text numberOfLines={1} style={[style, styles.marqueeClone]}>
-            {text}
-          </Text>
-        ) : null}
+      </View>
+      <Animated.View
+        style={[
+          styles.marqueeTrack,
+          isMoving && { width: textWidth },
+          { transform: [{ translateX }] },
+        ]}
+      >
+        <Text
+          numberOfLines={1}
+          ellipsizeMode={isMoving ? 'clip' : 'tail'}
+          style={[style, isMoving && styles.marqueeMeasuredText]}
+        >
+          {text}
+        </Text>
       </Animated.View>
     </View>
   );
@@ -261,6 +326,10 @@ export function FullPlayer({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [isSavingComment, setIsSavingComment] = useState(false);
   const coverScale = useRef(new Animated.Value(isPlaying ? 1 : 0.85)).current;
+  const heldSeekTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heldSeekPositionRef = useRef(positionMs);
+  const didLongPressTrackButtonRef = useRef(false);
+  const [heldSeekDirection, setHeldSeekDirection] = useState<-1 | 1 | null>(null);
   const sheetTranslateY = useRef(new Animated.Value(0)).current;
   const sheetScrollYRef = useRef(0);
   const waveformTouchRef = useRef<View>(null);
@@ -280,6 +349,48 @@ export function FullPlayer({
       useNativeDriver: true,
     }).start();
   }, [coverScale, isPlaying]);
+
+  function stopHeldSeek() {
+    if (heldSeekTimerRef.current) {
+      clearInterval(heldSeekTimerRef.current);
+      heldSeekTimerRef.current = null;
+    }
+    setHeldSeekDirection(null);
+  }
+
+  function beginHeldSeek(direction: -1 | 1) {
+    if (durationMs <= 0) return;
+    stopHeldSeek();
+    didLongPressTrackButtonRef.current = true;
+    heldSeekPositionRef.current = positionMs;
+    setHeldSeekDirection(direction);
+
+    const seekStep = () => {
+      const nextPosition = getHeldSeekPosition(
+        heldSeekPositionRef.current,
+        durationMs,
+        direction,
+      );
+      heldSeekPositionRef.current = nextPosition;
+      onSeek(nextPosition / durationMs, isPlaying);
+      if (nextPosition <= 0 || nextPosition >= durationMs) stopHeldSeek();
+    };
+
+    seekStep();
+    if (heldSeekPositionRef.current > 0 && heldSeekPositionRef.current < durationMs) {
+      heldSeekTimerRef.current = setInterval(seekStep, HELD_SEEK_INTERVAL_MS);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (heldSeekTimerRef.current) clearInterval(heldSeekTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    stopHeldSeek();
+  }, [track?.id, visible]);
 
   useEffect(() => {
     if (isQueueOpen || isPlaylistSheetOpen || isCommentsSheetOpen) {
@@ -579,11 +690,14 @@ export function FullPlayer({
     [progressWidth, isPlaying, durationMs],
   );
 
+  const waveformBars = useMemo(
+    () => sampleWaveform(track?.waveformData, 86),
+    [track?.id, track?.waveformData],
+  );
+
   if (!track) {
     return null;
   }
-
-  const waveformBars = sampleWaveform(track.waveformData, 86);
   const visibleQueue = queuePreview?.length ? queuePreview : queue;
 
   return (
@@ -594,8 +708,7 @@ export function FullPlayer({
       onRequestClose={onClose}
     >
       <View style={styles.screen}>
-        <Image source={{ uri: track.coverUrl }} style={styles.ambient} blurRadius={26} />
-        <View style={styles.overlay} />
+        <PlayerBackdrop coverUrl={track.coverUrl} active={visible} />
 
         <KeyboardAvoidingView
           style={styles.content}
@@ -614,8 +727,8 @@ export function FullPlayer({
           </Pressable>
 
           <View style={styles.meta}>
-            <MarqueeText text={track.title} style={styles.title} />
-            <MarqueeText text={track.artist} style={styles.artist} />
+            <MarqueeText text={track.title} style={styles.title} active={visible} />
+            <MarqueeText text={track.artist} style={styles.artist} active={visible} />
           </View>
 
           <View style={styles.progressWrap}>
@@ -629,23 +742,13 @@ export function FullPlayer({
               {...waveformPanResponder.panHandlers}
             >
               <View style={[styles.waveformTrack, isSeeking && styles.progressTrackSeeking]}>
-                {waveformBars.map((bar, index) => {
-                  const barProgress = index / Math.max(waveformBars.length - 1, 1);
-                  const played = barProgress <= visibleProgress;
-
-                  return (
-                    <View
-                      key={`${index}-${bar.toFixed(3)}`}
-                      style={[
-                        styles.waveformBar,
-                        {
-                          height: 8 + bar * 48,
-                          backgroundColor: played ? colors.accent : 'rgba(255,255,255,0.34)',
-                        },
-                      ]}
-                    />
-                  );
-                })}
+                <WaveformBars bars={waveformBars} color="rgba(255,255,255,0.34)" width="100%" />
+                <View
+                  pointerEvents="none"
+                  style={[styles.waveformPlayedClip, { width: `${visibleProgress * 100}%` }]}
+                >
+                  <WaveformBars bars={waveformBars} color={colors.accent} width={progressWidth} />
+                </View>
                 {durationMs > 0
                   ? comments.map((comment) => {
                       const markerRatio = Math.max(0, Math.min(comment.second / (durationMs / 1000), 1));
@@ -710,11 +813,28 @@ export function FullPlayer({
           ) : null}
 
           <View style={styles.controls}>
-            <Pressable style={styles.iconButton} onPress={onToggleShuffle}>
+            <Pressable
+              style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+              onPress={onToggleShuffle}
+            >
               <Shuffle size={22} color={isShuffleEnabled ? colors.accent : colors.muted} strokeWidth={2.4} />
             </Pressable>
-            <Pressable style={styles.iconButton} onPress={onPrevious}>
-              <SkipBack size={25} color={colors.text} fill={colors.text} />
+            <Pressable
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.iconButtonPressed,
+                heldSeekDirection === -1 && styles.iconButtonHeld,
+              ]}
+              onPressIn={() => { didLongPressTrackButtonRef.current = false; }}
+              onLongPress={() => beginHeldSeek(-1)}
+              onPressOut={stopHeldSeek}
+              onPress={() => {
+                if (!didLongPressTrackButtonRef.current) onPrevious();
+              }}
+              delayLongPress={420}
+              accessibilityLabel="Previous track; hold to rewind"
+            >
+              <SkipBack size={25} color={heldSeekDirection === -1 ? colors.accent : colors.text} fill={heldSeekDirection === -1 ? colors.accent : colors.text} />
             </Pressable>
             <Pressable style={styles.playButton} onPress={onToggle}>
               {isPlaying ? (
@@ -723,10 +843,27 @@ export function FullPlayer({
                 <Play size={34} color="#111111" fill="#111111" />
               )}
             </Pressable>
-            <Pressable style={styles.iconButton} onPress={onNext}>
-              <SkipForward size={25} color={colors.text} fill={colors.text} />
+            <Pressable
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.iconButtonPressed,
+                heldSeekDirection === 1 && styles.iconButtonHeld,
+              ]}
+              onPressIn={() => { didLongPressTrackButtonRef.current = false; }}
+              onLongPress={() => beginHeldSeek(1)}
+              onPressOut={stopHeldSeek}
+              onPress={() => {
+                if (!didLongPressTrackButtonRef.current) onNext();
+              }}
+              delayLongPress={420}
+              accessibilityLabel="Next track; hold to fast forward"
+            >
+              <SkipForward size={25} color={heldSeekDirection === 1 ? colors.accent : colors.text} fill={heldSeekDirection === 1 ? colors.accent : colors.text} />
             </Pressable>
-            <Pressable style={styles.iconButton} onPress={onToggleRepeat}>
+            <Pressable
+              style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+              onPress={onToggleRepeat}
+            >
               <Repeat size={22} color={isRepeatEnabled ? colors.accent : colors.muted} strokeWidth={2.4} />
             </Pressable>
           </View>
@@ -735,7 +872,10 @@ export function FullPlayer({
             <View style={styles.downloadButtonWrap}>
               <TrackDownloadButton track={track} size={22} />
             </View>
-            <Pressable style={styles.iconButton} onPress={onFavorite}>
+            <Pressable
+              style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+              onPress={onFavorite}
+            >
               <Heart
                 size={22}
                 strokeWidth={2.4}
@@ -745,7 +885,7 @@ export function FullPlayer({
             </Pressable>
             {track.isMix ? (
               <Pressable
-                style={styles.iconButton}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
                 onPress={() => {
                   setIsQueueOpen(false);
                   setIsPlaylistSheetOpen(false);
@@ -760,7 +900,7 @@ export function FullPlayer({
               </Pressable>
             ) : null}
             <Pressable
-              style={styles.iconButton}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
               onPress={() => {
                 setIsQueueOpen(false);
                 setIsCommentsSheetOpen(false);
@@ -770,7 +910,7 @@ export function FullPlayer({
               <ListPlus size={22} color={isPlaylistSheetOpen ? colors.accent : colors.muted} strokeWidth={2.4} />
             </Pressable>
             <Pressable
-              style={styles.iconButton}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
               onPress={() => {
                 setIsPlaylistSheetOpen(false);
                 setIsCommentsSheetOpen(false);
@@ -965,18 +1105,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  ambient: {
-    position: 'absolute',
-    inset: 0,
-    width: '100%',
-    height: '100%',
-    opacity: 0.32,
-  },
-  overlay: {
-    position: 'absolute',
-    inset: 0,
-    backgroundColor: 'rgba(10,10,10,0.82)',
-  },
   content: {
     flex: 1,
     justifyContent: 'center',
@@ -1005,17 +1133,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  marqueeClone: {
-    marginLeft: 42,
+  marqueeMeasureBox: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 10000,
+    flexDirection: 'row',
+    opacity: 0,
+  },
+  marqueeMeasuredText: {
+    flexShrink: 0,
   },
   title: {
     color: colors.text,
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
     fontSize: 24,
     fontWeight: '900',
     letterSpacing: -0.4,
   },
   artist: {
-    color: colors.muted,
+    color: '#dedee2',
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -1028,11 +1170,24 @@ const styles = StyleSheet.create({
   },
   waveformTrack: {
     height: 62,
+    borderRadius: radius.pill,
+    position: 'relative',
+  },
+  waveformBars: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: radius.pill,
-    position: 'relative',
+  },
+  waveformPlayedClip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    overflow: 'hidden',
   },
   progressTrackSeeking: {
     opacity: 0.92,
@@ -1103,7 +1258,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   time: {
-    color: colors.muted,
+    color: '#dedee2',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -1188,7 +1343,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(24,24,24,0.74)',
+    backgroundColor: 'transparent',
+  },
+  iconButtonPressed: {
+    backgroundColor: 'rgba(181,120,255,0.18)',
+    opacity: 0.82,
+    transform: [{ scale: 0.9 }],
+  },
+  iconButtonHeld: {
+    backgroundColor: 'rgba(181,120,255,0.2)',
+    transform: [{ scale: 1.06 }],
   },
   secondaryControls: {
     flexDirection: 'row',
@@ -1201,7 +1365,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(24,24,24,0.74)',
+    backgroundColor: 'transparent',
   },
   queueLayer: {
     position: 'absolute',

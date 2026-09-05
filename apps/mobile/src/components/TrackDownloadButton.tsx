@@ -49,7 +49,7 @@ export function TrackDownloadButton({ track, size = 17 }: TrackDownloadButtonPro
 
   return (
     <Pressable
-      style={styles.button}
+      style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
       disabled={isDownloading}
       onPress={(event) => {
         event.stopPropagation();
@@ -74,5 +74,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
+  },
+  buttonPressed: {
+    backgroundColor: 'rgba(181,120,255,0.18)',
+    opacity: 0.82,
+    transform: [{ scale: 0.9 }],
   },
 });

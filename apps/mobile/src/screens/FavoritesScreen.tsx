@@ -1,17 +1,20 @@
-import { useState } from 'react';
-import { FlatList, Image, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { getCoverUrl } from '../lib/api';
 import { getKeyColor } from '../lib/key-color';
 import { normalizeDurationLabel } from '../lib/time';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 import { colors, radius, spacing } from '../theme';
+import { LanguageProps } from '../types';
 import { PlayerTrack, Release, Track } from '../types';
 
 type FavoriteTrack = Track & { release: Release };
 
-type FavoritesScreenProps = {
+type FavoritesScreenProps = LanguageProps & {
   activeTrackId: string | null;
   tracks: FavoriteTrack[];
   onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
@@ -45,6 +48,8 @@ function toPlayerTrack(track: FavoriteTrack): PlayerTrack | null {
 }
 
 export function FavoritesScreen({
+  lang,
+  onLanguageChange: setLang,
   activeTrackId,
   tracks,
   onPlayTrack,
@@ -54,8 +59,8 @@ export function FavoritesScreen({
   avatarUrl,
 }: FavoritesScreenProps) {
   const [query, setQuery] = useState('');
-  const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [isLoading, setIsLoading] = useState(false);
+  const debouncedQuery = useDebouncedValue(query);
 
   async function load() {
     setIsLoading(true);
@@ -68,8 +73,8 @@ export function FavoritesScreen({
     }
   }
 
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visibleTracks = tracks.filter((track) => {
+  const normalizedQuery = debouncedQuery.trim().toLocaleLowerCase();
+  const visibleTracks = useMemo(() => tracks.filter((track) => {
     if (!normalizedQuery) {
       return true;
     }
@@ -78,11 +83,11 @@ export function FavoritesScreen({
       getTrackArtist(track).toLocaleLowerCase().includes(normalizedQuery) ||
       track.title.toLocaleLowerCase().includes(normalizedQuery)
     );
-  });
-  const queue = visibleTracks.flatMap((track) => {
+  }), [normalizedQuery, tracks]);
+  const queue = useMemo(() => visibleTracks.flatMap((track) => {
     const playerTrack = toPlayerTrack(track);
     return playerTrack ? [playerTrack] : [];
-  });
+  }), [visibleTracks]);
 
   return (
     <View style={styles.screen}>
@@ -130,6 +135,11 @@ export function FavoritesScreen({
         keyExtractor={(item) => item.id}
         refreshing={isLoading}
         onRefresh={load}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={50}
+        windowSize={7}
+        removeClippedSubviews
         contentContainerStyle={styles.list}
         renderItem={({ item, index }) => {
           const playerTrack = toPlayerTrack(item);
@@ -141,7 +151,14 @@ export function FavoritesScreen({
 
           return (
             <Pressable style={styles.trackRow} onPress={() => onPlayTrack(playerTrack, queue)}>
-              <Image source={{ uri: getCoverUrl(item.release) }} style={styles.cover} />
+              <Image
+                source={{ uri: getCoverUrl(item.release) }}
+                style={styles.cover}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={item.id}
+                transition={90}
+              />
               <Text style={styles.number}>{index + 1}</Text>
               <View style={styles.trackText}>
                 <Text numberOfLines={1} style={[styles.artist, isActive && styles.trackActiveText]}>

@@ -1,4 +1,5 @@
-import { Image, ImageStyle, StyleProp } from 'react-native';
+import { ImageStyle, StyleProp } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { FilterImage } from 'react-native-svg/filter-image';
 import { getCoverUrl } from '../lib/api';
 import { isReleaseAudioComplete } from '../lib/release-audio';
@@ -25,5 +26,14 @@ export function ReleaseCover({ release, isAdmin = false, style }: ReleaseCoverPr
     );
   }
 
-  return <Image source={source} style={style} />;
+  return (
+    <ExpoImage
+      source={source}
+      style={style}
+      contentFit="cover"
+      cachePolicy="memory-disk"
+      recyclingKey={release.id}
+      transition={90}
+    />
+  );
 }

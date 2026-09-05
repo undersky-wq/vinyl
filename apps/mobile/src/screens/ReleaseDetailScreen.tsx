@@ -125,7 +125,7 @@ export function ReleaseDetailScreen({
             return (
               <Pressable
                 key={track.id}
-                style={[styles.trackRow, isActive && styles.trackRowActive, !audioUrl && styles.trackRowDisabled]}
+                style={[styles.trackRow, !audioUrl && styles.trackRowDisabled]}
                 disabled={!audioUrl || !playerTrack}
                 onPress={() => {
                   if (!playerTrack) {
@@ -266,9 +266,6 @@ const styles = StyleSheet.create({
     gap: 9,
     paddingHorizontal: 8,
     borderRadius: 16,
-  },
-  trackRowActive: {
-    backgroundColor: 'rgba(181,120,255,0.12)',
   },
   trackRowDisabled: {
     opacity: 0.48,

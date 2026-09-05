@@ -1976,6 +1976,14 @@ textarea {
   white-space: nowrap;
 }
 
+.track-row__quick-actions,
+.track-row__admin-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
 .track-row .track-favorite-button,
 .track-row .track-playlist-menu__trigger {
   opacity: 1;
@@ -6140,6 +6148,36 @@ textarea {
     display: none;
   }
 
+  .track-row.is-admin .track-row__meta-actions {
+    display: contents;
+  }
+
+  .track-row.is-admin .track-row__quick-actions {
+    grid-column: 4;
+    grid-row: 1;
+    gap: 6px;
+  }
+
+  .track-row.is-admin .track-row__duration {
+    grid-column: 5;
+    grid-row: 1;
+  }
+
+  .track-row.is-admin .track-row__meta-edit,
+  .track-row.is-admin .track-row__meta-edit--inline {
+    display: inline-flex;
+    grid-column: 1 / span 3;
+    grid-row: 2;
+    justify-self: center;
+  }
+
+  .track-row.is-admin .track-row__admin-actions {
+    grid-column: 4 / span 2;
+    grid-row: 2;
+    justify-self: end;
+    gap: 6px;
+  }
+
   .track-row .track-favorite-button,
   .track-row .track-playlist-menu__trigger,
   .track-row .track-icon-button--danger {
@@ -6671,11 +6709,26 @@ textarea {
 
   .mobile-nav a {
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 46px;
+    gap: 3px;
+    min-width: 0;
+    min-height: 50px;
     border-radius: 16px;
     color: #9b9b9b;
+  }
+
+  .mobile-nav__label {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1;
   }
 
   .mobile-nav a:active {
@@ -6823,7 +6876,7 @@ textarea {
     overflow: hidden;
     margin-top: 2px;
     color: var(--text);
-    font-size: 1rem;
+    font-size: 0.8rem;
     font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;

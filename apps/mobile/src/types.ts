@@ -1,3 +1,10 @@
+export type AppLanguage = 'ru' | 'en';
+
+export type LanguageProps = {
+  lang: AppLanguage;
+  onLanguageChange: (lang: AppLanguage) => void;
+};
+
 export type AudioFile = {
   id: string;
   storageUrl: string | null;

@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, RefreshControl, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { ReleaseTile } from '../components/ReleaseTile';
 import { getHomeReleases, getReleaseStyles } from '../lib/api';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 import { colors, radius, spacing } from '../theme';
+import { LanguageProps } from '../types';
 import { Release } from '../types';
 
-type HomeScreenProps = {
+type HomeScreenProps = LanguageProps & {
   isActive?: boolean;
   isAdmin?: boolean;
   onOpenProfile: () => void;
@@ -17,51 +19,59 @@ type HomeScreenProps = {
 
 const PAGE_SIZE = 32;
 
-export function HomeScreen({ isActive = true, isAdmin = false, onOpenProfile, onOpenRelease, avatarUrl }: HomeScreenProps) {
+export function HomeScreen({ lang, onLanguageChange: setLang, isActive = true, isAdmin = false, onOpenProfile, onOpenRelease, avatarUrl }: HomeScreenProps) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [stylesList, setStylesList] = useState<Array<{ name: string; count: number }>>([]);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [hasAudioOnly, setHasAudioOnly] = useState(false);
   const [query, setQuery] = useState('');
   const [isStylesExpanded, setIsStylesExpanded] = useState(false);
-  const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
+  const debouncedQuery = useDebouncedValue(query);
+  const feedRequestRef = useRef(0);
 
-  async function load() {
+  async function load(signal?: AbortSignal) {
+    const requestId = ++feedRequestRef.current;
     setIsLoading(true);
+    setIsLoadingMore(false);
     setError('');
 
     try {
-      const [nextReleases, nextStyles] = await Promise.all([
-        getHomeReleases(PAGE_SIZE, 0, { styles: selectedStyles, hasAudio: hasAudioOnly, search: query }),
-        getReleaseStyles(),
-      ]);
+      const nextReleases = await getHomeReleases(
+        PAGE_SIZE,
+        0,
+        { styles: selectedStyles, hasAudio: hasAudioOnly, search: debouncedQuery },
+        signal,
+      );
+      if (signal?.aborted || requestId !== feedRequestRef.current) return;
       setReleases(nextReleases);
-      setStylesList(nextStyles);
       setHasMore(nextReleases.length === PAGE_SIZE);
-    } catch {
+    } catch (loadError) {
+      if (signal?.aborted || requestId !== feedRequestRef.current) return;
       setError('Не удалось загрузить коллекцию.');
     } finally {
-      setIsLoading(false);
+      if (requestId === feedRequestRef.current) setIsLoading(false);
     }
   }
 
   async function loadMore() {
-    if (!isActive || isLoading || isLoadingMore || !hasMore) {
+    if (!isActive || isLoading || isLoadingMore || !hasMore || query !== debouncedQuery) {
       return;
     }
 
+    const requestId = feedRequestRef.current;
     setIsLoadingMore(true);
 
     try {
       const nextReleases = await getHomeReleases(PAGE_SIZE, releases.length, {
         styles: selectedStyles,
         hasAudio: hasAudioOnly,
-        search: query,
+        search: debouncedQuery,
       });
+      if (requestId !== feedRequestRef.current) return;
       setReleases((current) => {
         const known = new Set(current.map((release) => release.id));
         const unique = nextReleases.filter((release) => !known.has(release.id));
@@ -70,24 +80,43 @@ export function HomeScreen({ isActive = true, isAdmin = false, onOpenProfile, on
       });
       setHasMore(nextReleases.length === PAGE_SIZE);
     } catch {
+      if (requestId !== feedRequestRef.current) return;
       setError('Не удалось догрузить релизы.');
     } finally {
-      setIsLoadingMore(false);
+      if (requestId === feedRequestRef.current) setIsLoadingMore(false);
     }
   }
 
   useEffect(() => {
-    void load();
-  }, [hasAudioOnly, selectedStyles.join('|'), query]);
+    // Invalidate an in-flight page immediately while the user is still typing.
+    feedRequestRef.current += 1;
+  }, [query]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [debouncedQuery, hasAudioOnly, selectedStyles.join('|')]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getReleaseStyles()
+      .then((nextStyles) => { if (!cancelled) setStylesList(nextStyles); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   const visibleStyles = isStylesExpanded ? stylesList : stylesList.slice(0, 4);
-  const filteredReleases = releases.filter((release) => {
-    const matchesStyle =
-      selectedStyles.length === 0 || selectedStyles.some((style) => release.styles.includes(style));
-    const matchesAudio = !hasAudioOnly || release.tracks.some((track) => track.audioFiles.some((file) => file.storageUrl));
-
+  const filteredReleases = useMemo(() => releases.filter((release) => {
+    const matchesStyle = selectedStyles.length === 0
+      || selectedStyles.some((style) => release.styles.includes(style));
+    const matchesAudio = !hasAudioOnly
+      || release.tracks.some((track) => track.audioFiles.some((file) => file.storageUrl));
     return matchesStyle && matchesAudio;
-  });
+  }), [hasAudioOnly, releases, selectedStyles]);
+  const renderRelease = useCallback(({ item }: { item: Release }) => (
+    <ReleaseTile release={item} isAdmin={isAdmin} onPress={onOpenRelease} />
+  ), [isAdmin, onOpenRelease]);
 
   return (
     <View style={styles.screen}>
@@ -135,6 +164,11 @@ export function HomeScreen({ isActive = true, isAdmin = false, onOpenProfile, on
         data={filteredReleases}
         keyExtractor={(item) => item.id}
         numColumns={4}
+        initialNumToRender={16}
+        maxToRenderPerBatch={12}
+        updateCellsBatchingPeriod={50}
+        windowSize={7}
+        removeClippedSubviews
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
@@ -194,13 +228,7 @@ export function HomeScreen({ isActive = true, isAdmin = false, onOpenProfile, on
         onEndReached={loadMore}
         onEndReachedThreshold={0.45}
         progressViewOffset={(StatusBar.currentHeight || 0) + 96}
-        renderItem={({ item }) => (
-          <ReleaseTile
-            release={item}
-            isAdmin={isAdmin}
-            onPress={onOpenRelease}
-          />
-        )}
+        renderItem={renderRelease}
       />
     </View>
   );

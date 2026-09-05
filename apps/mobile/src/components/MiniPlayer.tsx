@@ -1,9 +1,10 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Heart, Pause, Play } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { colors, radius, spacing } from '../theme';
 import { normalizeDurationLabel } from '../lib/time';
 import { PlayerTrack } from '../types';
+import { MiniPlayerWave } from './MiniPlayerWave';
 
 type MiniPlayerProps = {
   track: PlayerTrack | null;
@@ -57,25 +58,7 @@ export function MiniPlayer({
 
   return (
     <Pressable style={styles.shell} onPress={onOpen}>
-      <View
-        style={StyleSheet.absoluteFillObject}
-        pointerEvents="none"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      >
-        {track.coverUrl ? (
-          <Image
-            key={track.coverUrl}
-            source={{ uri: track.coverUrl }}
-            style={StyleSheet.absoluteFillObject}
-            resizeMode="stretch"
-            blurRadius={26}
-            fadeDuration={0}
-            accessible={false}
-          />
-        ) : null}
-        <View style={styles.ambientOverlay} />
-      </View>
+      <MiniPlayerWave active={isPlaying} />
       <Pressable style={styles.playOuter} onPress={onToggle}>
         <Svg width={ringSize} height={ringSize} style={styles.playProgressRing}>
           <Circle
@@ -117,7 +100,7 @@ export function MiniPlayer({
         <Heart
           size={17}
           strokeWidth={2.3}
-          color={isFavorite ? colors.accent : colors.muted}
+          color={isFavorite ? colors.accent : '#dedee2'}
           fill={isFavorite ? colors.accent : 'none'}
         />
       </Pressable>
@@ -140,7 +123,9 @@ const styles = StyleSheet.create({
     paddingLeft: 7,
     paddingRight: 13,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(24,24,24,0.96)',
+    backgroundColor: 'rgba(16,16,18,0.98)',
+    borderWidth: 1,
+    borderColor: 'rgba(180,180,180,0.45)',
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 18 },
@@ -153,10 +138,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-  },
-  ambientOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10,10,10,0.78)',
   },
   playProgressRing: {
     position: 'absolute',
@@ -177,17 +158,17 @@ const styles = StyleSheet.create({
   },
   artist: {
     color: colors.muted,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
   },
   title: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '900',
   },
   time: {
-    color: colors.muted,
-    fontSize: 13,
+    color: '#dedee2',
+    fontSize: 12,
     fontWeight: '800',
   },
   heartButton: {

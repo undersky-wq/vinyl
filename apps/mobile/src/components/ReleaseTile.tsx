@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ReleaseCover } from './ReleaseCover';
 import { colors, radius, spacing } from '../theme';
@@ -9,7 +10,7 @@ type ReleaseTileProps = {
   onPress?: (release: Release) => void;
 };
 
-export function ReleaseTile({ release, isAdmin = false, onPress }: ReleaseTileProps) {
+export const ReleaseTile = memo(function ReleaseTile({ release, isAdmin = false, onPress }: ReleaseTileProps) {
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={() => onPress?.(release)}>
       <ReleaseCover release={release} isAdmin={isAdmin} style={styles.cover} />
@@ -24,7 +25,7 @@ export function ReleaseTile({ release, isAdmin = false, onPress }: ReleaseTilePr
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

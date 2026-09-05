@@ -19,9 +19,10 @@ import {
   updateAuthSettings,
 } from '../lib/api';
 import { colors, radius, spacing } from '../theme';
+import { LanguageProps } from '../types';
 import { AuthUser, ProfileStats, UserProfile } from '../types';
 
-type ProfileScreenProps = {
+type ProfileScreenProps = LanguageProps & {
   onAuthChange?: (user: AuthUser | null) => void;
   showTrackMeta?: boolean;
   onShowTrackMetaChange?: (value: boolean) => void;
@@ -53,8 +54,7 @@ function getPercent(status: AudioJobStatus | null) {
   return Math.min(100, Math.round((status.processed / status.total) * 100));
 }
 
-export function ProfileScreen({ onAuthChange, showTrackMeta = true, onShowTrackMetaChange }: ProfileScreenProps) {
-  const [lang, setLang] = useState<'ru' | 'en'>('en');
+export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, showTrackMeta = true, onShowTrackMetaChange }: ProfileScreenProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [view, setView] = useState<ProfileView>('main');
   const [user, setUser] = useState<AuthUser | null>(null);

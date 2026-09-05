@@ -1,4 +1,7 @@
+import 'react-native-gesture-handler';
+import React from 'react';
 import { registerRootComponent } from 'expo';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import App from './App';
 
 try {
@@ -12,4 +15,12 @@ try {
   // Expo Go does not include react-native-track-player. The custom APK does.
 }
 
-registerRootComponent(App);
+function Root() {
+  return React.createElement(
+    GestureHandlerRootView,
+    { style: { flex: 1 } },
+    React.createElement(App),
+  );
+}
+
+registerRootComponent(Root);

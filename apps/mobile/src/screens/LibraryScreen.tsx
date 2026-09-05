@@ -1,30 +1,33 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Heart, ListMusic, Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { ReleaseCover } from '../components/ReleaseCover';
+import { createQueueLoader } from '../lib/playback-queue';
 import {
   getCoverUrl,
   getLibraryFeedFiltered,
   getLibraryQueueFiltered,
 } from '../lib/api';
 import { normalizeDurationLabel } from '../lib/time';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 import { colors, radius, spacing } from '../theme';
+import { LanguageProps } from '../types';
 import { PlayerTrack, Playlist, Release } from '../types';
 
 const DEFAULT_PAGE_SIZE = 40;
 const PAGE_SIZE_OPTIONS = [20, 40, 60];
 const VISIBLE_PAGE_WINDOW_SIZE = 5;
 
-type LibraryScreenProps = {
+type LibraryScreenProps = LanguageProps & {
   isAdmin?: boolean;
   activeTrackId: string | null;
   favoriteIds: Set<string>;
   playlists: Playlist[];
   onCreatePlaylist: (name: string, trackId: string) => Promise<Playlist>;
   onFavoriteTrack: (trackId: string) => Promise<void>;
-  onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[], queuePreview?: PlayerTrack[]) => void;
+  onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[], queuePreview?: PlayerTrack[], loadQueue?: () => Promise<PlayerTrack[]>) => void;
   onPlaylistToggle: (playlist: Playlist, trackId: string) => Promise<void>;
   onOpenProfile: () => void;
   onRefreshPersonalLibrary: () => Promise<void>;
@@ -69,6 +72,8 @@ function buildPlayableTracks(release: Release) {
 }
 
 export function LibraryScreen({
+  lang,
+  onLanguageChange: setLang,
   isAdmin = false,
   activeTrackId,
   favoriteIds,
@@ -93,7 +98,6 @@ export function LibraryScreen({
   const [isStylesExpanded, setIsStylesExpanded] = useState(false);
   const [isKeysExpanded, setIsKeysExpanded] = useState(false);
   const [isStylePickerOpen, setIsStylePickerOpen] = useState(false);
-  const [lang, setLang] = useState<'ru' | 'en'>('en');
   const [playlistMenuTrackId, setPlaylistMenuTrackId] = useState<string | null>(null);
   const [playlistName, setPlaylistName] = useState('');
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
@@ -102,21 +106,29 @@ export function LibraryScreen({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalReleases, setTotalReleases] = useState(0);
   const [selectedPageSize, setSelectedPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const debouncedQuery = useDebouncedValue(query);
+  const feedRequestRef = useRef(0);
 
+  const playableTracksByReleaseId = useMemo(() => new Map(
+    releases.map((release) => [release.id, buildPlayableTracks(release)]),
+  ), [releases]);
   const visibleReleases = useMemo(() => {
     return releases
-      .filter((release) => buildPlayableTracks(release).length > 0);
-  }, [releases]);
+      .filter((release) => (playableTracksByReleaseId.get(release.id)?.length || 0) > 0);
+  }, [playableTracksByReleaseId, releases]);
   const visiblePageQueue = useMemo(
-    () => visibleReleases.flatMap((release) => buildPlayableTracks(release).map((row) => row.playerTrack)),
-    [visibleReleases],
+    () => visibleReleases.flatMap((release) => (
+      playableTracksByReleaseId.get(release.id) || []
+    ).map((row) => row.playerTrack)),
+    [playableTracksByReleaseId, visibleReleases],
   );
   const visibleStyles = isStylesExpanded
     ? stylesList
     : selectedStyles.map((name) => ({ name, count: 0 }));
   const visibleKeys = isKeysExpanded ? keysList : selectedKeys;
 
-  async function load(page = currentPage, pageSize = selectedPageSize) {
+  async function load(page = currentPage, pageSize = selectedPageSize, signal?: AbortSignal) {
+    const requestId = ++feedRequestRef.current;
     setIsLoading(true);
     setError('');
 
@@ -125,24 +137,32 @@ export function LibraryScreen({
       const result = await getLibraryFeedFiltered(pageSize, (nextPage - 1) * pageSize, {
         styles: selectedStyles,
         key: selectedKeys,
-        search: query.trim(),
-      });
+        search: debouncedQuery.trim(),
+      }, signal);
+      if (signal?.aborted || requestId !== feedRequestRef.current) return;
       setReleases(result.releases);
       setTotalReleases(result.total);
       setCurrentPage(nextPage);
       setSelectedPageSize(pageSize);
       setStylesList((result.options?.styles || []).map((name) => ({ name, count: 0 })));
       setKeysList(result.options?.keys || []);
-    } catch {
+    } catch (loadError) {
+      if (signal?.aborted || requestId !== feedRequestRef.current) return;
       setError('Не удалось загрузить библиотеку.');
     } finally {
-      setIsLoading(false);
+      if (requestId === feedRequestRef.current) setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    void load(1);
-  }, [query, selectedKeys.join('|'), selectedStyles.join('|')]);
+    feedRequestRef.current += 1;
+  }, [query]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(1, selectedPageSize, controller.signal);
+    return () => controller.abort();
+  }, [debouncedQuery, selectedKeys.join('|'), selectedStyles.join('|')]);
 
   function toggleStyle(style: string) {
     setSelectedStyles((current) =>
@@ -192,26 +212,18 @@ export function LibraryScreen({
     }
   }
 
-  async function loadFullFilteredQueue() {
-    return getLibraryQueueFiltered({
+  const loadFullFilteredQueue = useMemo(() => createQueueLoader(() => getLibraryQueueFiltered({
       styles: selectedStyles,
       key: selectedKeys,
-      search: query.trim(),
-    });
-  }
+      search: debouncedQuery.trim(),
+    })), [selectedStyles, selectedKeys, debouncedQuery]);
 
-  async function playFromLibrary(row: PlayableTrackRow, releaseQueue: PlayerTrack[]) {
+  function playFromLibrary(row: PlayableTrackRow, releaseQueue: PlayerTrack[]) {
     const immediateQueue = visiblePageQueue.some((track) => track.id === row.playerTrack.id)
       ? visiblePageQueue
       : releaseQueue;
 
-    try {
-      const fullQueue = await loadFullFilteredQueue();
-      const playbackQueue = fullQueue.some((track) => track.id === row.playerTrack.id) ? fullQueue : immediateQueue;
-      onPlayTrack(row.playerTrack, playbackQueue, releaseQueue);
-    } catch {
-      onPlayTrack(row.playerTrack, immediateQueue, releaseQueue);
-    }
+    onPlayTrack(row.playerTrack, immediateQueue, releaseQueue, loadFullFilteredQueue);
   }
 
   const totalPages = Math.max(1, Math.ceil(totalReleases / selectedPageSize));
@@ -403,7 +415,7 @@ export function LibraryScreen({
           </View>
         }
         renderItem={({ item }) => {
-          const trackRows = buildPlayableTracks(item);
+          const trackRows = playableTracksByReleaseId.get(item.id) || [];
 
           return (
             <View style={styles.releaseCard}>

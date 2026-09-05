@@ -1576,41 +1576,43 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                   </div>
 
                   {audioFile ? (
-                    <>
+                    <div className="track-row__quick-actions">
                       <FavoriteButton trackId={track.id} lang={lang} />
                       <TrackPlaylistMenu trackId={track.id} lang={lang} />
-                    </>
+                    </div>
                   ) : null}
 
-                  {audioFile && user?.role === 'ADMIN' ? (
-                    <button
-                      type="button"
-                      className="track-icon-button track-icon-button--danger"
-                      aria-label={lang === 'ru' ? 'Удалить MP3' : 'Delete MP3'}
-                      disabled={deletingAudioId === audioFile.id}
-                      onClick={async () => {
-                        setDeletingAudioId(audioFile.id);
-                        try {
-                          await deleteTrackAudio(audioFile.id);
-                          router.refresh();
-                        } finally {
-                          setDeletingAudioId(null);
-                        }
-                      }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  ) : null}
                   {user?.role === 'ADMIN' ? (
-                    <button
-                      type="button"
-                      className="track-icon-button track-icon-button--danger"
-                      aria-label={lang === 'ru' ? 'Удалить трек целиком' : 'Delete whole track'}
-                      disabled={deletingTrackId === track.id}
-                      onClick={() => void handleDeleteTrack(track.id, trackText.title)}
-                    >
-                      <X size={15} />
-                    </button>
+                    <div className="track-row__admin-actions">
+                      {audioFile ? (
+                        <button
+                          type="button"
+                          className="track-icon-button track-icon-button--danger"
+                          aria-label={lang === 'ru' ? 'Удалить MP3' : 'Delete MP3'}
+                          disabled={deletingAudioId === audioFile.id}
+                          onClick={async () => {
+                            setDeletingAudioId(audioFile.id);
+                            try {
+                              await deleteTrackAudio(audioFile.id);
+                              router.refresh();
+                            } finally {
+                              setDeletingAudioId(null);
+                            }
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="track-icon-button track-icon-button--danger"
+                        aria-label={lang === 'ru' ? 'Удалить трек целиком' : 'Delete whole track'}
+                        disabled={deletingTrackId === track.id}
+                        onClick={() => void handleDeleteTrack(track.id, trackText.title)}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               </div>

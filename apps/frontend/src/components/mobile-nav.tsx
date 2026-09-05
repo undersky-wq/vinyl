@@ -12,6 +12,7 @@ export function MobileNav({ lang }: { lang: SiteLang }) {
     <nav className="mobile-nav" aria-label={lang === 'ru' ? 'Мобильная навигация' : 'Mobile navigation'}>
       <Link href="/" className={pathname === '/' ? 'active' : ''} aria-label={lang === 'ru' ? 'Главная' : 'Home'}>
         <House size={23} />
+        <span className="mobile-nav__label">{lang === 'ru' ? 'Главная' : 'Home'}</span>
       </Link>
       <Link
         href="/library"
@@ -19,6 +20,7 @@ export function MobileNav({ lang }: { lang: SiteLang }) {
         aria-label={lang === 'ru' ? 'Библиотека' : 'Library'}
       >
         <Library size={23} />
+        <span className="mobile-nav__label">{lang === 'ru' ? 'Библиотека' : 'Library'}</span>
       </Link>
       <Link
         href="/playlists"
@@ -26,13 +28,15 @@ export function MobileNav({ lang }: { lang: SiteLang }) {
         aria-label={lang === 'ru' ? 'Плейлисты' : 'Playlists'}
       >
         <ListMusic size={23} />
+        <span className="mobile-nav__label">{lang === 'ru' ? 'Плейлисты' : 'Playlists'}</span>
       </Link>
       <Link
         href="/mixes"
         className={pathname === '/mixes' ? 'active' : ''}
-        aria-label={lang === 'ru' ? 'РњРёРєСЃС‹' : 'Mixes'}
+        aria-label={lang === 'ru' ? 'Миксы' : 'Mixes'}
       >
         <AudioLines size={23} />
+        <span className="mobile-nav__label">{lang === 'ru' ? 'Миксы' : 'Mixes'}</span>
       </Link>
       <Link
         href="/favorites"
@@ -40,6 +44,7 @@ export function MobileNav({ lang }: { lang: SiteLang }) {
         aria-label={lang === 'ru' ? 'Избранное' : 'Favorites'}
       >
         <Heart size={23} fill={pathname === '/favorites' ? 'currentColor' : 'none'} />
+        <span className="mobile-nav__label">{lang === 'ru' ? 'Избранное' : 'Favorites'}</span>
       </Link>
     </nav>
   );
