@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { CSSProperties, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LoaderCircle, Pause, Pencil, Play, Plus, Save, Share2, Trash2, UploadCloud, X } from 'lucide-react';
@@ -20,6 +20,7 @@ import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Release, TimelineComment, Track } from '../types';
 import { MixShareSheet } from './mix-share-sheet';
+import { matchesPaperSearch, usePaperSearch } from './paper-section-shell';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
 type MixesBrowserProps = {
@@ -54,8 +55,8 @@ function getInitialForm(release?: Release): MixFormState {
 
 function getCoverUrl(release: Release) {
   return (
-    release.coverThumbStorageUrl ||
     release.coverMediumStorageUrl ||
+    release.coverThumbStorageUrl ||
     release.coverStorageUrl ||
     release.coverImageUrl ||
     '/icon.png'
@@ -263,6 +264,7 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
 }
 
 export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
+  const query = usePaperSearch();
   const { playQueue, prepareQueue, togglePlayback } = usePlayerActions();
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { user } = useAuth();
@@ -284,8 +286,8 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
           const tracks = release.tracks.map((track) => toPlayerTrack(release, track)).filter(Boolean) as MixPlayerTrack[];
           return { release, tracks };
         })
-        .filter((item) => item.tracks.length),
-    [localReleases],
+        .filter((item) => item.tracks.length && matchesPaperSearch(`${item.release.artist} ${item.release.title} ${item.release.styles.join(' ')}`,query)),
+    [localReleases, query],
   );
 
   function updateCreateForm(patch: Partial<MixFormState>) {
@@ -428,7 +430,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
   if (!mixes.length && !isAdmin) {
     return (
       <section className="mixes-empty">
-        {lang === 'ru' ? 'Миксы появятся здесь после загрузки MP3.' : 'Mixes will appear here after MP3 upload.'}
+        {query.trim() ? (lang==='ru'?'Ничего не найдено. Измените или очистите поиск.':'No matches. Change or clear the search.') : (lang === 'ru' ? 'Миксы появятся здесь после загрузки MP3.' : 'Mixes will appear here after MP3 upload.')}
       </section>
     );
   }
@@ -471,11 +473,12 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
       ) : null}
 
       <section className="mixes-page" aria-label={lang === 'ru' ? 'Миксы' : 'Mixes'}>
-        {mixes.map(({ release, tracks }) => {
+        {!mixes.length && query.trim() && <p role="status">{lang==='ru'?'Ничего не найдено. Измените или очистите поиск.':'No matches. Change or clear the search.'}</p>}
+        {mixes.map(({ release, tracks }, index) => {
           const isNowPlaying = tracks.some((track) => track.id === currentTrack?.id);
 
           return (
-            <article className={`mix-card${isNowPlaying ? ' is-playing' : ''}`} key={release.id}>
+            <article className={`mix-card${isNowPlaying ? ' is-playing' : ''}`} key={release.id} style={{ '--entry-delay': `${Math.min(index,12)*.065}s` } as CSSProperties}>
             <Link
               className="mix-card__cover"
               href={`/releases/${release.id}`}

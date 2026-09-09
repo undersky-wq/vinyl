@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { HomeReleaseGrid } from '../components/home-release-grid';
 import { HomeStyleFilters } from '../components/home-style-filters';
 import { Topbar } from '../components/topbar';
+import { HomeStage } from '../components/home-stage';
 import { getHomeReleases, getReleaseStyles } from '../lib/api';
 import { normalizeSiteLang } from '../lib/language';
 
@@ -41,15 +42,21 @@ export default async function Home({
   query.set('summary', 'true');
   query.set('limit', String(pageSize));
 
-  const [homeReleases, releaseStyles] = await Promise.all([
+  const shelfQuery = new URLSearchParams();
+  shelfQuery.set('summary', 'true');
+
+  const [homeReleases, releaseStyles, shelfReleases] = await Promise.all([
     getHomeReleases(query, cookieHeader),
     getReleaseStyles(cookieHeader),
+    getHomeReleases(shelfQuery, cookieHeader),
   ]);
   const styles = releaseStyles.map((style) => style.name);
 
   return (
-    <main className="page-shell">
+    <main className="page-shell page-shell--home">
       <Topbar lang={lang} search={search} active="home" />
+
+      <HomeStage lang={lang} releases={homeReleases} shelfReleases={shelfReleases} />
 
       <HomeStyleFilters
         lang={lang}

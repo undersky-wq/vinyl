@@ -60,6 +60,11 @@ export type HomeRelease = {
     id: string;
     title: string;
     audioUrl: string;
+    bpm?: number | null;
+    key?: string | null;
+    position?: string | null;
+    durationRaw?: string | null;
+    durationSec?: number | null;
     waveformData?: number[] | null;
   }>;
 };
@@ -80,6 +85,9 @@ export type HomeReleaseApi = {
     title: string;
     waveformData?: number[] | null;
     audioFiles: AudioFile[];
+    position?: string | null;
+    durationRaw?: string | null;
+    durationSec?: number | null;
   }>;
 };
 

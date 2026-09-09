@@ -1,4 +1,5 @@
 'use client';
+import './track-action-colors.css';
 
 import { Check, Heart, ListMusic, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -32,6 +33,7 @@ export function FavoriteButton({
         className ? ` ${className}` : ''
       }`}
       aria-label={lang === 'ru' ? 'Избранное' : 'Favorite'}
+      aria-pressed={active}
       data-tooltip={active ? (lang === 'ru' ? 'Убрать лайк' : 'Unlike') : lang === 'ru' ? 'Лайк' : 'Like'}
       onClick={() => void toggleFavorite(trackId)}
     >
@@ -46,6 +48,7 @@ type TrackPlaylistMenuProps = {
   className?: string;
   align?: 'down' | 'up';
   sheetDrag?: boolean;
+  portal?: boolean;
 };
 
 export function TrackPlaylistMenu({
@@ -54,6 +57,7 @@ export function TrackPlaylistMenu({
   className = '',
   align = 'down',
   sheetDrag = false,
+  portal = false,
 }: TrackPlaylistMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
@@ -115,10 +119,13 @@ export function TrackPlaylistMenu({
     }
 
     updatePopupDirection();
+    const closeOnEscape = (event: KeyboardEvent) => {if (event.key === 'Escape') setIsOpen(false);};
+    document.addEventListener('keydown', closeOnEscape);
     window.addEventListener('resize', updatePopupDirection);
     window.addEventListener('scroll', updatePopupDirection, { passive: true });
     document.addEventListener('mousedown', handlePointerDown);
     return () => {
+      document.removeEventListener('keydown', closeOnEscape);
       window.removeEventListener('resize', updatePopupDirection);
       window.removeEventListener('scroll', updatePopupDirection);
       document.removeEventListener('mousedown', handlePointerDown);
@@ -220,7 +227,7 @@ export function TrackPlaylistMenu({
 
   const popup = isOpen ? (
     <div
-      className={`track-playlist-menu__popup${canSheetDrag && popupDragY > 0 ? ' dragging' : ''}`}
+      className={`track-playlist-menu__popup${portal ? ' paper-track-menu-popup' : ''}${canSheetDrag && popupDragY > 0 ? ' dragging' : ''}`}
       ref={popupRef}
       style={{ transform: canSheetDrag && popupDragY ? `translateY(${popupDragY}px)` : undefined }}
       onClickCapture={(event) => {
@@ -308,7 +315,7 @@ export function TrackPlaylistMenu({
       {status ? <p className="muted track-playlist-menu__status">{status}</p> : null}
     </div>
   ) : null;
-  const renderedPopup = isMobileSheet && isMounted && popup ? createPortal(popup, document.body) : popup;
+  const renderedPopup = (portal || isMobileSheet) && isMounted && popup ? createPortal(popup, document.body) : popup;
 
   return (
     <div

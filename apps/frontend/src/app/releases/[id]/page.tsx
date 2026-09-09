@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         title,
         description,
         url: releaseUrl,
-        siteName: 'Vinyl Collection',
+        siteName: 'MityaDima',
         images: [
           {
             url: imageUrl,
@@ -64,7 +64,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     };
   } catch {
     return {
-      title: 'Vinyl Collection',
+      title: 'MityaDima — Vinyl & Mixes',
       description: 'MityaDima Vinyl Collection',
     };
   }

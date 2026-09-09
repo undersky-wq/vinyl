@@ -30,7 +30,7 @@ export function MobileNav({ lang }: { lang: SiteLang }) {
       <Link
         href="/mixes"
         className={pathname === '/mixes' ? 'active' : ''}
-        aria-label={lang === 'ru' ? 'РњРёРєСЃС‹' : 'Mixes'}
+        aria-label={lang === 'ru' ? 'Миксы' : 'Mixes'}
       >
         <AudioLines size={23} />
       </Link>

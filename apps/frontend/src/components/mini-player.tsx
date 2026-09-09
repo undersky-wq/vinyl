@@ -266,6 +266,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       tabIndex={0}
       onClick={openFullPlayer}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           openFullPlayer();
@@ -273,7 +274,13 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       }}
     >
       <div className="mini-player__track">
-        <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={58} height={58} loading="eager" />
+        <button type="button" aria-label="Показать играющий релиз" style={{ padding: 0, border: 0, background: 'none', flexShrink: 0, cursor: 'pointer' }} onClick={event => {
+          event.stopPropagation();
+          const reveal = new CustomEvent('vinyl:reveal-release', { cancelable: true, detail: { releaseId: currentTrack.releaseId, trackId: currentTrack.id } });
+          if (window.dispatchEvent(reveal)) openFullPlayer();
+        }}>
+          <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={58} height={58} loading="eager" />
+        </button>
         <div className="mini-player__meta">
           <div className="mini-player__title">{currentTrack.title}</div>
           <div className="mini-player__artist">{currentTrack.artist}</div>

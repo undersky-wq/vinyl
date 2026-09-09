@@ -9,6 +9,7 @@ import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { SearchSuggestion } from '../types';
 import { LanguageSwitcher } from './language-switcher';
+import { useDesignVariant } from './design-variant-switcher';
 
 type TopbarProps = {
   lang: SiteLang;
@@ -22,6 +23,7 @@ function getNavClass(isActive: boolean) {
 }
 
 export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps) {
+  const { variant } = useDesignVariant();
   const { user } = useAuth();
   const router = useRouter();
   const [searchValue, setSearchValue] = useState(search ?? '');
@@ -91,9 +93,19 @@ export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps
   }
 
   return (
-    <div className="topbar">
+    <div className={`topbar topbar--${variant}`}>
+      <div className="topbar__variant-status" aria-hidden="true">
+        <span>{variant === 'xerox' ? 'ZINE DESK' : variant === 'acid' ? 'LIVE FM' : variant === 'chrome' ? 'MD—OS' : variant === 'grid' ? 'INDEX' : variant === 'nocturne' ? 'ÉDITION' : variant === 'shelf' ? 'OBJECT ROOM' : 'SIGNAL'}</span>
+        <i />
+      </div>
       <Link href="/" className="brand-link">
-        {lang === 'ru' ? 'Коллекция винила' : 'Vinyl Collection'}
+        <svg className="brand-link__mark" viewBox="0 0 44 44" aria-hidden="true">
+          <circle cx="22" cy="22" r="18" />
+          <path d="M8 22h8l3-10 6 20 4-14 3 4h4" />
+          <circle cx="22" cy="22" r="2" />
+        </svg>
+        <span className="brand-link__word">MITYA<br />DIMA</span>
+        <span className="brand-link__meta">VINYL<br />ARCHIVE</span>
       </Link>
 
       <nav className="topbar__nav" aria-label={lang === 'ru' ? 'Основная навигация' : 'Primary navigation'}>
@@ -111,8 +123,7 @@ export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps
         </Link>
         <Link href="/mixes" className={getNavClass(active === 'mixes')}>
           <AudioLines size={19} />
-          <span className="topbar__mix-label-fixed">{lang === 'ru' ? 'Миксы' : 'Mixes'}</span>
-          <span>{lang === 'ru' ? 'РњРёРєСЃС‹' : 'Mixes'}</span>
+          <span>{lang === 'ru' ? 'Миксы' : 'Mixes'}</span>
         </Link>
         <Link href="/favorites" className={getNavClass(active === 'favorites')}>
           <Heart size={19} />

@@ -5,6 +5,7 @@ import { getHomeReleases } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { HomeRelease } from '../types';
 import { ReleaseCard } from './release-card';
+import { useDesignVariant } from './design-variant-switcher';
 
 type HomeReleaseGridProps = {
   initialReleases: HomeRelease[];
@@ -155,6 +156,7 @@ export function HomeReleaseGrid({
   lang,
   pageSize = 24,
 }: HomeReleaseGridProps) {
+  const { variant } = useDesignVariant();
   const restoredViewStateRef = useRef<HomeViewState | null>(
     readHomeViewState(queryString) ||
       (() => {
@@ -379,13 +381,19 @@ export function HomeReleaseGrid({
 
   return (
     <>
-      <section className="release-grid">
+      <header className={`collection-heading collection-heading--${variant}`}>
+        <span>{lang === 'ru' ? 'КОЛЛЕКЦИЯ' : 'COLLECTION'}</span>
+        <h2>{variant === 'xerox' ? 'LATEST CUTTINGS' : variant === 'acid' ? 'ROTATION' : variant === 'chrome' ? 'AUDIO OBJECTS' : variant === 'grid' ? 'COMPLETE INDEX' : variant === 'nocturne' ? 'Selected recordings' : variant === 'shelf' ? 'DISC INDEX' : 'RECENTLY ARCHIVED'}</h2>
+        <b>{String(releases.length).padStart(3, '0')}</b>
+      </header>
+      <section className={`release-grid release-grid--${variant}`}>
         {releases.map((release, index) => (
           <ReleaseCard
             key={release.id}
             release={release}
             onOpenRelease={persistCurrentViewState}
             priority={index < 4}
+            index={index}
           />
         ))}
       </section>

@@ -52,9 +52,9 @@ export function HomeStyleFilters({
   selectedStyles,
 }: HomeStyleFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 720px)').matches : false,
-  );
+  // Keep the first client render identical to SSR; the effect below applies
+  // the compact list immediately after hydration.
+  const [isMobile, setIsMobile] = useState(false);
   const popularStyles = styles.slice(0, isMobile ? 4 : 11);
   const collapsedStyles = [...new Set(popularStyles)];
   const visibleStyles = isExpanded ? styles : [...new Set([...collapsedStyles, ...selectedStyles])];

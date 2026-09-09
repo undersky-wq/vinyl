@@ -387,8 +387,9 @@ export function ProfileScreen({
             ) : (
               <span>{activeUser.displayName.slice(0, 1).toUpperCase()}</span>
             )}
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatar} />
+            <input aria-label={lang === 'ru' ? 'Загрузить фото профиля' : 'Upload profile photo'} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatar} />
           </label>
+          <span className="paper-profile-avatar-hint">{lang === 'ru' ? 'Нажмите на фото, чтобы изменить' : 'Click photo to change'}</span>
 
           <div>
             <p className="muted">{activeUser.role === 'ADMIN' ? 'Administrator' : 'Member'}</p>
@@ -477,6 +478,7 @@ export function ProfileScreen({
               <button
                 type="button"
                 className={`profile-action-button profile-action-button--switch${isAdminEditModeEnabled ? ' active' : ''}`}
+                aria-pressed={isAdminEditModeEnabled}
                 onClick={handleAdminEditModeToggle}
               >
                 <span className="profile-action-button__label">
@@ -488,6 +490,7 @@ export function ProfileScreen({
               <button
                 type="button"
                 className={`profile-action-button profile-action-button--switch${isRegistrationInviteRequired ? ' active' : ''}`}
+                aria-pressed={isRegistrationInviteRequired}
                 onClick={handleRegistrationInviteToggle}
                 disabled={isSavingAuthSettings}
               >
@@ -505,7 +508,7 @@ export function ProfileScreen({
           </button>
         </div>
 
-        {status ? <p className="muted">{status}</p> : null}
+        {status ? <p className="muted" role="status">{status}</p> : null}
       </article>
 
       {activeUser.role === 'ADMIN' ? (

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { MixesBrowser } from '../../components/mixes-browser';
-import { Topbar } from '../../components/topbar';
+import { PaperSectionShell } from '../../components/paper-section-shell';
 import { getLibraryReleasesFeed } from '../../lib/api';
 import { normalizeSiteLang } from '../../lib/language';
 
@@ -18,9 +18,8 @@ export default async function MixesPage() {
   const feed = await getLibraryReleasesFeed(query, cookieHeader);
 
   return (
-    <main className="page-shell">
-      <Topbar lang={lang} active="mixes" />
+    <PaperSectionShell section="mixes">
       <MixesBrowser lang={lang} releases={feed.releases} />
-    </main>
+    </PaperSectionShell>
   );
 }
