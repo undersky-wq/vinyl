@@ -35,7 +35,7 @@ export function PaperSectionShell({children, section}: {children: ReactNode; sec
       <Link href="/">Вся коллекция</Link>
     </header>
     <nav className="paper-page-nav" aria-label="Разделы коллекции">
-      <Link href="/?skin=shelf&view=playlists"><ListMusic size={16}/><span>Playlists <sup>{counts.playlists}</sup></span></Link>
+      <Link href="/?view=playlists"><ListMusic size={16}/><span>Playlists <sup>{counts.playlists}</sup></span></Link>
       <Link href="/mixes" aria-current={section==='mixes'?'page':undefined}><Disc3 size={16}/><span>Mixes <sup>{counts.mixes}</sup></span></Link>
       <Link href="/favorites" aria-current={section==='favorites'?'page':undefined}><Heart size={16}/><span>Favorites <sup>{counts.favorites}</sup></span></Link>
     </nav>

@@ -29,6 +29,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const [dragTrack, setDragTrack] = useState<string | null>(null);
   const [dropTrack, setDropTrack] = useState<string | null>(null);
   const suppressTrackClick = useRef(0);
+  const suppressCoverClick = useRef(0);
+  const initialRouteApplied = useRef(false);
   const [activePlaylist, setActivePlaylist] = useState<string | null>(null);
   const isTrackCollection = Boolean(activePlaylist) || favoritesMode;
   const [showPlaylists, setShowPlaylists] = useState(false);
@@ -50,6 +52,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const [gridPan, setGridPan] = useState(0);
   const [gridBounds, setGridBounds] = useState({ top: 88, bottom: 84 });
   const middleDrag = useRef<{ y: number; stretch: number; anchor: number } | null>(null);
+  const touchDrag = useRef<{ x: number; travel: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   // Snap the endpoint: (1 - .55) / .45 can be 0.9999999999999999.
   // Without this, the grid's scrolling and opening styles never activate.
@@ -61,19 +64,22 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   // Quantized scroll snapshots only update the mounted window, not every frame.
   const [windowTravel, setWindowTravel] = useState(0);
   const [windowScroll, setWindowScroll] = useState(0);
-  const columns = 5;
-  const gridGap = viewport.width <= 700 ? 8 : 20;
+  const columns = viewport.width <= 700 ? 4 : 5;
+  const gridGap = viewport.width <= 700 ? 6 : 20;
   const sleeveSize = viewport.width <= 700 ? 180 : Math.max(180, Math.min(280, viewport.width * .18));
   // Never enlarge a sleeve to fill the grid; leave symmetrical side margins.
-  const gridSize = Math.min(sleeveSize, Math.max(24, (viewport.width * .8 - gridGap * (columns - 1)) / columns));
+  const gridWidth = viewport.width * (viewport.width <= 700 ? .94 : .8);
+  const gridSize = Math.min(sleeveSize, Math.max(24, (gridWidth - gridGap * (columns - 1)) / columns));
   const cell = gridSize + gridGap;
   const gridLeft = (viewport.width - (columns * gridSize + (columns - 1) * gridGap)) / 2;
-  const listSize = isTrackCollection ? 40 : Math.min(sleeveSize, viewport.width * .24);
+  const listSize = isTrackCollection ? 40 : viewport.width <= 700 ? 72 : Math.min(sleeveSize, viewport.width * .24);
   const sideSize = gridSize;
   // Reveal almost half of each sleeve, while reserving the expanded cover
   // and its tracklist in the middle. Three sleeves share the wider left fan.
   const expandedSize = Math.min(viewport.width * (viewport.width <= 700 ? .74 : .4), viewport.height * (viewport.width <= 700 ? .38 : .46));
-  const sideStep = Math.max(0, Math.min(gridSize * .48, ((viewport.width - expandedSize) / 2 - sideSize - 40) / 2));
+  const sideStep = viewport.width <= 700
+    ? gridSize * .42
+    : Math.max(0, Math.min(gridSize * .48, ((viewport.width - expandedSize) / 2 - sideSize - 40) / 2));
   const [activeStyle, setActiveStyle] = useState<string | null>(null);
   const [filtering, setFiltering] = useState(false);
   const filterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,7 +97,12 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const listLayout = useMemo(() => {
     // Full-width playlist rows begin below the persistent playlist selector.
     let y = gridBounds.top + 16;
-    const positions = releases.map(r => { const top = y; y += isTrackCollection ? 52 : Math.max(listSize, 114 + r.tracks.length * 36) + 56; return top; });
+    const mobile = viewport.width <= 700;
+    const positions = releases.map(r => {
+      const top = y;
+      y += isTrackCollection ? 52 : mobile ? Math.max(listSize, 92 + r.tracks.length * 24) + 32 : Math.max(listSize, 114 + r.tracks.length * 36) + 56;
+      return top;
+    });
     return { positions, height: y + gridBounds.bottom };
   }, [releases, listSize, gridBounds, isTrackCollection, playlists.length, viewport]);
   const styleCounts = useMemo(() => {
@@ -137,7 +148,11 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     const measure = () => {
       const search = element.querySelector('.paper-search')?.getBoundingClientRect();
       const player = document.querySelector('.mini-player')?.getBoundingClientRect();
-      setGridBounds({ top: Math.ceil(search?.bottom || 88) + 8, bottom: player ? Math.ceil(viewport.height - player.top) + 8 : 84 });
+      const measuredTop = Math.ceil(search?.bottom || 88) + 8;
+      setGridBounds({
+        top: viewport.width <= 700 ? Math.max(146, measuredTop) : measuredTop,
+        bottom: player ? Math.ceil(viewport.height - player.top) + 8 : 84,
+      });
     };
     measure();
     const frame = requestAnimationFrame(measure);
@@ -183,11 +198,40 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       }
     }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240);
   }
+  function changeMobileLayout(target: 0 | 1 | 2) {
+    stopAutoLayout();
+    setSelected(null); setExpanded(false); setHovered(null);
+    const startValue = stretch;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setStretch(target); return; }
+    setAutoLayout(true);
+    const start = performance.now();
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - start) / 650);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setStretch(startValue + (target - startValue) * eased);
+      if (progress < 1) layoutFrame.current = requestAnimationFrame(animate);
+      else { layoutFrame.current = 0; setAutoLayout(false); }
+    };
+    layoutFrame.current = requestAnimationFrame(animate);
+  }
   const release = selected === null ? null : releases[selected];
   useEffect(() => {
-    if (favoritesMode) selectPlaylist(null);
-    else if (new URLSearchParams(window.location.search).get('view') === 'playlists') setShowPlaylists(true);
-  }, [favoritesMode]);
+    if (initialRouteApplied.current) return;
+    if (favoritesMode) {
+      initialRouteApplied.current = true;
+      selectPlaylist(null);
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === 'playlists') setShowPlaylists(true);
+    const playlistId = params.get('playlist');
+    if (playlistId && playlists.some(playlist => playlist.id === playlistId)) {
+      initialRouteApplied.current = true;
+      selectPlaylist(playlistId);
+    } else if ((!playlistId && !playlistsLoading) || (playlistId && !user && !playlistsLoading)) {
+      initialRouteApplied.current = true;
+    }
+  }, [favoritesMode, playlists, playlistsLoading, user]);
   const playingListRelease = isTrackListInteractive
     ? releases.find(r => r.tracks.some(t => t.id === currentTrack?.id))
     : undefined;
@@ -377,13 +421,15 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     const split = selected === null ? 0 : i < selected ? -1 : 1;
     const along = sleeves[i].position - sideTravel + split * (expanded ? 420 : 220);
     const sideX = along - sleeveSize * .38;
-    const sideY = viewport.height - along * viewport.height / viewport.width - sleeveSize * .715 + sleeves[i].rise;
+    const shelfSlope = viewport.width <= 700 ? .28 : .5625;
+    const shelfFloor = viewport.height * (viewport.width <= 700 ? .62 : 1);
+    const sideY = shelfFloor - along * shelfSlope - sleeveSize * .715 + sleeves[i].rise;
     const gridY = gridBounds.top + 12 + Math.floor(i / columns) * cell;
     const x = sideX * (1-gridMix) + (gridLeft + i % columns * cell) * gridMix;
     const y = listMix > 0
       ? gridY * (1-listMix) + listLayout.positions[i] * listMix - scrollY
       : sideY * (1-gridMix) + (gridY - (gridMix < 1 ? gridPan : scrollY)) * gridMix;
-    const height = listMix > 0 ? Math.max(listSize, 114 + r.tracks.length * 36) : sleeveSize * 1.5;
+    const height = listMix > 0 ? Math.max(listSize, viewport.width <= 700 ? 92 + r.tracks.length * 24 : 114 + r.tracks.length * 36) : sleeveSize * 1.5;
     const nearY = y + height >= -overscan && y <= viewport.height + overscan;
     const nearX = gridMix >= 1 || x + sleeveSize >= -overscan && x <= viewport.width + overscan;
     return nearY && nearX ? [i] : [];
@@ -409,7 +455,18 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         <span className="paper-heading-window paper-heading-title"><span key={headingRelease?.id}>{headingRelease?.title || ''}</span></span>
       </h1>
     </header>
+    <nav className="paper-mobile-layout" aria-label={lang === 'ru' ? 'Вид коллекции' : 'Collection view'}>
+      <button aria-pressed={stretch < .5} onClick={() => changeMobileLayout(0)}>Shelf</button>
+      <button aria-pressed={stretch >= .5 && stretch < 1.5} onClick={() => changeMobileLayout(1)}>Grid</button>
+      <button aria-pressed={stretch >= 1.5} onClick={() => changeMobileLayout(2)}>Tracks</button>
+    </nav>
     <div className="paper-row" aria-label="Все релизы" onScroll={e => setWindowScroll(Math.floor(e.currentTarget.scrollTop / 128) * 128)} onPointerDown={e => {
+      if (e.pointerType === 'touch' && gridMix < 1) {
+        stopAutoLayout();
+        touchDrag.current = { x: e.clientX, travel: travel.current.target };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        return;
+      }
       if (e.button !== 1) return;
       e.preventDefault();
       stopAutoLayout();
@@ -446,6 +503,20 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       setHovered(null);
       wheelLock.current = performance.now() + 450;
     }} onPointerMove={e => {
+      if (touchDrag.current) {
+        const delta = touchDrag.current.x - e.clientX;
+        if (Math.abs(delta) < 4) return;
+        suppressCoverClick.current = performance.now() + 300;
+        const min = -viewport.width / 2;
+        const max = Math.max(min, (sleeves.at(-1)?.position || 0) - viewport.width / 2);
+        const offset = Math.max(min, Math.min(max, touchDrag.current.travel + delta));
+        travel.current = { current: offset, target: offset };
+        transportOrigin.current = offset;
+        stage.current?.style.setProperty('--travel', `${offset}px`);
+        if (transport.current) transport.current.style.transform = 'none';
+        setWindowTravel(Math.floor(offset / 128) * 128);
+        return;
+      }
       if (!middleDrag.current) {
         // Only actual pointer movement changes hover, never a sleeve moving
         // underneath a stationary pointer during scrolling or its own lift.
@@ -464,19 +535,25 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       if (transport.current) transport.current.style.transform = 'none';
       setStretch(next);
     }} onPointerUp={e => {
+      if (e.pointerType === 'touch') {
+        touchDrag.current = null;
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+        return;
+      }
       if (e.button !== 1) return;
       middleDrag.current = null;
       setIsDragging(false);
       if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-    }} onLostPointerCapture={() => {middleDrag.current = null;setIsDragging(false);}} onPointerCancel={() => {middleDrag.current = null;setIsDragging(false);}} onAuxClick={e => {if(e.button === 1) e.preventDefault();}} onPointerLeave={() => setHovered(null)}><div className="paper-transport" ref={transport}>{visibleIndices.map(i => {
+    }} onLostPointerCapture={() => {middleDrag.current = null;touchDrag.current = null;setIsDragging(false);}} onPointerCancel={() => {middleDrag.current = null;touchDrag.current = null;setIsDragging(false);}} onAuxClick={e => {if(e.button === 1) e.preventDefault();}} onPointerLeave={() => setHovered(null)}><div className="paper-transport" ref={transport}>{visibleIndices.map(i => {
       const r = releases[i];
       const p = sleeves[i].position / 24;
-      const side = selected === null ? 0 : gridMix >= 1 ? (i % columns < columns / 2 ? -1 : 1) : i < selected ? -1 : 1;
+      const side = selected === null ? 0 : gridMix >= 1 ? (i % columns < Math.ceil(columns / 2) ? -1 : 1) : i < selected ? -1 : 1;
       return <button type="button" key={`${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} data-index={i} className={`paper-record${selected === i ? ' is-selected' : ''}${selected !== null && gridMix === 0 && (i === selected + 1 || i === 0) ? ' is-front-sleeve' : ''}${hovered === i && selected !== i ? ' is-hovered' : ''}`}
-        style={{ '--position': p, '--rise': `${sleeves[i].rise}px`, '--grid-x': `${gridLeft + (i % columns) * cell}px`, '--grid-y': `${gridBounds.top + 12 + Math.floor(i / columns) * cell - (gridMix < 1 ? gridPan : 0)}px`, '--list-y': `${listLayout.positions[i]}px`, '--grid-side-x': `${i % columns < 3 ? 16 + (i % columns) * sideStep : viewport.width - sideSize - 16 - (4 - i % columns) * sideStep}px`, '--split': side, zIndex: selected === i ? releases.length + 2 : releases.length - i } as CSSProperties}
+        style={{ '--position': p, '--rise': `${sleeves[i].rise}px`, '--grid-x': `${gridLeft + (i % columns) * cell}px`, '--grid-y': `${gridBounds.top + 12 + Math.floor(i / columns) * cell - (gridMix < 1 ? gridPan : 0)}px`, '--list-y': `${listLayout.positions[i]}px`, '--grid-side-x': `${i % columns < Math.ceil(columns / 2) ? 12 + (i % columns) * sideStep : viewport.width - sideSize - 12 - (columns - 1 - i % columns) * sideStep}px`, '--split': side, zIndex: selected === i ? releases.length + 2 : releases.length - i } as CSSProperties}
         aria-label={`${r.artist} — ${r.title}`} aria-expanded={selected === i}
         onFocus={() => {if(!scrollFrame.current) setHovered(i);}} onBlur={() => setHovered(null)}
         onClick={e => {
+          if (performance.now() < suppressCoverClick.current) return;
           trigger.current = e.currentTarget;
           stopAutoLayout();
           if (isTrackListInteractive) {const track = r.tracks.find(t => t.audioUrl); if(track) play(track.id,r); return;}
@@ -526,9 +603,9 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     <nav id="paper-playlists-panel" className="paper-playlists" aria-label="Плейлисты" data-open={showPlaylists} aria-hidden={!showPlaylists} inert={!showPlaylists}>
       {playlistsLoading && <span>Загрузка плейлистов…</span>}
       {playlists.map(p => <button key={p.id} aria-pressed={activePlaylist === p.id} onClick={() => selectPlaylist(p.id)}>{p.name} <sup>{p.items.length}</sup></button>)}
-      {!playlistsLoading && !playlists.length && <Link href="/playlists">{user ? 'Создать плейлист ↗' : 'Войти и открыть плейлисты ↗'}</Link>}
+      {!playlistsLoading && !playlists.length && <Link href={user ? '/playlists?manage=1' : '/profile'}>{user ? 'Создать плейлист ↗' : 'Войти и открыть плейлисты ↗'}</Link>}
     </nav>
-    {favoritesMode ? <Link href="/?skin=shelf" className="paper-collection-back">Вся коллекция</Link> : activePlaylist && <button className="paper-collection-back" onClick={() => selectPlaylist(null)}>Вся коллекция</button>}
+    {favoritesMode ? <Link href="/" className="paper-collection-back">Вся коллекция</Link> : activePlaylist && <button className="paper-collection-back" onClick={() => selectPlaylist(null)}>Вся коллекция</button>}
     {activePlaylist && orderStatus && <p className="paper-order-status" role="status">{orderStatus}</p>}
     <nav className="paper-styles" aria-label="Стили релизов" inert={showPlaylists || expanded || isTrackCollection || playlistTransition} aria-hidden={showPlaylists || expanded || isTrackCollection || playlistTransition}>
       <button aria-pressed={activeStyle === null} onClick={() => filterByStyle(null)}>All <sup>{allReleases.length}</sup></button>

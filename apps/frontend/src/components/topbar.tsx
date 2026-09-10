@@ -9,7 +9,6 @@ import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { SearchSuggestion } from '../types';
 import { LanguageSwitcher } from './language-switcher';
-import { useDesignVariant } from './design-variant-switcher';
 
 type TopbarProps = {
   lang: SiteLang;
@@ -23,7 +22,6 @@ function getNavClass(isActive: boolean) {
 }
 
 export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps) {
-  const { variant } = useDesignVariant();
   const { user } = useAuth();
   const router = useRouter();
   const [searchValue, setSearchValue] = useState(search ?? '');
@@ -93,9 +91,9 @@ export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps
   }
 
   return (
-    <div className={`topbar topbar--${variant}`}>
+    <div className="topbar topbar--shelf">
       <div className="topbar__variant-status" aria-hidden="true">
-        <span>{variant === 'xerox' ? 'ZINE DESK' : variant === 'acid' ? 'LIVE FM' : variant === 'chrome' ? 'MD—OS' : variant === 'grid' ? 'INDEX' : variant === 'nocturne' ? 'ÉDITION' : variant === 'shelf' ? 'OBJECT ROOM' : 'SIGNAL'}</span>
+        <span>OBJECT ROOM</span>
         <i />
       </div>
       <Link href="/" className="brand-link">
