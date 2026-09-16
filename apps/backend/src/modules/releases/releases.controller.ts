@@ -134,6 +134,12 @@ export class ReleasesController {
     return this.releasesService.deleteRelease(id);
   }
 
+  @Delete(':id/cover')
+  @UseGuards(AdminGuard)
+  async removeCover(@Param('id') id: string) {
+    return this.releasesService.removeCover(id);
+  }
+
   @Post(':id/cover')
   @UseGuards(AdminGuard)
   @UseInterceptors(

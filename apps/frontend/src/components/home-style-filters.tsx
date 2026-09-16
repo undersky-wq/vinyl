@@ -12,6 +12,8 @@ type HomeStyleFiltersProps = {
   selectedStyles: string[];
 };
 
+const MAX_SELECTED_STYLES = 5;
+
 function toggleValue(values: string[], nextValue: string) {
   return values.includes(nextValue)
     ? values.filter((value) => value !== nextValue)
@@ -36,8 +38,11 @@ function buildFilterHref(input: {
     params.set('hasAudio', resolvedHasAudio);
   }
 
-  for (const style of input.nextStyles ?? input.styles) {
-    params.append('style', style);
+  const selectedStyles = [...new Set(input.nextStyles ?? input.styles)].sort();
+  if (selectedStyles.length) {
+    // One canonical parameter prevents a combinatorial collection of equivalent
+    // URLs (`style=A&style=B`, `style=B&style=A`, duplicates, and so on).
+    params.set('style', selectedStyles.join(','));
   }
 
   const query = params.toString();
@@ -52,9 +57,9 @@ export function HomeStyleFilters({
   selectedStyles,
 }: HomeStyleFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 720px)').matches : false,
-  );
+  // Keep the first client render identical to SSR; the effect below applies
+  // the compact list immediately after hydration.
+  const [isMobile, setIsMobile] = useState(false);
   const popularStyles = styles.slice(0, isMobile ? 4 : 11);
   const collapsedStyles = [...new Set(popularStyles)];
   const visibleStyles = isExpanded ? styles : [...new Set([...collapsedStyles, ...selectedStyles])];
@@ -75,6 +80,7 @@ export function HomeStyleFilters({
   return (
     <section className={`filters filters--home${isExpanded ? ' expanded' : ''}`}>
       <Link
+        prefetch={false}
         className={`chip${!selectedStyles.length && !hasAudio ? ' active' : ''}`}
         href={buildFilterHref({
           search,
@@ -89,6 +95,7 @@ export function HomeStyleFilters({
 
       {(!selectedStyles.length || isExpanded || hasAudio === 'true') ? (
         <Link
+          prefetch={false}
           className={`chip${hasAudio === 'true' ? ' active' : ''}`}
           href={buildFilterHref({
             search,
@@ -102,12 +109,17 @@ export function HomeStyleFilters({
       ) : null}
 
       {visibleStyles.map((item) => {
-        const nextStyles = toggleValue(selectedStyles, item);
         const isActive = selectedStyles.includes(item);
+        const isAtLimit = selectedStyles.length >= MAX_SELECTED_STYLES && !isActive;
+        const nextStyles = isAtLimit ? selectedStyles : toggleValue(selectedStyles, item);
 
         return (
           <Link
+            prefetch={false}
             className={`chip${isActive ? ' active' : ''}`}
+            aria-disabled={isAtLimit}
+            title={isAtLimit ? (lang === 'ru' ? 'Можно выбрать не больше 5 жанров' : 'Choose up to 5 genres') : undefined}
+            onClick={isAtLimit ? (event) => event.preventDefault() : undefined}
             href={buildFilterHref({
               search,
               hasAudio,

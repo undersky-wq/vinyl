@@ -8,7 +8,6 @@ import {
   Modal,
   PanResponder,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleProp,
@@ -20,6 +19,7 @@ import {
 } from 'react-native';
 import { Heart, ListMusic, ListPlus, MessageCircle, Pause, Pencil, Play, Repeat, Shuffle, SkipBack, SkipForward, Trash2 } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
+import { FeedbackPressable as Pressable } from './FeedbackPressable';
 import { colors, radius, spacing } from '../theme';
 import { PlayerBackdrop } from './PlayerBackdrop';
 import { normalizeDurationLabel } from '../lib/time';
@@ -1316,7 +1316,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(24,24,24,0.74)',
+    backgroundColor: 'transparent',
   },
   commentCancelText: {
     color: colors.muted,
@@ -1346,13 +1346,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   iconButtonPressed: {
-    backgroundColor: 'rgba(181,120,255,0.18)',
-    opacity: 0.82,
-    transform: [{ scale: 0.9 }],
+    backgroundColor: 'rgba(181,120,255,0.14)',
+    opacity: 0.8,
   },
   iconButtonHeld: {
-    backgroundColor: 'rgba(181,120,255,0.2)',
-    transform: [{ scale: 1.06 }],
+    backgroundColor: 'rgba(181,120,255,0.14)',
   },
   secondaryControls: {
     flexDirection: 'row',

@@ -23,7 +23,7 @@ import {
   removeTrackFromPlaylist,
   toggleFavoriteTrack,
 } from './src/lib/api';
-import { getLockScreenArtworkUrl } from './src/lib/artwork-cache';
+import { syncNotificationArtwork } from './src/lib/notification-artwork';
 import { resolveOfflineTrack, warmOfflineAudioIndex, withCachedOfflineAudio } from './src/lib/offline-audio';
 import { createPlaybackRequests, replaceQueueAroundActiveTrack } from './src/lib/playback-queue';
 import { createRetriableResource, type RetriableResource } from './src/lib/retriable-resource';
@@ -178,6 +178,7 @@ export default function App() {
     try {
       await TrackPlayer.setupPlayer({
         autoHandleInterruptions: true,
+        autoUpdateMetadata: false,
         minBuffer: 8,
         maxBuffer: 30,
         playBuffer: 0.35,
@@ -244,7 +245,7 @@ export default function App() {
         return track;
       }
 
-      return { ...track, ...refreshedTrack };
+      return { ...track, ...refreshedTrack, coverUrl: track.coverUrl || refreshedTrack.coverUrl || '' };
     } catch (error) {
       console.warn('Failed to refresh playback URL', error);
       return track;
@@ -270,19 +271,8 @@ export default function App() {
 
   function updateLockScreenArtwork(track: PlayerTrack, request = playbackRequestIdRef.current) {
     if (!isNativeTrackPlayerAvailable() || !track.coverUrl) return;
-
-    void getLockScreenArtworkUrl(track.id, track.coverUrl).then((artwork) => {
-      if (!artwork || !playbackRequestsRef.current.isCurrent(request)) return;
-      if (currentTrackRef.current?.id !== track.id) return;
-
-      void playbackRequestsRef.current.run(request, async () => {
-        const active = await TrackPlayer.getActiveTrack();
-        const index = await TrackPlayer.getActiveTrackIndex();
-        if (active?.id === track.id && typeof index === 'number') {
-          await TrackPlayer.updateMetadataForTrack(index, { artwork });
-        }
-      }).catch(() => undefined);
-    }).catch(() => undefined);
+    if (!playbackRequestsRef.current.isCurrent(request)) return;
+    void syncNotificationArtwork().catch(() => undefined);
   }
 
   async function prepareQueue(nextQueue: PlayerTrack[], startTrackId: string, request = playbackRequestIdRef.current) {
@@ -689,8 +679,8 @@ export default function App() {
           pendingSeekMsRef.current = null;
           isSeekingRef.current = false;
         }
-        // Some Android builds omit event.index for the first active item.
-        // Resolve the actual index and update the notification regardless.
+        // The background service owns notification metadata; this is only a
+        // foreground sync request and does not replace the native queue item.
         updateLockScreenArtwork(nextTrack);
       }
     });

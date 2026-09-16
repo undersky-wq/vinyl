@@ -10,6 +10,7 @@ import {
   deleteReleaseTrack,
   deleteRelease,
   deleteTrackAudio,
+  getRelease,
   getReleaseTimelineComments,
   updateReleaseMetadata,
   updateReleaseStyles,
@@ -1512,7 +1513,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                       <Play size={18} fill="currentColor" />
                     </button>
                   ) : user?.role === 'ADMIN' ? (
-                    <TrackUploadButton trackId={track.id} lang={lang} />
+                    <TrackUploadButton trackId={track.id} lang={lang} onUploaded={async () => { const fresh = await getRelease(release.id); setTracks(fresh.tracks); }} />
                   ) : (
                     <span className="track-row__empty-action" />
                   )}

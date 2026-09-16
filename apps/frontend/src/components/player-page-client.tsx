@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { getReleaseTimelineComments } from '../lib/api';
+import { PlayerMixActions } from './player-mix-actions';
 import { SiteLang } from '../lib/language';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
@@ -12,6 +13,7 @@ import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
+import { usePlayerArtwork } from '../lib/use-player-artwork';
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -49,6 +51,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     canPlayNext,
   } = usePlayerTransport();
   const { currentTime, duration, progress } = usePlayerProgress();
+  const fullArtwork = usePlayerArtwork(currentTrack, true);
   const { playQueue, playPrevious, playNext, togglePlayback, seekToPercent, toggleShuffle, toggleRepeat } =
     usePlayerActions();
   const [dragProgress, setDragProgress] = useState<number | null>(null);
@@ -87,6 +90,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   }, []);
 
   useEffect(() => {
+    setComments([]);
     if (!currentTrack?.releaseId) {
       setComments([]);
       return;
@@ -205,15 +209,10 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         type="button"
         className={`player-page__cover-frame player-page__cover-button slide-${trackDirection}`}
         key={`cover-${currentTrack.id}`}
-        onClick={() => {
-          if (currentTrack.releaseId) {
-            router.push(`/releases/${currentTrack.releaseId}`);
-          }
-        }}
-        disabled={!currentTrack.releaseId}
-        aria-label={currentTrack.releaseId ? `${currentTrack.artist} - ${currentTrack.title}` : currentTrack.title}
+        onClick={collapsePlayer}
+        aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
       >
-        <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} loading="eager" />
+        <CoverImage src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
       </button>
       <div className={`player-page__meta slide-${trackDirection}`} key={`meta-${currentTrack.id}`}>
         <p>{currentTrack.artist}</p>
@@ -339,7 +338,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         </button>
       </div>
 
-      <div className="player-page__secondary-actions">
+        <PlayerMixActions track={currentTrack} lang={lang} currentTime={currentTime} duration={duration} comments={comments} onComment={(comment) => setComments((items) => [...items, comment].sort((a, b) => a.second - b.second))} seek={seekToPercent}>
         <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
         <TrackPlaylistMenu trackId={currentTrack.id} lang={lang} className="player-page__playlist-add" align="up" />
         <div className="player-queue-menu player-page__queue">
@@ -387,7 +386,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
             </div>
           ) : null}
         </div>
-      </div>
+      </PlayerMixActions>
     </section>
   );
 }

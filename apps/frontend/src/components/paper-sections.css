@@ -1,0 +1,106 @@
+html:has(.paper-section-page){background:#fff;color-scheme:light;overflow-x:clip;overflow-y:auto;scrollbar-width:none}
+html body:has(.paper-section-page){background:#fff;color:#111;overflow:visible;height:auto;overscroll-behavior:auto}
+body:has(.paper-section-page)::before,body:has(.paper-section-page)::after,body:has(.paper-section-page) .mobile-nav{display:none}
+.paper-section-page{min-height:100dvh;padding:28px 10vw 180px;background:#fff;color:#111;font:14px/1.4 Arial,Helvetica,sans-serif;letter-spacing:-.3px}
+.paper-page-header{display:flex;justify-content:space-between;align-items:center;gap:24px;margin:0 -7vw;font:600 clamp(14px,1.15vw,19px)/1.3 Arial,Helvetica,sans-serif}
+.paper-page-header>div{display:flex;align-items:center;gap:10px}
+.paper-page-header>a:last-child{color:#888}
+.paper-page-header__actions{display:flex;align-items:center;gap:18px}
+.paper-page-header__actions>a{color:#888}
+.paper-page-header a{transition:opacity .25s}
+.paper-page-header a:hover{opacity:.6}
+.paper-page-header .paper-page-identity{align-items:flex-start;max-width:32%;min-width:0}
+.paper-page-avatar{display:grid;place-items:center;flex-shrink:0;width:calc(var(--paper-type)*2.6 + 10px);height:calc(var(--paper-type)*2.6 + 10px);border-radius:50%;overflow:hidden;background:#eee;color:#111;transition:transform .45s cubic-bezier(.16,1,.3,1)}
+.paper-page-avatar img{display:block;width:100%;height:100%;object-fit:cover}
+.paper-page-avatar:hover{transform:scale(1.1) rotate(-3deg)}
+.paper-page-identity-text{min-width:0}
+.paper-page-brand-row{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.paper-page-brand-row .shelf-theme-toggle{width:1em;height:1em;padding:0;border:0;font-size:var(--paper-type);color:#888}
+.paper-page-brand-row .shelf-theme-toggle svg{width:1em;height:1em}
+.paper-page-brand-row .language-toggle{display:flex;align-items:center;gap:5px;position:static;margin:0}
+.paper-page-brand-row .language-chip{min-width:0;padding:0;border:0;border-bottom:1px solid transparent;border-radius:0;background:none;color:#aaa;font:400 calc(var(--paper-type)*.68)/1 Arial,Helvetica,sans-serif;letter-spacing:.02em}
+.paper-page-brand-row .language-chip.active{color:#111;border-bottom-color:currentColor}
+.paper-page-brand-row .language-switch-button{min-width:0;padding:0;border:0;border-bottom:1px solid transparent;border-radius:0;background:none!important;box-shadow:none!important;color:#888;font:400 calc(var(--paper-type)*.68)/1 Arial,Helvetica,sans-serif;letter-spacing:.02em;cursor:pointer}
+.paper-page-brand-row .language-switch-button:hover,.paper-page-brand-row .language-switch-button:focus-visible{color:#111;border-bottom-color:currentColor;outline:none}
+html body .paper-section-page .paper-page-identity-text input{display:block;width:100%;min-width:0;margin-top:5px;padding:2px 0;background:transparent;border:0;border-bottom:1px solid #1113;border-radius:0;box-shadow:none;color:#111;font:600 var(--paper-type)/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.6px}
+.paper-page-identity-text input::placeholder{color:#999;font-weight:400}
+html body .paper-section-page .paper-page-identity-text input:focus{outline:none;border-bottom-color:#111;box-shadow:none}
+.paper-page-content{transition:opacity .2s}
+.paper-page-content[aria-busy=true]{opacity:.55}
+@media(max-width:700px){.paper-page-header .paper-page-identity{max-width:70%}}
+.paper-page-nav{display:flex;flex-direction:column;gap:8px;margin:26px -7vw 56px;width:fit-content}
+.paper-page-nav a{display:flex;gap:8px;align-items:center;color:#999;font-weight:600}
+.paper-page-nav a:hover,.paper-page-nav a[aria-current]{color:#111}
+.paper-page-nav sup{font-size:.65em;margin-left:3px;font-variant-numeric:tabular-nums}
+.paper-page-nav a[href='/favorites'][aria-current] svg{color:#db3045;fill:currentColor}
+.paper-page-nav a[href='/mixes'][aria-current] svg{color:#8950c8}
+.paper-page-nav .paper-section-collection svg{color:inherit}
+.paper-page-nav .paper-section-collection[aria-current] svg{color:#3478db}
+.paper-page-content{animation:paper-section-enter .6s cubic-bezier(.16,1,.3,1) both}
+html body .paper-section-page :is(.favorites-page,.playlist-feed,.favorites-tracklist,.mixes-page,.mix-admin-panel){padding:0;margin:0;width:100%;max-width:none;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;color:#111}
+html body .paper-section-page :is(h1,h2,h3){font-family:Arial,Helvetica,sans-serif;color:#111;text-transform:none}
+html body .paper-section-page .favorites-page__header{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 24px;border:0}
+html body .paper-section-page .favorites-page__header h1{font:600 22px Arial;letter-spacing:-.6px}
+html body .paper-section-page .muted{color:#888}
+html body .paper-section-page .playlist-track{display:grid;grid-template-columns:40px 24px minmax(0,1fr) auto 48px;gap:12px;align-items:center;min-height:52px;padding:6px 0;border:0;border-radius:0;background:none;box-shadow:none;color:#111;transition:background .2s}
+html body .paper-section-page .playlist-track:hover{background:#fafafa;transform:none}
+html body .paper-section-page .playlist-track__cover{width:40px;height:40px;padding:0;border:0;border-radius:0;overflow:hidden}
+html body .paper-section-page .playlist-track__cover img{width:40px;height:40px;object-fit:cover}
+html body .paper-section-page .playlist-track__play{display:none}
+html body .paper-section-page .playlist-track__title{display:flex;gap:10px;min-width:0;padding:0;color:#111;font:14px Arial;letter-spacing:-.3px;text-align:left;background:none;border:0}
+html body .paper-section-page .playlist-track__title span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+html body .paper-section-page .playlist-track__artist{color:#777;font:inherit;max-width:40%}
+html body .paper-section-page .playlist-track__actions{display:flex;align-items:center;gap:12px}
+html body .paper-section-page :is(.track-favorite-button,.track-playlist-menu__trigger){opacity:1;visibility:visible;color:#888;border:0;background:none;box-shadow:none;width:24px;height:28px;padding:0;transform:none}
+html body .paper-section-page .track-favorite-button:not(.active) svg{fill:none}
+html body .paper-section-page :is(.playlist-track__bpm,.playlist-track__number,.playlist-track__time){font:12px Arial;color:#888;white-space:nowrap}
+html body .paper-section-page .playlist-track__time{text-align:right;font-variant-numeric:tabular-nums}
+/* Keep the existing favourites seek surface, reduced to a quiet score line. */
+html body .paper-section-page .favorites-wave{margin:0 0 26px;padding:0;border:0;background:none;min-height:0}
+html body .paper-section-page .library-wave__bars{height:44px;background:none;border:0;padding:0;box-shadow:none}
+html body .paper-section-page .library-wave__bar{background:#ddd;box-shadow:none}
+html body .paper-section-page .library-wave__bar.is-active{background:#111}
+/* Mixes are numbered archive entries: sleeve, title and a wide seekable score. */
+html body .paper-section-page .mixes-page{display:block;counter-reset:mix}
+html body .paper-section-page .mix-card:nth-child(n){position:relative;display:grid;grid-template-columns:minmax(160px,23%) minmax(0,1fr);gap:5vw;margin:0;padding:42px 0 54px;border:0;border-top:1px solid #ddd;border-radius:0;background:none;box-shadow:none;transform:none;overflow:visible;counter-increment:mix}
+html body .paper-section-page .mix-card::before{content:counter(mix,decimal-leading-zero);position:absolute;left:-5vw;top:42px;background:none;color:#aaa;font:12px Arial;inset:auto auto auto -5vw;transform:none}
+html body .paper-section-page .mix-card::after{display:none}
+html body .paper-section-page .mix-card__cover{position:relative;display:block;width:100%;aspect-ratio:1;height:auto;margin:0;border:0;border-radius:0;overflow:hidden;transform:none;box-shadow:none;grid-column:1}
+html body .paper-section-page .mix-card__cover img{width:100%;height:100%;object-fit:cover;filter:none;transition:transform .7s cubic-bezier(.16,1,.3,1)}
+html body .paper-section-page .mix-card__cover:hover img{transform:scale(1.035)}
+html body .paper-section-page .mix-card__body{position:relative;display:flex;flex-direction:column;gap:18px;padding:0;margin:0;background:none;grid-column:2;min-width:0}
+html body .paper-section-page .mix-card__title{display:flex;flex-direction:column;gap:8px;margin:0 50px 0 0;color:#111}
+html body .paper-section-page .mix-card__title span{font:14px Arial;color:#888;text-transform:none;letter-spacing:0}
+html body .paper-section-page .mix-card__title strong{font:500 clamp(22px,3vw,44px)/1.05 Arial;letter-spacing:-1.3px;text-transform:none;color:#111;overflow-wrap:break-word}
+html body .paper-section-page .mix-card__play{position:absolute;right:0;top:0;width:38px;height:38px;border:1px solid #ddd;border-radius:50%;background:white;color:#111;box-shadow:none;transform:none}
+html body .paper-section-page .mix-card.is-playing .mix-card__play{color:#8950c8;border-color:#8950c8}
+html body .paper-section-page .mix-card__year{position:static;color:#aaa;font:12px Arial}
+html body .paper-section-page .mix-wave{margin-top:auto;padding-top:12px;width:100%}
+html body .paper-section-page .mix-wave__bars{height:70px}
+html body .paper-section-page .mix-card.is-playing .library-wave__bar.is-active{background:#8950c8}
+html body .paper-section-page .mix-wave__time-row{color:#888;font:12px Arial;font-variant-numeric:tabular-nums}
+html body .paper-section-page .mix-card__footer{position:static;display:flex;justify-content:space-between;gap:16px;padding:0;margin:0;border:0;background:none}
+html body .paper-section-page .mix-card__style{padding:0;border:0;background:none;color:#888;font:12px Arial;border-radius:0}
+html body .paper-section-page .mix-card__styles{gap:10px;flex-wrap:wrap}
+html body .paper-section-page :is(.mix-share-button,.track-icon-button,.mix-file-control,.nav-link){background:none;color:#777;border:0;border-radius:0;box-shadow:none;font:13px Arial}
+html body .paper-section-page .mix-admin-panel{margin-bottom:30px}
+html body .paper-section-page :is(.mix-admin-form,.mix-card__edit){padding:18px 0;gap:16px;background:none}
+html body .paper-section-page input{background:white;color:#111;border:0;border-bottom:1px solid #aaa;border-radius:0;box-shadow:none;font:14px Arial}
+html body .paper-section-page .mixes-empty{min-height:140px;padding:60px 0;color:#888;border:0;border-top:1px solid #ddd;border-radius:0;background:transparent;box-shadow:none;font:16px Arial}
+.paper-section-page :is(a,button):focus-visible{outline:1px solid #111;outline-offset:4px}
+@keyframes paper-section-enter{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media(max-width:700px){.paper-section-page{padding:20px 6vw 140px}.paper-page-header{margin:0;flex-wrap:wrap;font-size:14px;gap:16px}.paper-page-header>span{order:3;width:100%;color:#888}.paper-page-nav{margin:28px 0 40px}html body .paper-section-page .playlist-track{grid-template-columns:36px minmax(0,1fr) auto 36px;gap:6px}html body .paper-section-page .playlist-track__number{display:none}html body .paper-section-page .playlist-track__title{flex-direction:column;gap:3px;font-size:12px}html body .paper-section-page .playlist-track__artist{max-width:100%}html body .paper-section-page .playlist-track__actions{gap:5px}html body .paper-section-page .mix-card:nth-child(n){grid-template-columns:100px minmax(0,1fr);gap:20px;padding:28px 0}html body .paper-section-page .mix-card::before{display:none}html body .paper-section-page .mix-card__title strong{font-size:24px}html body .paper-section-page .mix-card__footer{flex-wrap:wrap}html body .paper-section-page .mix-wave__bars{height:44px}}
+/* The archive's typography and staggered sleeve / text reveal. */
+.paper-section-page{--paper-type:clamp(14px,1.15vw,19px);font:400 var(--paper-type)/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.6px}
+.paper-page-content{animation:none}
+html body .paper-section-page :is(.paper-page-header,.paper-page-nav,.favorites-page__header h1,.mix-card__title span,.mix-card__title strong){font:600 var(--paper-type)/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.6px;text-transform:none}
+html body .paper-section-page .playlist-track__title{font:400 clamp(12px,1vw,15px)/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.3px}
+html body .paper-section-page .playlist-track__artist{font:inherit}
+html body .paper-section-page .playlist-track__cover,
+html body .paper-section-page .mix-card__cover{animation:paper-section-sleeve 1.4s cubic-bezier(.16,1,.3,1) var(--entry-delay,0s) both;transform-origin:center}
+html body .paper-section-page :is(.playlist-track__title,.playlist-track__number,.playlist-track__actions,.playlist-track__time,.mix-card__title,.mix-card__year,.mix-wave,.mix-card__footer){animation:paper-section-line .85s cubic-bezier(.16,1,.3,1) calc(.48s + var(--entry-delay,0s)) both}
+html body .paper-section-page .mix-card__body{overflow:visible}
+html body .paper-section-page :is(.playlist-track__title,.mix-card__title):hover{color:#777}
+@keyframes paper-section-sleeve{from{opacity:0;transform:translate(38px,38px) matrix(.76,.43,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes paper-section-line{from{opacity:0;transform:translateY(18px);clip-path:inset(100% 0 0)}to{opacity:1;transform:none;clip-path:none}}
+@media(prefers-reduced-motion:reduce){.paper-section-page *, .paper-section-page *::before{animation:none!important;transition:none!important}}

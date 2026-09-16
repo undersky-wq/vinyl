@@ -1,4 +1,5 @@
 'use client';
+import { CSSProperties } from 'react';
 
 import { Pause, Play } from 'lucide-react';
 import { SiteLang } from '../lib/language';
@@ -124,6 +125,7 @@ export function PlaylistTrackRow({
         isDragging ? ' dragging' : ''
       }`}
       draggable={draggable}
+      style={{ '--entry-delay': `${Math.min(Math.max(0, Number(indexLabel) - 1) || 0, 12) * .065}s` } as CSSProperties}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}

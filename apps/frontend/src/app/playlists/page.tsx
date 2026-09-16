@@ -1,7 +1,8 @@
+import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { Topbar } from '../../components/topbar';
 import { PlaylistBrowser } from '../../components/playlist-browser';
-import { getCurrentUser, getPlaylist, getPlaylistSummaries } from '../../lib/api';
+import { getCurrentUser, getPlaylist, getPlaylistSummaries, getSiteSettings } from '../../lib/api';
 import { normalizeSiteLang } from '../../lib/language';
 
 export default async function PlaylistsPage({
@@ -9,9 +10,16 @@ export default async function PlaylistsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const params = await searchParams;
+  const siteSettings = await getSiteSettings().catch(() => ({ siteDesign: 'classic' as const }));
+  if (siteSettings.siteDesign === 'shelf' && params.manage !== '1') {
+    const query = new URLSearchParams({ view: 'playlists' });
+    if (typeof params.playlist === 'string') query.set('playlist', params.playlist);
+    redirect(`/?${query.toString()}`);
+  }
+
   const cookieStore = await cookies();
   const lang = normalizeSiteLang(cookieStore.get('site-lang')?.value);
-  const params = await searchParams;
   const activePlaylistId = typeof params.playlist === 'string' ? params.playlist : '';
   const cookieHeader = cookieStore
     .getAll()

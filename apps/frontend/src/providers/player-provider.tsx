@@ -16,6 +16,7 @@ export type PlayerTrack = {
   artist: string;
   audioUrl: string;
   coverUrl: string;
+  coverFullUrl?: string;
   releaseId?: string;
   waveformData?: number[];
   isPublic?: boolean;

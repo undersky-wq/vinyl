@@ -10,6 +10,7 @@ import { StorageService } from '../storage/storage.service';
 const scrypt = promisify(scryptCallback);
 export const SESSION_COOKIE_NAME = 'vinyl_session';
 const REGISTRATION_INVITE_REQUIRED_SETTING = 'registrationInviteRequired';
+const SITE_DESIGN_SETTING = 'siteDesign';
 
 type CookieResponse = {
   cookie: (name: string, value: string, options: Record<string, unknown>) => void;
@@ -81,16 +82,26 @@ export class AuthService {
   }
 
   async getAuthSettings() {
-    const setting = await this.prisma.appSetting.findUnique({
-      where: { key: REGISTRATION_INVITE_REQUIRED_SETTING },
-    });
+    const [registrationSetting, designSetting] = await Promise.all([
+      this.prisma.appSetting.findUnique({ where: { key: REGISTRATION_INVITE_REQUIRED_SETTING } }),
+      this.prisma.appSetting.findUnique({ where: { key: SITE_DESIGN_SETTING } }),
+    ]);
 
     return {
-      registrationInviteRequired: setting?.value === true,
+      registrationInviteRequired: registrationSetting?.value === true,
+      siteDesign: designSetting?.value === 'shelf' ? 'shelf' as const : 'classic' as const,
     };
   }
 
-  async updateAuthSettings(input: { registrationInviteRequired?: boolean }) {
+  async getSiteSettings() {
+    const settings = await this.getAuthSettings();
+    return { siteDesign: settings.siteDesign };
+  }
+
+  async updateAuthSettings(input: {
+    registrationInviteRequired?: boolean;
+    siteDesign?: 'classic' | 'shelf';
+  }) {
     if (typeof input.registrationInviteRequired === 'boolean') {
       await this.prisma.appSetting.upsert({
         where: { key: REGISTRATION_INVITE_REQUIRED_SETTING },
@@ -101,6 +112,14 @@ export class AuthService {
         update: {
           value: input.registrationInviteRequired,
         },
+      });
+    }
+
+    if (input.siteDesign === 'classic' || input.siteDesign === 'shelf') {
+      await this.prisma.appSetting.upsert({
+        where: { key: SITE_DESIGN_SETTING },
+        create: { key: SITE_DESIGN_SETTING, value: input.siteDesign },
+        update: { value: input.siteDesign },
       });
     }
 

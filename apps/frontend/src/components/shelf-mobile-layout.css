@@ -1,0 +1,51 @@
+@media(max-width:700px) {
+  html[data-visual-variant='shelf'] .paper-archive { height:100vh;height:100dvh; }
+  html[data-visual-variant='shelf'] .paper-archive:not(.is-grid):not(.is-listing) .paper-sections { top:var(--mobile-nav-top,102px)!important; }
+  html[data-visual-variant='shelf'] .paper-archive .paper-header h1.paper-heading { top:var(--mobile-heading-top,190px)!important; }
+  html[data-visual-variant='shelf'] .paper-archive:not(.is-grid):not(.is-listing) .paper-header h1.paper-heading {
+    left:6vw!important;right:6vw!important;width:88vw!important;display:block!important;text-align:center;font-size:clamp(12px,3.2vw,14px);line-height:1.35;
+  }
+  html[data-visual-variant='shelf'] .paper-archive:not(.is-grid):not(.is-listing) .paper-heading-window { display:inline;overflow:visible;white-space:normal; }
+  html[data-visual-variant='shelf'] .paper-archive:not(.is-grid):not(.is-listing) .paper-heading-window>span { display:inline;white-space:normal;overflow-wrap:anywhere; }
+  html[data-visual-variant='shelf'] .paper-archive:not(.is-grid):not(.is-listing) .paper-heading {
+    display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+  }
+  html[data-visual-variant='shelf'] .paper-archive:not(.is-open):not(.is-grid):not(.is-listing) .paper-row {
+    clip-path:none;
+  }
+  html[data-visual-variant='shelf'] .paper-archive:not(.is-listing) .paper-record:not(.is-selected) {
+    top:calc((var(--mobile-shelf-floor,62vh) - var(--along)*.28 - var(--cover)*.715 + var(--rise,0px))*(1 - var(--grid-mix,0)) + var(--grid-y)*var(--grid-mix,0));
+  }
+  html[data-visual-variant='shelf'] .paper-archive :is(.paper-styles,.paper-playlists,.paper-mix-index) {
+    top:auto!important;bottom:var(--mobile-content-bottom,84px)!important;height:var(--mobile-panel-height,192px)!important;max-height:var(--mobile-panel-height,192px)!important;
+  }
+  html[data-visual-variant='shelf'] .paper-archive .paper-styles>div { min-height:0;overflow-y:auto;overscroll-behavior:contain; }
+}
+/* Landscape phones can cross desktop width breakpoints; keep the player
+   attached to the viewport rather than inheriting the 60px tablet offset. */
+@media(orientation:landscape) and (pointer:coarse) {
+  html[data-visual-variant='shelf'] body .mini-player {
+    position:fixed!important;
+    top:auto!important;
+    bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+    margin-bottom:0!important;
+  }
+}
+@media(max-width:700px) {
+  /* Match the tilted shelf's actual centre at along = viewport width / 2.
+     The selected cover has a centre transform origin, unlike side sleeves. */
+  html[data-visual-variant='shelf'] .paper-archive:not(.is-expanded):not(.is-grid):not(.is-listing) .paper-record.is-selected {
+    top:calc(var(--mobile-shelf-floor,62vh) - 14vw + var(--rise,0px));
+  }
+}
+@media(max-width:700px) {
+  /* The scrolling collection cannot paint into the section/context header. */
+  html[data-visual-variant='shelf'] .paper-archive:is(.is-grid,.is-listing):not(.is-open) .paper-row {
+    clip-path:inset(var(--grid-top,160px) 0 var(--grid-bottom,84px) 0)!important;
+  }
+}
+@media(max-width:700px) {
+  html[data-visual-variant='shelf'] .paper-archive:not(.is-grid):not(.is-listing) .paper-heading-colon {
+    display:inline;margin-inline:.35em;
+  }
+}

@@ -135,7 +135,7 @@ export class ReleasesService {
           userId,
         },
       },
-      isMix: query.isMix === 'true',
+      ...(query.allTypes === 'true' ? {} : { isMix: query.isMix === 'true' }),
       ...(genres.length ? { genres: { hasSome: genres } } : {}),
       ...(styles.length ? { styles: { hasSome: styles } } : {}),
       ...(search
@@ -166,6 +166,30 @@ export class ReleasesService {
         : {}),
     };
 
+    if (query.catalog === 'true') {
+      const catalog = await this.prisma.release.findMany({
+        where,
+        ...(typeof skip === 'number' ? { skip } : {}),
+        ...(typeof take === 'number' ? { take } : {}),
+        select: {
+          id: true, artist: true, title: true, year: true, styles: true, isMix: true,
+          coverImageUrl: true, coverStorageKey: true, coverStorageUrl: true,
+          coverThumbStorageKey: true, coverThumbStorageUrl: true,
+          coverMediumStorageKey: true, coverMediumStorageUrl: true,
+          tracks: { select: { title: true, _count: { select: { audioFiles: true } } } },
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+      return Promise.all(catalog.map(({ tracks, ...release }) => this.signReleaseUrls({
+        ...release,
+        tracks: [],
+        tracksLoaded: false,
+        trackCount: tracks.length,
+        trackSearchText: tracks.map(track => track.title).join(' '),
+        audioComplete: tracks.length > 0 && tracks.every(track => track._count.audioFiles > 0),
+      })));
+    }
+
     const releases = summaryOnly
       ? await this.prisma.release.findMany({
           where,
@@ -190,7 +214,10 @@ export class ReleasesService {
               select: {
                 id: true,
                 title: true,
+                position: true,
                 waveformData: true,
+                durationRaw: true,
+                durationSec: true,
                 audioFiles: true,
               },
             },
@@ -438,8 +465,14 @@ export class ReleasesService {
         some: trackWhere,
       },
     };
-    const [total, totalTracks, releases, optionsSource] = await Promise.all([
+    const [total, collectionTotal, totalTracks, releases, optionsSource] = await Promise.all([
       this.prisma.release.count({ where }),
+      this.prisma.release.count({
+        where: {
+          collectionItems: { some: { userId } },
+          isMix: query.isMix === 'true',
+        },
+      }),
       this.prisma.track.count({
         where: {
           ...trackWhere,
@@ -532,6 +565,7 @@ export class ReleasesService {
     return {
       releases: signedReleases,
       total,
+      collectionTotal,
       totalTracks,
       hasMore: skip + signedReleases.length < total,
       options: this.buildLibraryOptions(optionsSource),
@@ -844,6 +878,16 @@ export class ReleasesService {
     return { deleted: true };
   }
 
+  async removeCover(id: string) {
+    // Detach the artwork; keep the original storage object recoverable.
+    await this.prisma.release.update({ where: { id }, data: {
+      coverImageUrl: null, coverStorageKey: null, coverStorageUrl: null,
+      coverThumbStorageKey: null, coverThumbStorageUrl: null,
+      coverMediumStorageKey: null, coverMediumStorageUrl: null,
+    } });
+    return { success: true };
+  }
+
   async uploadCover(id: string, file: Express.Multer.File) {
     const release = await this.prisma.release.findUnique({
       where: { id },
@@ -946,18 +990,18 @@ export class ReleasesService {
   async updateTrackMetadata(trackId: string, dto: UpdateTrackMetadataDto) {
     const data: Prisma.TrackUpdateInput = {};
 
-    if ('bpm' in dto) {
+    if (dto.bpm !== undefined) {
       data.bpm = dto.bpm ?? null;
     }
 
-    if ('key' in dto) {
+    if (dto.key !== undefined) {
       data.key = dto.key?.trim() || null;
     }
 
-    if ('title' in dto) {
+    if (dto.title !== undefined) {
       const title = dto.title?.trim();
       if (!title) {
-        if ('bpm' in dto || 'key' in dto || 'artists' in dto) {
+        if (dto.bpm !== undefined || dto.key !== undefined || dto.artists !== undefined) {
           delete data.title;
         } else {
           throw new BadRequestException('Track title is required');
@@ -967,7 +1011,7 @@ export class ReleasesService {
       }
     }
 
-    if ('artists' in dto) {
+    if (dto.artists !== undefined) {
       data.artists = (dto.artists || []).map((artist) => artist.trim()).filter(Boolean);
     }
 

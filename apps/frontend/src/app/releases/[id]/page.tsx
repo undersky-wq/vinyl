@@ -1,6 +1,7 @@
 import { ReleaseDetail } from '../../../components/release-detail';
 import { Topbar } from '../../../components/topbar';
-import { getRelease } from '../../../lib/api';
+import { getRelease, getSiteSettings } from '../../../lib/api';
+import { ShelfMixDetail } from '../../../components/shelf-mix-detail';
 import { cookies } from 'next/headers';
 import { normalizeSiteLang } from '../../../lib/language';
 import type { Metadata } from 'next';
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         title,
         description,
         url: releaseUrl,
-        siteName: 'Vinyl Collection',
+        siteName: 'MityaDima',
         images: [
           {
             url: imageUrl,
@@ -64,7 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     };
   } catch {
     return {
-      title: 'Vinyl Collection',
+      title: 'MityaDima — Vinyl & Mixes',
       description: 'MityaDima Vinyl Collection',
     };
   }
@@ -79,6 +80,10 @@ export default async function ReleasePage({ params }: { params: Promise<{ id: st
     .join('; ');
   const { id } = await params;
   const release = await getRelease(id, cookieHeader);
+  const settings = await getSiteSettings().catch(() => ({siteDesign:'classic' as const}));
+  if (release.isMix && settings.siteDesign === 'shelf') {
+    return <ShelfMixDetail release={release} lang={lang}/>;
+  }
 
   return (
     <main className="page-shell release-page-shell">

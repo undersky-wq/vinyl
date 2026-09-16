@@ -1,4 +1,5 @@
 import TrackPlayer, { Event } from 'react-native-track-player';
+import { syncNotificationArtwork } from './lib/notification-artwork';
 
 function safely(action: () => Promise<void>) {
   action().catch(() => {
@@ -11,6 +12,14 @@ export async function playbackService() {
   if (!TrackPlayer?.addEventListener || !Event) {
     return;
   }
+
+  TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, () => {
+    safely(() => syncNotificationArtwork(true));
+  });
+  TrackPlayer.addEventListener(Event.PlaybackState, () => {
+    safely(syncNotificationArtwork);
+  });
+  safely(syncNotificationArtwork);
 
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     safely(() => TrackPlayer.play());

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FeedbackPressable as Pressable } from '../components/FeedbackPressable';
 import { Image } from 'expo-image';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';

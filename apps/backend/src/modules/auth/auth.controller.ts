@@ -51,6 +51,11 @@ export class AuthController {
     return this.authService.getAuthSettings();
   }
 
+  @Get('site-settings')
+  siteSettings() {
+    return this.authService.getSiteSettings();
+  }
+
   @Post('settings')
   @UseGuards(AdminGuard)
   updateSettings(@Body() dto: UpdateAuthSettingsDto) {

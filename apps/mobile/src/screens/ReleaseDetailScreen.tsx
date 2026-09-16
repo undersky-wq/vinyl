@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { FeedbackPressable as Pressable } from '../components/FeedbackPressable';
 import { ChevronLeft, Pause, Play } from 'lucide-react-native';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { ReleaseCover } from '../components/ReleaseCover';
@@ -143,9 +144,9 @@ export function ReleaseDetailScreen({
               >
                 <View style={[styles.playButton, isActive && styles.playButtonActive]}>
                   {isActive && isPlaying ? (
-                    <Pause size={16} color="#111111" />
+                    <Pause size={16} color={colors.accent} />
                   ) : (
-                    <Play size={16} color={audioUrl ? '#111111' : colors.muted} fill={audioUrl ? '#111111' : 'none'} />
+                    <Play size={16} color={isActive ? colors.accent : colors.muted} fill={audioUrl ? (isActive ? colors.accent : colors.muted) : 'none'} />
                   )}
                 </View>
                 <Text style={styles.position}>{track.position || ''}</Text>
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.panelSoft,
+    backgroundColor: 'transparent',
   },
   headerText: {
     flex: 1,
@@ -249,7 +250,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 13,
     borderRadius: radius.pill,
-    backgroundColor: colors.panel,
+    backgroundColor: 'transparent',
   },
   styleText: {
     color: colors.muted,
@@ -276,10 +277,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'transparent',
   },
   playButtonActive: {
-    backgroundColor: colors.accent,
+    backgroundColor: 'transparent',
   },
   position: {
     minWidth: 28,

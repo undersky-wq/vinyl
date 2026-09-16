@@ -23,7 +23,10 @@ import {
   ADMIN_EDIT_MODE_EVENT,
   ADMIN_EDIT_MODE_STORAGE_KEY,
   setAdminEditModeClass,
+  useWebEditMode,
+  setWebEditMode,
 } from './admin-edit-mode-sync';
+import { DesignVariantSwitcher } from './design-variant-switcher';
 
 function getUserInitial(user: UserProfile) {
   return (user.displayName || user.email || '?').slice(0, 1).toUpperCase();
@@ -55,6 +58,7 @@ export function ProfileScreen({
   authSettings?: AuthSettings;
 }) {
   const router = useRouter();
+  const webEditMode = useWebEditMode();
   const { setUser, user: authUser } = useAuth();
   const activeUser = authUser ?? user;
   const registeredUsers = users ?? [];
@@ -387,8 +391,9 @@ export function ProfileScreen({
             ) : (
               <span>{activeUser.displayName.slice(0, 1).toUpperCase()}</span>
             )}
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatar} />
+            <input aria-label={lang === 'ru' ? 'Загрузить фото профиля' : 'Upload profile photo'} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatar} />
           </label>
+          <span className="paper-profile-avatar-hint">{lang === 'ru' ? 'Нажмите на фото, чтобы изменить' : 'Click photo to change'}</span>
 
           <div>
             <p className="muted">{activeUser.role === 'ADMIN' ? 'Administrator' : 'Member'}</p>
@@ -477,6 +482,7 @@ export function ProfileScreen({
               <button
                 type="button"
                 className={`profile-action-button profile-action-button--switch${isAdminEditModeEnabled ? ' active' : ''}`}
+                aria-pressed={isAdminEditModeEnabled}
                 onClick={handleAdminEditModeToggle}
               >
                 <span className="profile-action-button__label">
@@ -485,9 +491,15 @@ export function ProfileScreen({
                 <strong>{isAdminEditModeEnabled ? 'ON' : 'OFF'}</strong>
               </button>
 
+              <button type="button" className={`profile-action-button profile-action-button--switch${webEditMode ? ' active' : ''}`} aria-pressed={webEditMode} onClick={() => setWebEditMode(!webEditMode)}>
+                <span className="profile-action-button__label">{lang === 'ru' ? 'Веб-редактирование релизов и миксов' : 'Web release and mix editing'}</span>
+                <strong>{webEditMode ? 'ON' : 'OFF'}</strong>
+              </button>
+
               <button
                 type="button"
                 className={`profile-action-button profile-action-button--switch${isRegistrationInviteRequired ? ' active' : ''}`}
+                aria-pressed={isRegistrationInviteRequired}
                 onClick={handleRegistrationInviteToggle}
                 disabled={isSavingAuthSettings}
               >
@@ -505,7 +517,9 @@ export function ProfileScreen({
           </button>
         </div>
 
-        {status ? <p className="muted">{status}</p> : null}
+        {activeUser.role === 'ADMIN' ? <DesignVariantSwitcher lang={lang} /> : null}
+
+        {status ? <p className="muted" role="status">{status}</p> : null}
       </article>
 
       {activeUser.role === 'ADMIN' ? (

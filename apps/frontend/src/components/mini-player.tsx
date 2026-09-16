@@ -21,7 +21,9 @@ import { usePlayer } from '../providers/player-provider';
 import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
+import { PlayerMixActions } from './player-mix-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
+import { usePlayerArtwork } from '../lib/use-player-artwork';
 
 type MiniPlayerProps = {
   lang: SiteLang;
@@ -71,8 +73,26 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
+  const fullArtwork = usePlayerArtwork(currentTrack, isFullPlayerOpen);
   const [overlayDragProgress, setOverlayDragProgress] = useState<number | null>(null);
   const [isOverlayQueueOpen, setIsOverlayQueueOpen] = useState(false);
+  const [overlayQueueClosing, setOverlayQueueClosing] = useState(false);
+  const overlayQueueContainerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!overlayQueueClosing) return;
+    const timer = window.setTimeout(() => {setIsOverlayQueueOpen(false);setOverlayQueueClosing(false);}, 200);
+    return () => window.clearTimeout(timer);
+  }, [overlayQueueClosing]);
+  useEffect(() => {
+    if (!isOverlayQueueOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (!overlayQueueContainerRef.current?.contains(event.target as Node)) setOverlayQueueClosing(true);
+    };
+    const escape = (event: KeyboardEvent) => {if(event.key === 'Escape')setOverlayQueueClosing(true);};
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {document.removeEventListener('pointerdown', outside);document.removeEventListener('keydown', escape);};
+  }, [isOverlayQueueOpen]);
   const [overlayQueueDragY, setOverlayQueueDragY] = useState(0);
   const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
   const [overlayShuffleActive, setOverlayShuffleActive] = useState(isShuffleEnabled);
@@ -105,6 +125,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   });
 
   useEffect(() => {
+    setComments([]);
     if (!currentTrack?.releaseId) {
       setComments([]);
       return;
@@ -165,7 +186,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     const playerUrl = `/player?from=${encodeURIComponent(returnTo)}`;
 
-    if (window.matchMedia('(max-width: 640px)').matches) {
+    if (document.documentElement.dataset.visualVariant === 'shelf' || window.matchMedia('(max-width: 640px)').matches) {
       setIsFullPlayerOpen(true);
       return;
     }
@@ -266,6 +287,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       tabIndex={0}
       onClick={openFullPlayer}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           openFullPlayer();
@@ -273,10 +295,15 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       }}
     >
       <div className="mini-player__track">
-        <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={58} height={58} loading="eager" />
+        <button type="button" aria-label={lang === 'ru' ? 'Открыть большой плеер' : 'Open full player'} style={{ padding: 0, border: 0, background: 'none', flexShrink: 0, cursor: 'pointer' }} onClick={event => {
+          event.stopPropagation();
+          openFullPlayer();
+        }}>
+          <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={58} height={58} loading="eager" />
+        </button>
         <div className="mini-player__meta">
-          <div className="mini-player__title">{currentTrack.title}</div>
           <div className="mini-player__artist">{currentTrack.artist}</div>
+          <div className="mini-player__title">{currentTrack.title}</div>
         </div>
       </div>
 
@@ -475,18 +502,10 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             type="button"
             className={`player-page__cover-frame player-page__cover-button slide-${trackDirection}`}
             key={`mobile-cover-${currentTrack.id}`}
-            onClick={() => {
-              if (!currentTrack.releaseId) {
-                return;
-              }
-
-              setIsFullPlayerOpen(false);
-              router.push(`/releases/${currentTrack.releaseId}`);
-            }}
-            disabled={!currentTrack.releaseId}
-            aria-label={currentTrack.releaseId ? `${currentTrack.artist} - ${currentTrack.title}` : currentTrack.title}
+            onClick={() => setIsFullPlayerOpen(false)}
+            aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
           >
-            <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={420} height={420} loading="eager" />
+            <CoverImage src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
           </button>
           <div className={`player-page__meta slide-${trackDirection}`} key={`mobile-meta-${currentTrack.id}`}>
             <p>{currentTrack.artist}</p>
@@ -597,7 +616,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             </button>
           </div>
 
-          <div className="player-page__secondary-actions">
+            <PlayerMixActions track={currentTrack} lang={lang} currentTime={currentTime} duration={duration} comments={comments} onComment={(comment) => setComments((items) => [...items, comment].sort((a, b) => a.second - b.second))} seek={seekToPercent}>
             <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
             <TrackPlaylistMenu
               trackId={currentTrack.id}
@@ -606,19 +625,19 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
               align="up"
               sheetDrag
             />
-            <div className="player-queue-menu player-page__queue">
+            <div className="player-queue-menu player-page__queue" ref={overlayQueueContainerRef}>
               <button
                 type="button"
                 className={`track-playlist-menu__trigger player-queue-menu__trigger${isOverlayQueueOpen ? ' active' : ''}`}
                 aria-label={lang === 'ru' ? 'Очередь треков' : 'Track queue'}
                 data-tooltip={lang === 'ru' ? 'Очередь' : 'Queue'}
-                onClick={() => setIsOverlayQueueOpen((current) => !current)}
+                onClick={() => {if(isOverlayQueueOpen)setOverlayQueueClosing(true);else {setOverlayQueueClosing(false);setIsOverlayQueueOpen(true);}}}
               >
                 <ListOrdered size={18} />
               </button>
               {isOverlayQueueOpen ? (
                 <div
-                  className={`player-queue-menu__popup${overlayQueueDragY > 0 ? ' dragging' : ''}`}
+                  className={`player-queue-menu__popup${overlayQueueDragY > 0 ? ' dragging' : ''}${overlayQueueClosing ? ' is-closing' : ''}`}
                   style={{ transform: overlayQueueDragY ? `translateY(${overlayQueueDragY}px)` : undefined }}
                   onClickCapture={(event) => {
                     if (overlayQueueDidDragRef.current) {
@@ -670,7 +689,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                 </div>
               ) : null}
             </div>
-          </div>
+          </PlayerMixActions>
         </section>
       </div>
     ) : null}

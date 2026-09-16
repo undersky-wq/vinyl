@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FeedbackPressable as Pressable } from '../components/FeedbackPressable';
 import { Heart, ListMusic, Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
@@ -688,15 +689,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     borderRadius: radius.pill,
-    backgroundColor: colors.panel,
+    backgroundColor: 'transparent',
   },
   chipActive: {
-    backgroundColor: 'rgba(181,120,255,0.14)',
+    backgroundColor: 'transparent',
   },
   chipText: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   chipTextActive: {
     color: colors.accent,
@@ -707,10 +708,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     borderRadius: radius.pill,
-    backgroundColor: colors.panel,
+    backgroundColor: 'transparent',
   },
   filterButtonActive: {
-    backgroundColor: 'rgba(181,120,255,0.14)',
+    backgroundColor: 'transparent',
   },
   hiddenFilter: {
     display: 'none',
@@ -718,7 +719,7 @@ const styles = StyleSheet.create({
   filterButtonText: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   filterButtonTextActive: {
     color: colors.accent,
@@ -736,15 +737,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     borderRadius: radius.pill,
-    backgroundColor: colors.panelSoft,
+    backgroundColor: 'transparent',
   },
   styleChipActive: {
-    backgroundColor: 'rgba(181,120,255,0.16)',
+    backgroundColor: 'transparent',
   },
   styleChipText: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   styleChipTextActive: {
     color: colors.accent,
@@ -780,7 +781,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.panel,
+    backgroundColor: 'transparent',
   },
   pageButton: {
     minWidth: 36,
@@ -788,10 +789,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.panel,
+    backgroundColor: 'transparent',
   },
   pageButtonActive: {
-    backgroundColor: 'rgba(181,120,255,0.18)',
+    backgroundColor: 'transparent',
   },
   pageButtonDisabled: {
     opacity: 0.35,
@@ -847,12 +848,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
     borderRadius: radius.pill,
-    backgroundColor: colors.panelSoft,
+    backgroundColor: 'transparent',
   },
   releaseStyleChipText: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '400',
   },
   releaseStyleChipTextActive: {
     color: colors.accent,

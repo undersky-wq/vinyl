@@ -1,10 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Heart, Pause, Play } from 'lucide-react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { colors, radius, spacing } from '../theme';
 import { normalizeDurationLabel } from '../lib/time';
 import { PlayerTrack } from '../types';
-import { MiniPlayerWave } from './MiniPlayerWave';
 
 type MiniPlayerProps = {
   track: PlayerTrack | null;
@@ -58,7 +57,18 @@ export function MiniPlayer({
 
   return (
     <Pressable style={styles.shell} onPress={onOpen}>
-      <MiniPlayerWave active={isPlaying} />
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id="miniBackground" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#343239" />
+              <Stop offset="0.55" stopColor="#494052" />
+              <Stop offset="1" stopColor="#554366" />
+            </LinearGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill="url(#miniBackground)" />
+        </Svg>
+      </View>
       <Pressable style={styles.playOuter} onPress={onToggle}>
         <Svg width={ringSize} height={ringSize} style={styles.playProgressRing}>
           <Circle
@@ -158,17 +168,17 @@ const styles = StyleSheet.create({
   },
   artist: {
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   title: {
     color: colors.text,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '900',
   },
   time: {
     color: '#dedee2',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
   },
   heartButton: {

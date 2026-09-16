@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, RefreshControl, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, RefreshControl, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { FeedbackPressable as Pressable } from '../components/FeedbackPressable';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { ReleaseCover } from '../components/ReleaseCover';
 import { getCoverUrl, getLibraryFeedFiltered } from '../lib/api';

@@ -43,10 +43,10 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getCoverUrl(release: Release) {
   return (
-    release.coverThumbStorageUrl ||
-    release.coverMediumStorageUrl ||
     release.coverStorageUrl ||
+    release.coverMediumStorageUrl ||
     release.coverImageUrl ||
+    release.coverThumbStorageUrl ||
     'https://placehold.co/320x320/png'
   );
 }

@@ -1,6 +1,7 @@
 import {
   AuthUser,
   AuthSettings,
+  SiteSettings,
   HomeRelease,
   HomeReleaseApi,
   LibraryFeedResponse,
@@ -125,8 +126,18 @@ export async function getLibraryReleasesFeed(searchParams?: URLSearchParams, coo
 }
 
 function mapHomeRelease(release: HomeReleaseApi): HomeRelease {
+  const orderedTracks = [...release.tracks].sort((left, right) =>
+    (left.position || '').localeCompare(right.position || '', undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    }),
+  );
   return {
     id: release.id,
+    tracksLoaded: release.tracksLoaded,
+    trackCount: release.trackCount,
+    trackSearchText: release.trackSearchText,
+    isMix: release.isMix,
     audioComplete: release.audioComplete ?? (
       release.tracks.length > 0 && release.tracks.every((track) => track.audioFiles.length > 0)
     ),
@@ -138,16 +149,19 @@ function mapHomeRelease(release: HomeReleaseApi): HomeRelease {
     coverThumbStorageUrl: release.coverThumbStorageUrl,
     coverMediumStorageUrl: release.coverMediumStorageUrl,
     coverImageUrl: release.coverImageUrl,
-    tracks: release.tracks
-      .map((track) => ({
-        id: track.id,
-        title: track.title,
-        waveformData: Array.isArray(track.waveformData)
-          ? track.waveformData.filter((value): value is number => typeof value === 'number')
-          : [],
-        audioUrl: track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '',
-      }))
-      .filter((track) => Boolean(track.audioUrl)),
+    tracks: orderedTracks.map((track) => ({
+      id: track.id,
+      title: track.title,
+      bpm: track.bpm ?? null,
+      key: track.key ?? null,
+      position: track.position,
+      waveformData: Array.isArray(track.waveformData)
+        ? track.waveformData.filter((value): value is number => typeof value === 'number')
+        : [],
+      audioUrl: track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '',
+      durationRaw: track.durationRaw,
+      durationSec: track.durationSec,
+    })),
   };
 }
 
@@ -283,6 +297,15 @@ export async function getAuthSettings(cookieHeader?: string) {
   return fetchJson<AuthSettings>('/auth/settings', {
     headers: cookieHeader ? { cookie: cookieHeader } : undefined,
   });
+}
+
+export async function getHomeReleaseDetails(id: string) {
+  const release = await fetchJson<HomeReleaseApi>(`/releases/${encodeURIComponent(id)}`);
+  return { ...mapHomeRelease(release), tracksLoaded: true };
+}
+
+export async function getSiteSettings() {
+  return fetchJson<SiteSettings>('/auth/site-settings');
 }
 
 export async function updateAuthSettings(input: Partial<AuthSettings>) {
@@ -488,10 +511,34 @@ export async function reorderPlaylists(playlistIds: string[]) {
   return parseJsonResponse<PlaylistSummary[]>(response);
 }
 
-export async function uploadTrackAudio(trackId: string, file: File) {
+export async function uploadTrackAudio(trackId: string, file: File, onProgress?: (percent: number) => void) {
   const payload = new FormData();
   payload.append('file', file);
   payload.append('trackId', trackId);
+
+  if (onProgress) {
+    return new Promise<{ id: string }>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open('POST', `${API_URL}/audio/upload`);
+      request.withCredentials = true;
+      request.timeout = 900_000;
+      request.upload.onprogress = event => {
+        if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100));
+      };
+      request.upload.onload = () => onProgress(100);
+      request.onerror = () => reject(new Error('Network error during upload'));
+      request.ontimeout = () => reject(new Error('Upload timed out'));
+      request.onabort = () => reject(new Error('Upload cancelled'));
+      request.onload = () => {
+        try {
+          const result = JSON.parse(request.responseText);
+          if (request.status < 200 || request.status >= 300) throw new Error(result.message || 'File upload failed');
+          resolve(result);
+        } catch (error) { reject(error); }
+      };
+      request.send(payload);
+    });
+  }
 
   const response = await fetch(`${API_URL}/audio/upload`, {
     method: 'POST',

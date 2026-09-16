@@ -47,6 +47,9 @@ export type Release = {
 };
 
 export type HomeRelease = {
+  tracksLoaded?: boolean;
+  trackCount?: number;
+  trackSearchText?: string;
   id: string;
   audioComplete?: boolean;
   artist: string;
@@ -62,11 +65,19 @@ export type HomeRelease = {
     id: string;
     title: string;
     audioUrl: string;
+    bpm?: number | null;
+    key?: string | null;
+    position?: string | null;
+    durationRaw?: string | null;
+    durationSec?: number | null;
     waveformData?: number[] | null;
   }>;
 };
 
 export type HomeReleaseApi = {
+  tracksLoaded?: boolean;
+  trackCount?: number;
+  trackSearchText?: string;
   id: string;
   audioComplete?: boolean;
   artist: string;
@@ -81,8 +92,13 @@ export type HomeReleaseApi = {
   tracks: Array<{
     id: string;
     title: string;
+    bpm?: number | null;
+    key?: string | null;
     waveformData?: number[] | null;
     audioFiles: AudioFile[];
+    position?: string | null;
+    durationRaw?: string | null;
+    durationSec?: number | null;
   }>;
 };
 
@@ -160,6 +176,13 @@ export type ProfileStats = {
 
 export type AuthSettings = {
   registrationInviteRequired: boolean;
+  siteDesign: SiteDesign;
+};
+
+export type SiteDesign = 'classic' | 'shelf';
+
+export type SiteSettings = {
+  siteDesign: SiteDesign;
 };
 
 export type LibraryFeedOptions = {
@@ -171,6 +194,7 @@ export type LibraryFeedOptions = {
 export type LibraryFeedResponse = {
   releases: Release[];
   total: number;
+  collectionTotal?: number;
   totalTracks: number;
   hasMore: boolean;
   options: LibraryFeedOptions;

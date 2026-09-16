@@ -6,6 +6,7 @@ import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Release, Track } from '../types';
 import { PlaylistTrackRow } from './playlist-track-row';
+import { matchesPaperSearch, usePaperSearch } from './paper-section-shell';
 
 type FavoriteTrack = Track & {
   release: Release;
@@ -133,6 +134,8 @@ function FavoritesWaveform({ tracks }: { tracks: FavoritePlayerTrack[] }) {
 }
 
 export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserProps) {
+  const query = usePaperSearch();
+  const visibleTracks = tracks.filter(t => matchesPaperSearch(`${t.title} ${t.artists.join(' ')} ${t.release.artist} ${t.release.title}`,query));
   const { currentTrack, isPlaying } = usePlayerTransport();
   const { playQueue, togglePlayback } = usePlayerActions();
   const playableTracks: FavoritePlayerTrack[] = tracks
@@ -164,7 +167,7 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
     return (
       <section className="favorites-page playlists-page">
         <p className="muted">
-          {lang === 'ru' ? 'Избранное доступно после входа.' : 'Favourites are available after sign in.'}
+          {lang === 'ru' ? 'Избранное доступно после входа.' : 'Favourites are available after sign in.'} <a href="/profile?mode=login">{lang === 'ru' ? 'Войти →' : 'Sign in →'}</a>
         </p>
       </section>
     );
@@ -175,7 +178,7 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
       <div className="playlist-feed__header favorites-page__header">
         <h1>{lang === 'ru' ? 'Избранное' : 'Favourites'}</h1>
         <span className="muted">
-          {lang === 'ru' ? `${tracks.length} треков` : `${tracks.length} tracks`}
+          {lang === 'ru' ? `${visibleTracks.length} треков` : `${visibleTracks.length} tracks`}
         </span>
       </div>
 
@@ -183,7 +186,7 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
 
       <div className="playlist-feed">
         <div className="playlist-tracklist favorites-tracklist">
-          {tracks.map((track, index) => {
+          {visibleTracks.map((track, index) => {
             const artist = track.artists?.length ? track.artists.join(', ') : track.release.artist;
             const audioUrl = track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '';
             const coverUrl = getCoverUrl(track.release);
@@ -219,9 +222,9 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
             );
           })}
 
-          {!tracks.length ? (
+          {!visibleTracks.length ? (
             <p className="muted">
-              {lang === 'ru' ? 'Пока нет лайкнутых треков.' : 'No liked tracks yet.'}
+              {query.trim() ? (lang === 'ru' ? 'Ничего не найдено. Измените или очистите поиск.' : 'No matches. Change or clear the search.') : <>{lang === 'ru' ? 'Пока нет лайкнутых треков.' : 'No liked tracks yet.'} <a href="/">{lang === 'ru' ? 'Открыть коллекцию →' : 'Open collection →'}</a></>}
             </p>
           ) : null}
         </div>

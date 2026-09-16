@@ -3,16 +3,16 @@ import { IsArray, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
 
 export class UpdateTrackMetadataDto {
   @IsOptional()
-  @Transform(({ value }) => (value === null || value === '' ? undefined : value))
+  @Transform(({ value }) => (value === '' ? null : value))
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(300)
-  bpm?: number;
+  bpm?: number | null;
 
   @IsOptional()
   @IsString()
-  key?: string;
+  key?: string | null;
 
   @IsOptional()
   @IsString()

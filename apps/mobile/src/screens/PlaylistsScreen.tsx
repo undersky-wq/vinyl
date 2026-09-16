@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FeedbackPressable as Pressable } from '../components/FeedbackPressable';
 import { Image } from 'expo-image';
 import { GripVertical, Search } from 'lucide-react-native';
-import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
+import DraggableFlatList from 'react-native-draggable-flatlist';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { getCoverUrl, reorderPlaylist, reorderPlaylists, updatePlaylist } from '../lib/api';
@@ -77,6 +78,11 @@ export function PlaylistsScreen({
   const trackOrderRequestRef = useRef(0);
   const trackOrderSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const pendingTrackOrderSignatureRef = useRef<string | null>(null);
+  const [dragPosition, setDragPosition] = useState<{ from: number; to: number } | null>(null);
+  const playlistsRef = useRef(playlists);
+  playlistsRef.current = playlists;
+  const selectedPlaylistIdRef = useRef(selectedPlaylistId);
+  selectedPlaylistIdRef.current = selectedPlaylistId;
   const debouncedQuery = useDebouncedValue(query);
 
   async function load() {
@@ -119,6 +125,9 @@ export function PlaylistsScreen({
   useEffect(() => {
     const sourceSignature = getTrackOrderSignature(sourceTracks);
     setTracks((current) => {
+      if (current.length === sourceTracks.length && current.every((row, index) => row.item === sourceTracks[index].item)) {
+        return current;
+      }
       if (
         pendingTrackOrderSignatureRef.current === sourceSignature &&
         getTrackOrderSignature(current) === sourceSignature
@@ -195,20 +204,25 @@ export function PlaylistsScreen({
     const trackIds = nextTracks.map(({ item }) => item.track.id);
     pendingTrackOrderSignatureRef.current = trackIds.join('|');
     setTracks(nextTracks);
+    const previousPlaylist = selectedPlaylist;
+    // Publish the optimistic order with the existing item objects. A successful
+    // save only acknowledges this order; it must not replace every visible row.
+    onPlaylistsChange(playlistsRef.current.map((playlist) => playlist.id === playlistId
+      ? { ...playlist, items: nextTracks.map(({ item }) => item) }
+      : playlist));
 
     trackOrderSaveChainRef.current = trackOrderSaveChainRef.current
       .catch(() => undefined)
       .then(async () => {
-        const updatedPlaylist = await reorderPlaylist(playlistId, trackIds);
+        await reorderPlaylist(playlistId, trackIds);
         if (request !== trackOrderRequestRef.current) return;
-        onPlaylistsChange(playlists.map((playlist) => (
-          playlist.id === updatedPlaylist.id ? updatedPlaylist : playlist
-        )));
+        pendingTrackOrderSignatureRef.current = null;
       })
       .catch(() => {
         if (request !== trackOrderRequestRef.current) return;
         pendingTrackOrderSignatureRef.current = null;
-        setTracks(sourceTracks);
+        onPlaylistsChange(playlistsRef.current.map((playlist) => playlist.id === playlistId ? previousPlaylist : playlist));
+        if (selectedPlaylistIdRef.current === playlistId) setTracks(sourceTracks);
       });
   }
 
@@ -264,7 +278,11 @@ export function PlaylistsScreen({
         windowSize={7}
         activationDistance={8}
         dragItemOverflow
+        animationConfig={{ damping: 28, stiffness: 220, mass: 0.7, overshootClamping: true }}
+        onDragBegin={(from) => setDragPosition({ from, to: from })}
+        onPlaceholderIndexChange={(to) => setDragPosition((current) => current ? { ...current, to } : null)}
         onDragEnd={({ data, from, to }) => {
+          setDragPosition(null);
           if (from !== to) void saveTrackOrder(data);
         }}
         contentContainerStyle={styles.list}
@@ -323,6 +341,13 @@ export function PlaylistsScreen({
         }
         renderItem={({ item, getIndex, drag, isActive: isDragging }) => {
           const index = getIndex() ?? 0;
+          let displayIndex = index;
+          if (dragPosition) {
+            const { from, to } = dragPosition;
+            if (index === from) displayIndex = to;
+            else if (from < to && index > from && index <= to) displayIndex = index - 1;
+            else if (from > to && index >= to && index < from) displayIndex = index + 1;
+          }
           const playerTrack = item.playerTrack;
           const release = item.item.track.release;
           const isActive = playerTrack?.id === activeTrackId;
@@ -332,9 +357,8 @@ export function PlaylistsScreen({
           }
 
           return (
-            <ScaleDecorator activeScale={1.025}>
             <Pressable
-              style={[styles.trackRow, isDragging && styles.trackRowDragging]}
+              style={styles.trackRow}
               disabled={isDragging}
               onPress={() => onPlayTrack(playerTrack, queue)}
               onLongPress={normalizedQuery ? undefined : drag}
@@ -346,9 +370,9 @@ export function PlaylistsScreen({
                 contentFit="cover"
                 cachePolicy="memory-disk"
                 recyclingKey={playerTrack.id}
-                transition={90}
+                transition={0}
               />
-              <Text style={styles.number}>{index + 1}</Text>
+              <Text style={styles.number}>{displayIndex + 1}</Text>
               <View style={styles.trackText}>
                 <Text numberOfLines={1} style={[styles.artist, isActive && styles.trackActiveText]}>
                   {playerTrack.artist}
@@ -379,9 +403,8 @@ export function PlaylistsScreen({
               ) : null}
               <TrackDownloadButton track={playerTrack} />
               <Text style={styles.time}>{normalizeDurationLabel(playerTrack.durationRaw, playerTrack.durationSec, '-')}</Text>
-              <GripVertical size={17} color={isDragging ? colors.accent : colors.muted} strokeWidth={2.2} />
+              <GripVertical size={17} color={colors.muted} strokeWidth={2.2} />
             </Pressable>
-            </ScaleDecorator>
           );
         }}
         ListEmptyComponent={isLoading ? null : <Text style={styles.empty}>Плейлистов пока нет.</Text>}
@@ -470,7 +493,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   list: {
-    gap: 8,
+    // Keep spacing inside measured cells so drag offsets include it.
     paddingHorizontal: spacing.md,
     paddingTop: (StatusBar.currentHeight || 0) + 158,
     paddingBottom: 160,
@@ -489,10 +512,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     borderRadius: radius.pill,
-    backgroundColor: colors.panel,
+    backgroundColor: 'transparent',
   },
   chipActive: {
-    backgroundColor: 'rgba(181,120,255,0.14)',
+    backgroundColor: 'transparent',
   },
   chipDragging: {
     opacity: 0.58,
@@ -520,7 +543,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'transparent',
   },
   renameText: {
     color: colors.muted,
@@ -528,7 +551,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   trackRow: {
-    minHeight: 54,
+    minHeight: 62,
+    paddingVertical: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,

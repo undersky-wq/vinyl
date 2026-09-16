@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -30,4 +30,8 @@ export class UpdateAuthSettingsDto {
   @IsOptional()
   @IsBoolean()
   registrationInviteRequired?: boolean;
+
+  @IsOptional()
+  @IsIn(['classic', 'shelf'])
+  siteDesign?: 'classic' | 'shelf';
 }

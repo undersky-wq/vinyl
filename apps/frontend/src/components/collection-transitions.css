@@ -1,0 +1,45 @@
+/* Shared chrome is captured separately from the moving page content. */
+html body :is(.paper-archive .paper-identity,.paper-section-page .paper-page-identity){
+  view-transition-name:collection-identity;
+  position:fixed;left:3vw;top:28px;width:min(760px,62vw);max-width:none;
+  display:flex;align-items:flex-start;gap:10px;z-index:100005;
+  font:600 clamp(14px,1.15vw,19px)/1.3 Arial,Helvetica,sans-serif;
+  letter-spacing:-.6px;pointer-events:auto;
+}
+html body :is(.paper-identity>div,.paper-page-identity-text){flex:1;min-width:0}
+html body :is(.paper-archive .paper-sections,.paper-section-page .paper-page-nav){view-transition-name:collection-navigation}
+body:has(:is(.paper-archive,.paper-section-page)) .mini-player{view-transition-name:collection-player}
+::view-transition-group(collection-identity),
+::view-transition-group(collection-navigation),
+::view-transition-group(collection-player){animation:none}
+::view-transition-old(collection-identity),
+::view-transition-old(collection-navigation),
+::view-transition-old(collection-player){animation:none;opacity:0}
+::view-transition-new(collection-identity),
+::view-transition-new(collection-navigation),
+::view-transition-new(collection-player){animation:none;opacity:1;mix-blend-mode:normal}
+/* The fixed identity no longer contributes to the shared page header's height. */
+.paper-section-page .paper-page-header{min-height:calc(clamp(14px,1.15vw,19px)*2.6 + 10px);padding-left:36vw}
+@media(max-width:700px){
+  html body :is(.paper-archive .paper-identity,.paper-section-page .paper-page-identity){top:20px;width:94vw}
+  .paper-section-page .paper-page-header{padding-left:0;padding-top:72px}
+}
+.collection-route-loader{position:fixed;inset:0;z-index:200000;display:grid;place-items:center;background:#ffffff20;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s ease,visibility 0s .2s;backdrop-filter:blur(1px)}
+.collection-route-loader__portrait{position:relative;display:grid;place-items:center;width:72px;height:72px}
+.collection-route-loader__portrait>img{display:block;width:56px;height:56px;border-radius:50%;object-fit:cover}
+.collection-route-loader__ring{position:absolute;inset:0;width:100%;height:100%;overflow:visible;fill:none;stroke-width:2;pointer-events:none}
+.collection-route-loader__track{stroke:#1112}
+.collection-route-loader__runner{stroke:#8950c8;stroke-dasharray:22 78;stroke-linecap:round;transform-origin:36px 36px;animation:collection-loader-spin 1.25s linear infinite;animation-play-state:paused}
+html[data-collection-navigating='true'] .collection-route-loader__runner{animation-play-state:running}
+html[data-collection-navigating='true'] .collection-route-loader{opacity:1;visibility:visible;transition-delay:0s}
+html[data-collection-navigating='true'] :is(.paper-archive .paper-row,.paper-section-page .paper-page-content){opacity:.42;transform:translateY(-10px);transition:opacity .28s ease,transform .38s cubic-bezier(.4,0,.2,1)}
+html[data-shelf-theme='dark'] .collection-route-loader{background:#11121430}
+html[data-shelf-theme='dark'] .collection-route-loader__track{stroke:#ffffff30}
+html[data-shelf-theme='dark'] .collection-route-loader__runner{stroke:#b88be9}
+@keyframes collection-loader-spin{to{transform:rotate(360deg)}}
+::view-transition-old(root){animation:collection-out .55s cubic-bezier(.4,0,.2,1) both}
+::view-transition-new(root){animation:collection-in .8s cubic-bezier(.16,1,.3,1) both}
+@keyframes collection-out{to{opacity:0;transform:translateY(-35px)}}
+@keyframes collection-in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
+@media(prefers-reduced-motion:reduce){.collection-route-loader__runner{animation:none}}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
+import { FeedbackPressable as Pressable } from './FeedbackPressable';
 import { Check, Download } from 'lucide-react-native';
 import { downloadTrackAudio, getOfflineAudioUri } from '../lib/offline-audio';
 import { colors, radius } from '../theme';
@@ -49,7 +50,7 @@ export function TrackDownloadButton({ track, size = 17 }: TrackDownloadButtonPro
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+      style={styles.button}
       disabled={isDownloading}
       onPress={(event) => {
         event.stopPropagation();

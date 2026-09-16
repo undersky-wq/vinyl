@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { addTrackToPlaylist, createPlaylist, getPlaylists, removeTrackFromPlaylist } from '../lib/api';
+import { addTrackToPlaylist, createPlaylist, getPlaylists, removeTrackFromPlaylist, reorderPlaylist } from '../lib/api';
 import { Playlist } from '../types';
 import { useAuth } from './auth-provider';
 
@@ -16,6 +16,7 @@ type PlaylistsContextValue = {
   }) => Promise<Playlist | null>;
   toggleTrackInPlaylist: (playlist: Playlist, trackId: string) => Promise<void>;
   refreshPlaylists: () => Promise<void>;
+  reorderTracks: (playlistId: string, trackIds: string[]) => Promise<void>;
 };
 
 const PlaylistsContext = createContext<PlaylistsContextValue | null>(null);
@@ -108,6 +109,20 @@ export function PlaylistsProvider({ children }: { children: React.ReactNode }) {
     };
 
     return {
+      reorderTracks: async (playlistId, trackIds) => {
+        const previous = playlists.find(p => p.id === playlistId);
+        if (!previous || !requireAuth()) return;
+        if (trackIds.length !== previous.items.length || new Set(trackIds).size !== trackIds.length || trackIds.some(id => !previous.items.some(i => i.track.id === id))) throw new Error('Invalid playlist order');
+        const ordered = {...previous, items: trackIds.map((id, sortOrder) => ({...previous.items.find(i => i.track.id === id)!, sortOrder}))};
+        setPlaylists(current => current.map(p => p.id === playlistId ? ordered : p));
+        try {
+          const saved = await reorderPlaylist(playlistId, trackIds);
+          setPlaylists(current => current.map(p => p.id === playlistId ? saved : p));
+        } catch (error) {
+          setPlaylists(current => current.map(p => p.id === playlistId ? previous : p));
+          throw error;
+        }
+      },
       playlists,
       isLoading,
       isInAnyPlaylist,

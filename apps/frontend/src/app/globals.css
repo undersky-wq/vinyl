@@ -20,6 +20,24 @@
   --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
 }
 
+.profile-design-setting {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.profile-design-setting p {
+  margin: 5px 0 0;
+}
+
+.profile-design-setting__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -502,7 +520,7 @@ textarea {
   inset: 0;
   z-index: 20000;
   display: grid;
-  align-items: end;
+  align-items: flex-end;
   color: #ffffff;
 }
 
@@ -3209,7 +3227,7 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
-  align-items: end;
+  align-items: flex-end;
   padding: 10px 0 4px;
 }
 
@@ -3972,7 +3990,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 28px;
-  align-items: end;
+  align-items: flex-end;
   padding: 0 0 16px;
 }
 
@@ -6888,7 +6906,7 @@ textarea {
   }
 
   .mix-share-sheet {
-    align-items: end;
+    align-items: flex-end;
   }
 
   .mix-share-sheet__backdrop {

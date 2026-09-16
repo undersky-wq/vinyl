@@ -1,0 +1,85 @@
+html:has(.paper-profile-page),html body:has(.paper-profile-page){background:#fff!important;color:#111;height:auto!important;max-height:none!important;min-height:100dvh;overscroll-behavior:auto}
+/* One document scroller: a second auto-overflow body can trap wheel chaining. */
+html:has(.paper-profile-page){overflow-x:clip!important;overflow-y:auto!important;scrollbar-width:none;-ms-overflow-style:none}
+html body:has(.paper-profile-page){overflow:visible!important}
+html:has(.paper-profile-page)::-webkit-scrollbar,body:has(.paper-profile-page)::-webkit-scrollbar{display:none;width:0;height:0}
+body:has(.paper-profile-page)::before,body:has(.paper-profile-page)::after{display:none}
+.paper-profile-page{--profile-type:clamp(14px,1.15vw,19px);width:100%;min-height:100dvh;padding:28px 10vw 180px;background:#fff;color:#111;font:400 var(--profile-type)/1.45 Arial,Helvetica,sans-serif;letter-spacing:-.4px}
+.paper-profile-page *{box-sizing:border-box}
+.paper-profile-header{display:grid;grid-template-columns:1fr auto 1fr;gap:24px;align-items:start;margin:0 -7vw 90px;font-weight:600}
+.paper-profile-header>a{color:#111;text-decoration:none;width:fit-content;transition:opacity .25s,transform .35s}
+.paper-profile-header>a:last-child{justify-self:end;color:#888}
+.paper-profile-header>a:hover{opacity:.6;transform:translateY(-2px)}
+.paper-profile-page .profile-grid{display:block}
+.paper-profile-page .release-panel{border:0;border-radius:0;box-shadow:none;background:transparent;padding:0;color:#111;backdrop-filter:none}
+.paper-profile-page .release-panel::before,.paper-profile-page .release-panel::after{display:none}
+html body .paper-profile-page :is(.release-panel,.auth-panel,.profile-panel,.profile-grid,.auth-grid){background:transparent;border:0;border-radius:0;box-shadow:none;color:#111}
+html body .paper-profile-page :is(h1,h2,h3){color:#111;text-transform:none;font-family:Arial,Helvetica,sans-serif}
+html body .paper-profile-page .auth-form input{background:white;color:#111;font-family:Arial,Helvetica,sans-serif;border:0;border-bottom:1px solid #aaa;border-radius:0;box-shadow:none}
+html:has(.paper-profile-page){scrollbar-color:#aaa #fff}
+html body .paper-profile-page .profile-panel{width:100%;max-width:none;height:auto;max-height:none;overflow:visible;position:relative}
+.paper-profile-page .profile-panel:not(.profile-users-panel){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);column-gap:8vw;align-items:start}
+.paper-profile-page .profile-hero{grid-column:1;grid-row:1/4;display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin:0}
+.paper-profile-page .profile-avatar{position:relative;width:clamp(180px,18vw,280px);height:clamp(180px,18vw,280px);border:0;border-radius:50%;background:#f4f4f4;box-shadow:none;overflow:hidden;cursor:pointer;transition:transform .6s cubic-bezier(.16,1,.3,1)}
+.paper-profile-page .profile-avatar:hover{transform:scale(1.035) rotate(-2deg)}
+.paper-profile-page .profile-avatar img{width:100%;height:100%;object-fit:cover}
+.paper-profile-page .profile-avatar input{display:block;position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.paper-profile-page .profile-avatar:focus-within{outline:1px solid #111;outline-offset:6px}
+.paper-profile-avatar-hint{display:none}
+.paper-profile-page .paper-profile-avatar-hint{display:block;color:#888;font-size:12px;margin-bottom:22px}
+.paper-profile-page .muted{color:#888;font:inherit;overflow-wrap:anywhere}
+.paper-profile-page .profile-title{margin:8px 0;font:600 clamp(24px,3vw,48px)/1.1 Arial,Helvetica,sans-serif;letter-spacing:-1.5px;overflow-wrap:anywhere}
+.paper-profile-page .profile-stats{grid-column:2;display:flex;gap:32px;margin:0 0 38px}
+.paper-profile-page .stat-card{display:flex;flex-direction:column;gap:6px;border:0;background:none;box-shadow:none;border-radius:0;padding:0;min-width:0}
+.paper-profile-page .stat-card strong{font:400 clamp(26px,3vw,48px)/1 Arial,Helvetica,sans-serif;color:#111;letter-spacing:-1.5px}
+.paper-profile-page .profile-actions{grid-column:2;display:flex;flex-direction:column;gap:0;margin:0;border-top:1px solid #111}
+.paper-profile-page .profile-action-button{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;width:100%;padding:16px 0;border:0;border-bottom:1px solid #e5e5e5;border-radius:0;background:none;color:#111;box-shadow:none;text-decoration:none;text-align:left;font:inherit;letter-spacing:inherit;transform:none;transition:color .25s,padding .35s}
+.paper-profile-page .profile-action-button:hover:not(:disabled){padding-left:8px;background:none;color:#777;transform:none;box-shadow:none}
+.paper-profile-page .profile-action-button:disabled{opacity:.45;cursor:wait}
+.paper-profile-page .profile-action-button::before{inset:auto auto 0 0;width:var(--profile-progress,0%);height:1px;background:#111;opacity:1;transition:width .4s}
+.paper-profile-page .profile-action-button--switch strong{padding:0;border:0;background:none;border-radius:0;color:#aaa;font:600 12px Arial;box-shadow:none}
+.paper-profile-page .profile-action-button--switch.active strong{background:none;color:#111}
+.paper-profile-page .profile-panel>p[role=status]{grid-column:2;margin-top:20px}
+.paper-profile-page .profile-design-setting{grid-column:2;margin-top:24px;padding-top:20px;border-top:1px solid #111}
+.paper-profile-page .profile-users-panel{margin:80px 0 0}
+.paper-profile-page .profile-users-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px}
+.paper-profile-page .profile-users-header h2{font:600 var(--profile-type)/1.3 Arial;margin:8px 0;color:#111;letter-spacing:-.4px}
+.paper-profile-page .profile-users-header>strong{font:400 36px Arial;color:#111}
+.paper-profile-page .profile-users-list{max-height:none;overflow:visible;display:block}
+.paper-profile-page .profile-user-row{display:grid;grid-template-columns:40px minmax(0,1fr);gap:14px;padding:20px 0;border:0;border-top:1px solid #e5e5e5;border-radius:0;background:none;box-shadow:none;transform:none}
+.paper-profile-page .profile-user-avatar{width:40px;height:40px;border:0;border-radius:50%;background:#f3f3f3;color:#111}
+.paper-profile-page .profile-user-name{flex-wrap:nowrap}
+.paper-profile-page .profile-user-name strong{color:#111;font:600 var(--profile-type) Arial}
+.paper-profile-page .profile-user-name span{background:none;border:0;color:#888;padding:0;font:10px Arial}
+.paper-profile-page .profile-user-main p{font-size:12px;color:#888}
+html body .paper-profile-page :is(.profile-title,.profile-user-name strong,.profile-user-main p,.profile-hero>div>p,.profile-action-button__label){white-space:nowrap;word-break:normal;overflow-wrap:normal;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:100%}
+.paper-profile-page .profile-hero>div{min-width:0;max-width:100%}
+html body .paper-profile-page .profile-grid{height:auto;max-height:none;overflow:visible;padding-top:0}
+html body .paper-profile-page .profile-users-list{height:auto;max-height:none;overflow:visible}
+body:has(.paper-profile-page) .mobile-nav{display:none}
+.paper-profile-page .profile-user-stats{grid-column:2;display:flex;flex-wrap:wrap;gap:16px}
+.paper-profile-page .profile-user-stats span{background:none;border:0;padding:0;min-width:0}
+.paper-profile-page .profile-user-stats b,.paper-profile-page .profile-user-stats em{color:#777;font:12px Arial}
+.paper-profile-page .auth-grid{display:block;max-width:430px;margin:12vh auto 0}
+.paper-profile-page .auth-form{margin-top:36px}
+.paper-profile-page .auth-form .field input{border:0;border-bottom:1px solid #bbb;border-radius:0;background:#fff;color:#111;box-shadow:none;padding:12px 0;font:inherit}
+.paper-profile-page .auth-form .field input:focus{border-color:#111;outline:none;box-shadow:none}
+.paper-profile-page .auth-form .field label{color:#777;font:inherit}
+.paper-profile-page .auth-submit-button{background:#111;color:white;border:1px solid #111;border-radius:0;box-shadow:none;font:inherit}
+.paper-profile-page .auth-mode-switch{color:#777;font:inherit}
+.paper-profile-page :is(button,a):focus-visible{outline:1px solid #111;outline-offset:4px}
+.paper-profile-page .profile-panel,.paper-profile-page .auth-panel{animation:paper-profile-enter .7s cubic-bezier(.16,1,.3,1) both}
+@keyframes paper-profile-enter{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@media(max-width:700px){
+  .paper-profile-page{padding:20px 6vw 150px}
+  .paper-profile-header{margin:0 0 50px;gap:16px;grid-template-columns:1fr auto;font-size:14px}
+  .paper-profile-header>span{grid-row:2;grid-column:1/-1;color:#888;font-weight:400}
+  .paper-profile-header>a:last-child{grid-row:1;grid-column:2}
+  .paper-profile-page .profile-panel:not(.profile-users-panel){display:flex;flex-direction:column;gap:30px}
+  .paper-profile-page .profile-hero{width:100%}
+  .paper-profile-page .profile-actions,.paper-profile-page .profile-stats{width:100%;margin:0}
+  .paper-profile-page .profile-stats{justify-content:space-between}
+  .paper-profile-page .profile-users-panel{margin:60px 0 0}
+  .paper-profile-page .auth-grid{margin-top:6vh}
+}
+@media(prefers-reduced-motion:reduce){.paper-profile-page *, .paper-profile-page *::before{animation:none!important;transition:none!important}}

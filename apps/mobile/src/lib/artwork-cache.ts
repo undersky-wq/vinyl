@@ -15,7 +15,12 @@ function getArtworkFileUri(trackId: string, coverUrl: string) {
     return null;
   }
 
-  return `${ARTWORK_DIR}${encodeURIComponent(trackId)}.${getArtworkExtension(coverUrl)}`;
+  // A changed or higher-resolution URL must not reuse an old thumbnail.
+  let hash = 2166136261;
+  for (let i = 0; i < coverUrl.length; i++) {
+    hash = Math.imul(hash ^ coverUrl.charCodeAt(i), 16777619);
+  }
+  return `${ARTWORK_DIR}${encodeURIComponent(trackId)}-${(hash >>> 0).toString(16)}.${getArtworkExtension(coverUrl)}`;
 }
 
 async function ensureArtworkDirectory() {
@@ -27,6 +32,7 @@ async function ensureArtworkDirectory() {
 }
 
 async function cacheLockScreenArtwork(trackId: string, coverUrl: string) {
+  if (coverUrl.startsWith('file:') || coverUrl.startsWith('content:')) return coverUrl;
   const fileUri = getArtworkFileUri(trackId, coverUrl);
 
   if (!fileUri || !coverUrl) {

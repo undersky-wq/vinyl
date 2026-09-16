@@ -6,6 +6,7 @@ import { restoreReleaseAudioStatuses } from '../lib/release-audio';
 import { SiteLang } from '../lib/language';
 import { HomeRelease } from '../types';
 import { ReleaseCard } from './release-card';
+import { useDesignVariant } from './design-variant-switcher';
 
 type HomeReleaseGridProps = {
   initialReleases: HomeRelease[];
@@ -156,6 +157,7 @@ export function HomeReleaseGrid({
   lang,
   pageSize = 24,
 }: HomeReleaseGridProps) {
+  const { variant } = useDesignVariant();
   const restoredViewStateRef = useRef<HomeViewState | null>(
     readHomeViewState(queryString) ||
       (() => {
@@ -177,6 +179,17 @@ export function HomeReleaseGrid({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(false);
   const isNavigatingAwayRef = useRef(false);
+
+  useEffect(() => {
+    if (variant === 'shelf' || !initialReleases.some(release => release.tracksLoaded === false)) return;
+    let cancelled = false;
+    const params = new URLSearchParams(queryString);
+    params.delete('catalog');
+    void getHomeReleases(params).then(data => {
+      if (!cancelled) setReleases(uniqueByReleaseId(data));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [variant, queryString, initialReleases]);
 
   useEffect(() => {
     if (restoredViewStateRef.current) {
@@ -313,6 +326,7 @@ export function HomeReleaseGrid({
 
     try {
       const params = new URLSearchParams(queryString);
+      params.delete('catalog');
       params.set('summary', 'true');
       params.set('limit', String(pageSize));
       params.set('offset', String(releases.length));
@@ -380,13 +394,19 @@ export function HomeReleaseGrid({
 
   return (
     <>
-      <section className="release-grid">
+      {variant === 'shelf' ? <header className="collection-heading collection-heading--shelf">
+        <span>{lang === 'ru' ? 'КОЛЛЕКЦИЯ' : 'COLLECTION'}</span>
+        <h2>DISC INDEX</h2>
+        <b>{String(releases.length).padStart(3, '0')}</b>
+      </header> : null}
+      <section className={`release-grid release-grid--${variant}`}>
         {releases.map((release, index) => (
           <ReleaseCard
             key={release.id}
             release={release}
             onOpenRelease={persistCurrentViewState}
             priority={index < 4}
+            index={index}
           />
         ))}
       </section>

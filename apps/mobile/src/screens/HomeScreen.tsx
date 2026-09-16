@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Image, Pressable, RefreshControl, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Image, RefreshControl, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FeedbackPressable as Pressable } from '../components/FeedbackPressable';
 import { Search } from 'lucide-react-native';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { ReleaseTile } from '../components/ReleaseTile';
@@ -333,15 +334,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     borderRadius: radius.pill,
-    backgroundColor: colors.panel,
+    backgroundColor: 'transparent',
   },
   chipActive: {
-    backgroundColor: 'rgba(181,120,255,0.14)',
+    backgroundColor: 'transparent',
   },
   chipText: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   chipTextActive: {
     color: colors.accent,

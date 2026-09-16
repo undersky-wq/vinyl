@@ -39,6 +39,14 @@ export class QueryReleasesDto {
   summary?: string;
 
   @IsOptional()
+  @IsBooleanString()
+  catalog?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  allTypes?: string;
+
+  @IsOptional()
   @IsNumberString()
   limit?: string;
 
