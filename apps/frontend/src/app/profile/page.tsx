@@ -8,10 +8,16 @@ import { getAuthSettings, getCurrentUser, getProfileStats, getSiteSettings, getU
 import { normalizeSiteLang } from '../../lib/language';
 import { AuthScreen } from '../../components/auth-screen';
 import { ProfileScreen } from '../../components/profile-screen';
+import { ShelfThemeToggle } from '../../components/shelf-theme-toggle';
+import { LanguageSwitcher } from '../../components/language-switcher';
 
 function ProfileHeader({ lang }: { lang: 'ru' | 'en' }) {
   return <header className="paper-profile-header">
-    <Link href="/">Vinyl collection</Link>
+    <div className="paper-profile-header__brand">
+      <Link href="/">{lang === 'ru' ? 'Коллекция винила' : 'Vinyl collection'}</Link>
+      <ShelfThemeToggle compact iconOnly />
+      <LanguageSwitcher lang={lang} single />
+    </div>
     <span>{lang === 'ru' ? 'Профиль : настройки' : 'Profile : settings'}</span>
     <Link href="/">{lang === 'ru' ? 'Вся коллекция' : 'All records'}</Link>
   </header>;
@@ -61,6 +67,7 @@ export default async function ProfilePage({
         lang={lang}
         user={currentUser}
         releasesCount={stats.releasesCount}
+        mixesCount={stats.mixesCount}
         tracksCount={stats.tracksCount}
         playlistsCount={stats.playlistsCount}
         users={users}

@@ -242,6 +242,10 @@ export function TrackPlaylistMenu({
           return;
         }
 
+        if ((event.target as HTMLElement).closest('button, input, textarea, a')) {
+          return;
+        }
+
         startPopupDrag(event.clientY);
         event.currentTarget.setPointerCapture(event.pointerId);
       }}

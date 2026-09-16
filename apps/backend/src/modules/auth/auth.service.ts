@@ -184,10 +184,17 @@ export class AuthService {
 
   async stats(user: User) {
     const collectionUserId = user.role === UserRole.ADMIN ? 'default-user' : user.id;
-    const [releasesCount, tracksCount, playlistsCount] = await Promise.all([
+    const [releasesCount, mixesCount, tracksCount, playlistsCount] = await Promise.all([
       this.prisma.collectionItem.count({
         where: {
           userId: collectionUserId,
+          release: { isMix: false },
+        },
+      }),
+      this.prisma.collectionItem.count({
+        where: {
+          userId: collectionUserId,
+          release: { isMix: true },
         },
       }),
       this.prisma.track.count({
@@ -210,6 +217,7 @@ export class AuthService {
 
     return {
       releasesCount,
+      mixesCount,
       tracksCount,
       playlistsCount,
     };

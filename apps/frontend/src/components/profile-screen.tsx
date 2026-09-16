@@ -44,6 +44,7 @@ export function ProfileScreen({
   lang,
   user,
   releasesCount,
+  mixesCount,
   tracksCount,
   playlistsCount,
   users,
@@ -52,6 +53,7 @@ export function ProfileScreen({
   lang: SiteLang;
   user: AuthUser;
   releasesCount: number;
+  mixesCount: number;
   tracksCount: number;
   playlistsCount: number;
   users?: UserProfile[];
@@ -407,6 +409,10 @@ export function ProfileScreen({
             <div className="stat-card">
               <span className="muted">{lang === 'ru' ? 'Релизы' : 'Releases'}</span>
               <strong>{releasesCount}</strong>
+            </div>
+            <div className="stat-card">
+              <span className="muted">{lang === 'ru' ? 'Миксы' : 'Mixes'}</span>
+              <strong>{mixesCount}</strong>
             </div>
             <div className="stat-card">
               <span className="muted">{lang === 'ru' ? 'Плейлисты' : 'Playlists'}</span>

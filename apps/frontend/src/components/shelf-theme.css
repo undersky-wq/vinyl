@@ -48,6 +48,16 @@ html[data-visual-variant='shelf'][data-shelf-theme='dark'] :is(
   .paper-list-tracks time,.paper-tracklist time,.paper-release-styles,.paper-mix-cover-styles,.muted,.paper-page-header>span
 ) { color: #96989d !important; }
 
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-profile-header__brand :is(.shelf-theme-toggle,.language-switch-button),
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-profile-page .stat-card strong,
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-profile-page .profile-users-header>strong,
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-profile-page .profile-user-name strong {
+  color:#f3f3f1!important;
+}
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-profile-page .profile-user-row:hover {
+  background:#ffffff0a!important;
+}
+
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] :is(
   .mini-player,.paper-track-menu-popup,.paper-collection-back
 ) { background: #111214 !important; color: #f3f3f1 !important; }

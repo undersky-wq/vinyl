@@ -5,6 +5,13 @@ html body:has(:is(.paper-profile-page,.paper-section-page)) .mini-player{
   box-shadow:none;backdrop-filter:none;transform:none;z-index:100002;
   font:600 clamp(14px,1.15vw,19px)/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.6px;
 }
+body:has(.paper-profile-page)::after{
+  content:"";display:block;position:fixed;z-index:100001;left:0;right:0;bottom:0;height:104px;
+  background:#fff;border-top:1px solid #1112;pointer-events:none;
+}
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(.paper-profile-page)::after{
+  background:#111214;border-top-color:#ffffff22;
+}
 html body:has(:is(.paper-profile-page,.paper-section-page)) .mini-player::before,
 html body:has(:is(.paper-profile-page,.paper-section-page)) .mini-player .ghost,
 html body:has(:is(.paper-profile-page,.paper-section-page)) .mini-player__track-actions,

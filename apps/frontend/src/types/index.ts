@@ -170,6 +170,7 @@ export type TimelineComment = {
 
 export type ProfileStats = {
   releasesCount: number;
+  mixesCount: number;
   tracksCount: number;
   playlistsCount: number;
 };
