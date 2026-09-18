@@ -3585,8 +3585,14 @@ textarea {
 .auth-form .field input {
   border: none;
   background: #242424;
-  color: var(--text);
+  color: #fff;
+  caret-color: #fff;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.auth-form .field input::placeholder {
+  color: #a7a7a7;
+  opacity: 1;
 }
 
 .auth-form .field input:focus {
@@ -3599,8 +3605,8 @@ textarea {
 .auth-form .field input:-webkit-autofill:hover,
 .auth-form .field input:-webkit-autofill:focus,
 .auth-form .field input:-webkit-autofill:active {
-  -webkit-text-fill-color: var(--text);
-  caret-color: var(--text);
+  -webkit-text-fill-color: #fff;
+  caret-color: #fff;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.12),
     inset 0 0 0 1000px #292929;
