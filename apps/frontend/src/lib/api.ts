@@ -705,6 +705,7 @@ export async function registerUser(input: {
   password: string;
   displayName: string;
   inviteCode?: string;
+  privacyConsent: boolean;
 }) {
   const response = await fetch(`${API_URL}/auth/register`, {
     method: 'POST',

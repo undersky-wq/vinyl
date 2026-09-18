@@ -23,6 +23,8 @@ model User {
   displayName     String
   discogsUsername String?          @unique
   passwordHash    String?
+  privacyConsentAt DateTime?
+  privacyPolicyVersion String?
   role            UserRole         @default(USER)
   avatarStorageKey String?
   avatarStorageUrl String?

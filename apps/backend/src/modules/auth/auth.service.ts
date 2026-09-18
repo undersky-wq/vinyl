@@ -36,6 +36,7 @@ export class AuthService {
     password: string;
     displayName: string;
     inviteCode?: string;
+    privacyConsent: boolean;
   }, response?: CookieResponse) {
     const authSettings = await this.getAuthSettings();
     const userInviteCode = this.configService.get<string>('REGISTRATION_INVITE_CODE');
@@ -55,7 +56,7 @@ export class AuthService {
 
     const email = input.email.trim().toLowerCase();
     const displayName = input.displayName.trim();
-    if (!email || !displayName || input.password.length < 8) {
+    if (!email || !displayName || input.password.length < 8 || input.privacyConsent !== true) {
       throw new BadRequestException('Email, name and password with 8+ characters are required');
     }
 
@@ -69,6 +70,8 @@ export class AuthService {
         email,
         displayName,
         passwordHash: await this.hashPassword(input.password),
+        privacyConsentAt: new Date(),
+        privacyPolicyVersion: '2026-09-18',
         role: matchedAdminCode ? UserRole.ADMIN : UserRole.USER,
       },
     });

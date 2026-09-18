@@ -3,7 +3,6 @@ import '../components/shelf-theme.css';
 import '../components/shelf-web.css';
 import '../components/shelf-mobile-layout.css';
 import { cookies } from 'next/headers';
-import Script from 'next/script';
 import { MobileNav } from '../components/mobile-nav';
 import { CollectionTransitions } from '../components/collection-transitions';
 import { PlayerChrome } from '../components/player-chrome';
@@ -16,6 +15,7 @@ import { FavoritesProvider } from '../providers/favorites-provider';
 import { PlaylistsProvider } from '../providers/playlists-provider';
 import { normalizeSiteLang } from '../lib/language';
 import { DesignVariantProvider } from '../components/design-variant-switcher';
+import { CookieConsent } from '../components/cookie-consent';
 
 export const metadata = {
   title: 'MityaDima — Vinyl & Mixes',
@@ -43,11 +43,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {siteSettings.siteDesign === 'shelf' ? <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('mityadima-shelf-theme');document.documentElement.dataset.shelfTheme=t==='dark'?'dark':'light';document.documentElement.style.colorScheme=t==='dark'?'dark':'light'}catch(e){}})();` }} /> : null}
       </head>
       <body>
-        <Script
-          src="https://stats.mityadima.ru/script.js"
-          data-website-id="c806c076-3efa-47ff-8d15-f5d913be11be"
-          strategy="lazyOnload"
-        />
         <AdminEditModeSync />
         <AuthProvider initialUser={currentUser}>
           <FavoritesProvider initialFavoriteTrackIds={favoriteTrackIds}>
@@ -58,6 +53,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                   {siteSettings.siteDesign === 'shelf' ? <CollectionTransitions lang={lang} /> : null}
                   <PlayerChrome lang={lang} />
                   <MobileNav lang={lang} />
+                  <CookieConsent lang={lang} />
                 </DesignVariantProvider>
               </PlayerProvider>
             </PlaylistsProvider>

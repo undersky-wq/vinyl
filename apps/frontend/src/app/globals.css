@@ -3622,6 +3622,69 @@ textarea {
   cursor: pointer;
 }
 
+.auth-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.auth-consent input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: #fff;
+}
+
+.auth-consent a,
+.cookie-consent a,
+.privacy-document a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cookie-consent {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: min(920px, calc(100vw - 28px));
+  padding: 15px 16px 15px 20px;
+  border: 1px solid #444;
+  border-radius: 10px;
+  background: #181818;
+  color: #f5f5f5;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .38);
+  transform: translateX(-50%);
+  font: 13px/1.45 Arial, Helvetica, sans-serif;
+}
+
+.cookie-consent p { margin: 0; }
+.cookie-consent__actions { display: flex; flex: 0 0 auto; gap: 8px; }
+.cookie-consent button { min-height: 38px; padding: 8px 13px; border: 1px solid #666; border-radius: 7px; background: transparent; color: #fff; cursor: pointer; }
+.cookie-consent button:hover { border-color: #aaa; }
+.cookie-consent .cookie-consent__accept { border-color: #f5f5f5; background: #f5f5f5; color: #111; }
+
+.privacy-page { min-height: 100vh; padding: 56px 20px 100px; background: #f4f1e9; color: #171717; }
+.privacy-document { width: min(780px, 100%); margin: 0 auto; font: 16px/1.65 Arial, Helvetica, sans-serif; }
+.privacy-document h1 { margin: 8px 0 42px; font-size: clamp(32px, 6vw, 58px); line-height: 1; letter-spacing: -.04em; }
+.privacy-document h2 { margin: 32px 0 8px; font-size: 18px; }
+.privacy-document p { margin: 0; }
+.privacy-document__eyebrow { font-size: 11px; letter-spacing: .12em; }
+.privacy-document__back { display: inline-block; margin-top: 48px; }
+
+@media (max-width: 700px) {
+  .cookie-consent { align-items: stretch; flex-direction: column; gap: 12px; bottom: 10px; padding: 15px; }
+  .cookie-consent__actions { display: grid; grid-template-columns: 1fr 1fr; }
+}
+
 .auth-submit-button {
   background: #2f2f2f;
   color: #d8d8d8;

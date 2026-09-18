@@ -41,6 +41,9 @@ export function AuthScreen({
     loginName: 'Display name',
     password: isRu ? 'Пароль' : 'Password',
     inviteCode: isRu ? 'Инвайт-код администратора' : 'Admin invite code',
+    privacyConsent: isRu
+      ? 'Я даю согласие на обработку персональных данных и принимаю Политику обработки персональных данных.'
+      : 'I consent to personal data processing and accept the Privacy Policy.',
     submit: isLogin ? (isRu ? 'Войти' : 'Sign in') : isRu ? 'Зарегистрироваться' : 'Register',
     failed: isLogin ? (isRu ? 'Не удалось войти.' : 'Login failed.') : isRu ? 'Не удалось зарегистрироваться.' : 'Registration failed.',
     switchMode: isLogin ? (isRu ? 'Нужен аккаунт?' : 'Need an account?') : isRu ? 'Уже есть аккаунт?' : 'Already have an account?',
@@ -63,6 +66,7 @@ export function AuthScreen({
               password: String(form.get('password') || ''),
               displayName: String(form.get('displayName') || ''),
               inviteCode: String(form.get('inviteCode') || '').trim() || undefined,
+              privacyConsent: form.get('privacyConsent') === 'on',
             };
 
             setStatus('');
@@ -108,6 +112,13 @@ export function AuthScreen({
                 placeholder={isRu ? 'Можно оставить пустым' : 'Optional'}
               />
             </div>
+          ) : null}
+
+          {currentMode === 'register' ? (
+            <label className="auth-consent">
+              <input name="privacyConsent" type="checkbox" required />
+              <span>{copy.privacyConsent} <a href="/privacy" target="_blank" rel="noreferrer">{isRu ? 'Открыть политику' : 'Open policy'}</a></span>
+            </label>
           ) : null}
 
           <button className="primary-button auth-submit-button" type="submit" disabled={isPending}>
