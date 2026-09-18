@@ -785,7 +785,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         </Link>
         <div className="paper-identity__content">
           <div className="paper-brand-row">
-            <Link href="/" className="paper-brand" onClick={e => {if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) selectPlaylist(null);}}>{ru ? 'Коллекция винила' : 'Vinyl collection'}</Link>
+            <button type="button" className="paper-brand" onClick={() => {if (mixesMode || favoritesMode) navigateSection('/','collection');else {setPendingSection(null);selectPlaylist(null);}}}>{ru ? 'Коллекция винила' : 'Vinyl collection'}</button>
             <ShelfThemeToggle compact iconOnly />
             <LanguageSwitcher lang={lang} single />
           </div>

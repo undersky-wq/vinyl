@@ -244,7 +244,7 @@ html body .paper-track-menu-popup .muted{color:#777;font:13px Arial}
 @media(prefers-reduced-motion:reduce){html body .paper-track-menu-popup{animation:none}.paper-archive .paper-list-tracks,.paper-archive .paper-track-actions svg{transition:none}}
 .paper-archive .paper-avatar{pointer-events:auto;transition:transform .45s cubic-bezier(.16,1,.3,1);transform-origin:center}
 .paper-archive .paper-avatar:hover{transform:scale(1.1) rotate(-3deg)}
-.paper-archive .paper-brand{display:inline-block;pointer-events:auto;text-decoration:none;transform-origin:left center;transition:transform .35s cubic-bezier(.16,1,.3,1),opacity .25s}
+.paper-archive .paper-brand{display:inline-block;padding:0;border:0;background:none;color:inherit;cursor:pointer;pointer-events:auto;text-decoration:none;transform-origin:left center;transition:transform .35s cubic-bezier(.16,1,.3,1),opacity .25s}
 .paper-archive .paper-brand:hover{transform:translateY(-1px) scale(1.035);opacity:.65}
 .paper-archive .paper-brand:focus-visible,.paper-archive .paper-avatar:focus-visible{outline:1px solid #111;outline-offset:5px}
 .paper-archive .paper-avatar{text-decoration:none}
