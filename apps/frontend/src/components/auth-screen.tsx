@@ -38,7 +38,7 @@ export function AuthScreen({
         ? 'Создай аккаунт, чтобы слушать треки, сохранять избранное и собирать личные плейлисты.'
         : 'Create an account to listen to tracks, save favorites and build personal playlists.',
     displayName: isRu ? 'Имя' : 'Display name',
-    loginName: isRu ? 'Имя' : 'Name',
+    loginName: 'Display name',
     password: isRu ? 'Пароль' : 'Password',
     inviteCode: isRu ? 'Инвайт-код администратора' : 'Admin invite code',
     submit: isLogin ? (isRu ? 'Войти' : 'Sign in') : isRu ? 'Зарегистрироваться' : 'Register',
