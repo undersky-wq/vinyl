@@ -197,6 +197,7 @@ export function PlaylistBrowser({
   const lastPlaylistDragOverIdRef = useRef<string | null>(null);
   const [isPlaylistOrderDirty, setIsPlaylistOrderDirty] = useState(false);
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
+  const [trackDropTarget, setTrackDropTarget] = useState<{ trackId: string; side: PlaylistDropSide } | null>(null);
   const [isReorderDirty, setIsReorderDirty] = useState(false);
   const [trackSort, setTrackSort] = useState<TrackSort>(null);
   const [isPlaylistLoading, setIsPlaylistLoading] = useState(false);
@@ -327,9 +328,9 @@ export function PlaylistBrowser({
     playQueue(displayedTracks, index);
   }
 
-  function moveTrack(activeTrackId: string, overTrackId: string) {
+  function moveTrack(activeTrackId: string, overTrackId: string, side: PlaylistDropSide) {
     if (!activePlaylist || activeTrackId === overTrackId) {
-      return;
+      return null;
     }
 
     const currentItems = [...activePlaylist.items].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -337,16 +338,17 @@ export function PlaylistBrowser({
     const toIndex = currentItems.findIndex((item) => item.track.id === overTrackId);
 
     if (fromIndex < 0 || toIndex < 0) {
-      return;
+      return null;
     }
 
     if (fromIndex === toIndex) {
-      return;
+      return null;
     }
 
     const nextItems = [...currentItems];
     const [movedItem] = nextItems.splice(fromIndex, 1);
-    nextItems.splice(toIndex, 0, movedItem);
+    const adjustedOverIndex = nextItems.findIndex((item) => item.track.id === overTrackId);
+    nextItems.splice(side === 'after' ? adjustedOverIndex + 1 : adjustedOverIndex, 0, movedItem);
 
     const reorderedItems = nextItems.map((item, index) => ({
       ...item,
@@ -361,6 +363,7 @@ export function PlaylistBrowser({
       },
     }));
     setIsReorderDirty(true);
+    return reorderedItems.map((item) => item.track.id);
   }
 
   function movePlaylist(
@@ -410,17 +413,17 @@ export function PlaylistBrowser({
     }
   }
 
-  async function saveTrackOrder() {
-    if (!activePlaylist || !isReorderDirty) {
+  async function saveTrackOrder(orderedTrackIds?: string[]) {
+    if (!activePlaylist || (!isReorderDirty && !orderedTrackIds)) {
       return;
     }
 
-    const orderedTrackIds = [...activePlaylist.items]
+    const nextTrackIds = orderedTrackIds || [...activePlaylist.items]
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((item) => item.track.id);
 
     try {
-      const updatedPlaylist = await reorderPlaylist(activePlaylist.id, orderedTrackIds);
+      const updatedPlaylist = await reorderPlaylist(activePlaylist.id, nextTrackIds);
       setPlaylistCache((current) => ({
         ...current,
         [updatedPlaylist.id]: updatedPlaylist,
@@ -617,6 +620,7 @@ export function PlaylistBrowser({
                 isCurrentTrack={isCurrentTrack}
                 isPlaying={isPlaying}
                 isDragging={draggedTrackId === track.id}
+                dropSide={trackDropTarget?.trackId === track.id ? trackDropTarget.side : null}
                 className={trackSort ? 'playlist-track--sorted' : ''}
                 draggable={!trackSort}
                 key={track.id}
@@ -626,6 +630,7 @@ export function PlaylistBrowser({
                     return;
                   }
                   setDraggedTrackId(track.id);
+                  setTrackDropTarget(null);
                   event.dataTransfer.effectAllowed = 'move';
                   event.dataTransfer.setData('text/plain', track.id);
                 }}
@@ -633,19 +638,22 @@ export function PlaylistBrowser({
                   if (trackSort) return;
                   event.preventDefault();
                   event.dataTransfer.dropEffect = 'move';
-                  const activeTrackId = event.dataTransfer.getData('text/plain') || draggedTrackId;
-                  if (activeTrackId) {
-                    moveTrack(activeTrackId, track.id);
-                  }
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setTrackDropTarget({ trackId: track.id, side: event.clientY < rect.top + rect.height / 2 ? 'before' : 'after' });
                 }}
                 onDrop={(event) => {
                   event.preventDefault();
+                  const activeTrackId = event.dataTransfer.getData('text/plain') || draggedTrackId;
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const side = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+                  const orderedTrackIds = activeTrackId ? moveTrack(activeTrackId, track.id, side) : null;
                   setDraggedTrackId(null);
-                  void saveTrackOrder();
+                  setTrackDropTarget(null);
+                  if (orderedTrackIds) void saveTrackOrder(orderedTrackIds);
                 }}
                 onDragEnd={() => {
                   setDraggedTrackId(null);
-                  void saveTrackOrder();
+                  setTrackDropTarget(null);
                 }}
                 onPlay={() => {
                   if (isCurrentTrack) {

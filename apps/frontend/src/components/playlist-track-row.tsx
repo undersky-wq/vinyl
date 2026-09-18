@@ -82,6 +82,7 @@ type PlaylistTrackRowProps = {
   isCurrentTrack: boolean;
   isPlaying: boolean;
   isDragging?: boolean;
+  dropSide?: 'before' | 'after' | null;
   className?: string;
   disabled?: boolean;
   draggable?: boolean;
@@ -108,6 +109,7 @@ export function PlaylistTrackRow({
   isCurrentTrack,
   isPlaying,
   isDragging = false,
+  dropSide = null,
   className = '',
   disabled = false,
   draggable = false,
@@ -123,7 +125,7 @@ export function PlaylistTrackRow({
     <div
       className={`playlist-track${className ? ` ${className}` : ''}${isCurrentTrack ? ' active' : ''}${
         isDragging ? ' dragging' : ''
-      }`}
+      }${dropSide ? ` drop-${dropSide}` : ''}`}
       draggable={draggable}
       style={{ '--entry-delay': `${Math.min(Math.max(0, Number(indexLabel) - 1) || 0, 12) * .065}s` } as CSSProperties}
       onDragStart={onDragStart}

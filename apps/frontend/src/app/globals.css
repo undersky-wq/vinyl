@@ -3274,7 +3274,7 @@ textarea {
 
 .playlist-tracklist {
   display: grid;
-  gap: 3px;
+  gap: 0;
 }
 
 .playlist-track-sort {
@@ -3350,6 +3350,14 @@ textarea {
   opacity: 0.55;
   transform: scale(0.988);
   background: #2f2f2f;
+}
+
+.playlist-track.drop-before {
+  box-shadow: 0 -2px var(--text);
+}
+
+.playlist-track.drop-after {
+  box-shadow: 0 2px var(--text);
 }
 
 .playlist-track__cover {

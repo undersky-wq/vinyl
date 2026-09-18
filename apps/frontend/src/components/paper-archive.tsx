@@ -123,7 +123,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const [orderStatus, setOrderStatus] = useState('');
   const [savingOrder, setSavingOrder] = useState(false);
   const [dragTrack, setDragTrack] = useState<string | null>(null);
-  const [dropTrack, setDropTrack] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ trackId: string; side: 'before' | 'after' } | null>(null);
   const suppressTrackClick = useRef(0);
   const suppressCoverClick = useRef(0);
   const initialRouteApplied = useRef(false);
@@ -686,14 +686,16 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     if (currentTrack?.id === id) {togglePlayback(); return;}
     const index = queue.findIndex(t => t.id === id); if (index >= 0) playQueue(queue, index);
   }
-  async function movePlaylistTrack(from: string, to: string) {
+  async function movePlaylistTrack(from: string, to: string, side: 'before' | 'after' = 'before') {
     if (!activePlaylist || savingOrder || from === to) return;
     const playlist = playlists.find(p => p.id === activePlaylist);
     if (!playlist) return;
     const ids = [...playlist.items].sort((a,b) => a.sortOrder-b.sortOrder).map(i => i.track.id);
-    const oldIndex = ids.indexOf(from), newIndex = ids.indexOf(to);
-    if (oldIndex < 0 || newIndex < 0) return;
-    ids.splice(oldIndex,1); ids.splice(newIndex,0,from);
+    const oldIndex = ids.indexOf(from);
+    if (oldIndex < 0 || !ids.includes(to)) return;
+    ids.splice(oldIndex,1);
+    const targetIndex = ids.indexOf(to);
+    ids.splice(side === 'after' ? targetIndex + 1 : targetIndex,0,from);
     setSavingOrder(true); setOrderStatus('');
     try {await reorderTracks(activePlaylist, ids); setOrderStatus(ru ? 'Порядок сохранён' : 'Order saved');}
     catch {setOrderStatus(ru ? 'Не удалось сохранить порядок. Попробуйте снова.' : 'Could not save order. Try again.');}
@@ -971,15 +973,17 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     })}
     {listMix > 0 && visibleIndices.map(i => {
       const r = releases[i];
-      return <article data-index={i} onFocus={() => setHovered(i)} onBlur={e => {if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHovered(null);}} onClick={() => setHovered(i)} className={`paper-list-tracks${isTrackCollection ? ' is-compact-track' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`} key={`tracks-${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} style={{ top: (gridBounds.top + 12 + Math.floor(i / columns)*cell)*(1-listMix) + listLayout.positions[i]*listMix, opacity:listMix, pointerEvents:isTrackListInteractive ? 'auto':'none' }}>
+      return <article data-index={i} onFocus={() => setHovered(i)} onBlur={e => {if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHovered(null);}} onClick={() => setHovered(i)}
+        onDragOver={e => {const target=r.tracks[0];if(activePlaylist&&dragTrack&&target){e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:target.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}
+        onDrop={e => {const target=r.tracks[0];if(!activePlaylist||!dragTrack||!target)return;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();void movePlaylistTrack(dragTrack,target.id,e.clientY<rect.top+rect.height/2?'before':'after');setDragTrack(null);setDropTarget(null);suppressTrackClick.current=performance.now()+250;}}
+        className={`paper-list-tracks${isTrackCollection ? ' is-compact-track' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`} key={`tracks-${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} style={{ top: (gridBounds.top + 12 + Math.floor(i / columns)*cell)*(1-listMix) + listLayout.positions[i]*listMix, opacity:listMix, pointerEvents:isTrackListInteractive ? 'auto':'none' }}>
         {!isTrackCollection && <h2><span>{r.artist} : <span className="paper-release-title-regular">{r.title}</span></span>{r.year ? <time dateTime={String(r.year)}>{r.year}</time> : null}</h2>}
-        {mixesMode ? <ShelfMixTrack release={r} lang={uiLang} yearInHeading actions={r.tracks[0] ? trackActions(r.tracks[0].id) : null} onCommentsOpenChange={(open,count)=>setOpenMixComments(current=>{const next=new Map(current);if(open)next.set(r.id,count);else next.delete(r.id);return next;})} /> : r.tracks.map(t => <div key={t.id} className={`paper-track-line${dragTrack === t.id ? ' is-dragging' : ''}${dropTrack === t.id ? ' is-drop-target' : ''}${currentTrack?.id === t.id ? ' is-playing' : ''}`}
+        {mixesMode ? <ShelfMixTrack release={r} lang={uiLang} yearInHeading actions={r.tracks[0] ? trackActions(r.tracks[0].id) : null} onCommentsOpenChange={(open,count)=>setOpenMixComments(current=>{const next=new Map(current);if(open)next.set(r.id,count);else next.delete(r.id);return next;})} /> : r.tracks.map(t => <div key={t.id} className={`paper-track-line${dragTrack === t.id ? ' is-dragging' : ''}${dropTarget?.trackId === t.id ? ` is-drop-${dropTarget.side}` : ''}${currentTrack?.id === t.id ? ' is-playing' : ''}`}
           draggable={Boolean(activePlaylist) && !savingOrder && isTrackListInteractive}
           onDragStart={e => {if ((e.target as Element).closest('.paper-track-actions')) {e.preventDefault();return;} e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',t.id);setDragTrack(t.id);suppressTrackClick.current=Infinity;}}
-          onDragOver={e => {if (activePlaylist && dragTrack) {e.preventDefault();e.dataTransfer.dropEffect='move';setDropTrack(t.id);}}}
-          onDrop={e => {e.preventDefault();if(dragTrack) void movePlaylistTrack(dragTrack,t.id);setDragTrack(null);setDropTrack(null);suppressTrackClick.current=performance.now()+250;}}
-          onDragEnd={() => {setDragTrack(null);setDropTrack(null);suppressTrackClick.current=performance.now()+250;}}>
-          {activePlaylist && <button className="paper-track-grip" disabled={savingOrder} aria-label="Move track. Alt and up or down arrow" onClick={e=>e.stopPropagation()} onKeyDown={e=>{if(e.altKey && (e.key==='ArrowUp'||e.key==='ArrowDown')) {e.preventDefault();const other=releases[i+(e.key==='ArrowUp'?-1:1)]?.tracks[0];if(other)void movePlaylistTrack(t.id,other.id);}}}>⠿</button>}
+          onDragOver={e => {if (activePlaylist && dragTrack) {e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:t.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}
+          onDragEnd={() => {setDragTrack(null);setDropTarget(null);suppressTrackClick.current=performance.now()+250;}}>
+          {activePlaylist && <button className="paper-track-grip" disabled={savingOrder} aria-label="Move track. Alt and up or down arrow" onClick={e=>e.stopPropagation()} onKeyDown={e=>{if(e.altKey && (e.key==='ArrowUp'||e.key==='ArrowDown')) {e.preventDefault();const movingDown=e.key==='ArrowDown';const other=releases[i+(movingDown?1:-1)]?.tracks[0];if(other)void movePlaylistTrack(t.id,other.id,movingDown?'after':'before');}}}>⠿</button>}
           <button className="paper-track-play" disabled={!t.audioUrl} onClick={() => play(t.id,r)}>{mixesMode ? null : <small>{isTrackCollection ? i + 1 : t.position || '—'}</small>}<span className={isTrackCollection?'paper-track-primary':undefined}>{isTrackCollection ? <><b>{r.artist}</b><em>{t.title}</em></> : t.title}</span>{isTrackCollection && <span className="paper-track-release">{r.title}</span>}</button>
           {!mixesMode && <span className="paper-track-bpm" title="BPM">{t.bpm ?? '—'}</span>}
           {(activePlaylist || (!mixesMode && !favoritesMode)) && <span className="paper-track-key" title="Key">{t.key || '—'}</span>}
