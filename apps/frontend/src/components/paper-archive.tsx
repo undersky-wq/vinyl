@@ -159,6 +159,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   }, [search, searchCatalog, mixesMode, favoritesMode, activePlaylist, router, ru]);
   const [stretch, setStretch] = useState(0);
   const [stackMode, setStackMode] = useState(false);
+  const [stackSpread, setStackSpread] = useState(false);
   const [motionEnabled, setMotionEnabled] = useState(false);
   const [shelfTransitioning, setShelfTransitioning] = useState(false);
   const shelfTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -438,7 +439,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     setExpanded(false);
     router.push(path);
   }
-  function changeMobileLayout(target: 0 | 1 | 2) {
+  function changeMobileLayout(target: 0 | 1 | 2, shouldAnimate = true) {
     stopAutoLayout();
     settleShelfMotion();
     const row = stage.current?.querySelector<HTMLElement>('.paper-row');
@@ -471,7 +472,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     alignShelf(stretch);
     setSelected(null); setExpanded(false); setHovered(null);
     const startValue = stretch;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {alignShelf(target);setStretch(target);return;}
+    if (!shouldAnimate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {alignShelf(target);setStretch(target);return;}
     setAutoLayout(true);
     const start = performance.now();
     const animate = (now: number) => {
@@ -486,8 +487,11 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     layoutFrame.current = requestAnimationFrame(animate);
   }
   function changeCollectionLayout(target: 'shelf' | 'stack' | 'grid' | 'tracks') {
-    setStackMode(target === 'stack');
-    changeMobileLayout(target === 'grid' ? 1 : target === 'tracks' ? 2 : 0);
+    const nextStackMode = target === 'stack';
+    const involvesStack = stackMode || nextStackMode;
+    setStackMode(nextStackMode);
+    setStackSpread(false);
+    changeMobileLayout(target === 'grid' ? 1 : target === 'tracks' ? 2 : 0, !involvesStack);
   }
   const release = selected === null ? null : releases[selected];
   useEffect(() => {
@@ -769,7 +773,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     for (let i = 0; i < Math.min(3, ids.length); i++) void worker();
     return () => { cancelled = true; };
   }, [detailKey, user?.id]);
-  return <section ref={stage} style={{ '--grid-mix': gridMix, '--list-mix': listMix, '--list-size': `${listSize}px`, '--side-size': `${sideSize}px`, '--grid-size': `${gridSize}px`, '--grid-top': `${gridBounds.top}px`, '--grid-bottom': `${gridBounds.bottom}px` } as CSSProperties} className={`home-stage home-stage--shelf paper-archive${motionEnabled ? ' has-motion' : ''}${release ? ' is-open' : ''}${expanded ? ' is-expanded' : ''}${filtering ? ' is-filtering' : ''}${isDragging || autoLayout ? ' is-stretching' : ''}${stackMode ? ' is-stack' : ''}${gridMix >= 1 ? ' is-grid' : ''}${listMix > 0 ? ' is-listing' : ''}${isTrackCollection || playlistTransition || (mixesMode && listMix > 0) ? ' is-playlist' : ''}${mixesMode ? ' is-mixes' : ''}`} aria-label={mixesMode ? 'Mixes' : 'Vinyl collection'} onPointerMoveCapture={e => {
+  return <section ref={stage} style={{ '--grid-mix': gridMix, '--list-mix': listMix, '--list-size': `${listSize}px`, '--side-size': `${sideSize}px`, '--grid-size': `${gridSize}px`, '--grid-top': `${gridBounds.top}px`, '--grid-bottom': `${gridBounds.bottom}px` } as CSSProperties} className={`home-stage home-stage--shelf paper-archive${motionEnabled ? ' has-motion' : ''}${release ? ' is-open' : ''}${expanded ? ' is-expanded' : ''}${filtering ? ' is-filtering' : ''}${isDragging || autoLayout ? ' is-stretching' : ''}${stackMode ? ' is-stack' : ''}${stackMode && stackSpread ? ' is-stack-spread' : ''}${gridMix >= 1 ? ' is-grid' : ''}${listMix > 0 ? ' is-listing' : ''}${isTrackCollection || playlistTransition || (mixesMode && listMix > 0) ? ' is-playlist' : ''}${mixesMode ? ' is-mixes' : ''}`} aria-label={mixesMode ? 'Mixes' : 'Vinyl collection'} onPointerMoveCapture={e => {
     if (e.pointerType === 'touch' || motionEnabled) return;
     e.currentTarget.classList.add('has-motion');
     setMotionEnabled(true);
@@ -825,6 +829,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       if (e.button !== 1) return;
       e.preventDefault();
       setStackMode(false);
+      setStackSpread(false);
       stopAutoLayout();
       cancelAnimationFrame(scrollFrame.current);
       scrollFrame.current = 0;
@@ -966,6 +971,13 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
           if (gridMix < .01 && listMix < .01) protectShelfTransition();
           settleShelfMotion();
           if (isTrackListInteractive) {const track = r.tracks.find(t => t.audioUrl); if(track) play(track.id,r); return;}
+          if (stackMode && !stackSpread) {
+            setStackSpread(true);
+            setSelected(null);
+            setExpanded(false);
+            setHovered(null);
+            return;
+          }
           if (gridMix > 0) {
             setStretch(1);
             setSelected(selected === i ? null : i);
