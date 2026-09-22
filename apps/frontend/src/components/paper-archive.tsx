@@ -158,6 +158,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     return () => {cancelled=true;clearTimeout(timer);};
   }, [search, searchCatalog, mixesMode, favoritesMode, activePlaylist, router, ru]);
   const [stretch, setStretch] = useState(0);
+  const [stackMode, setStackMode] = useState(false);
   const [motionEnabled, setMotionEnabled] = useState(false);
   const [shelfTransitioning, setShelfTransitioning] = useState(false);
   const shelfTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -484,6 +485,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     };
     layoutFrame.current = requestAnimationFrame(animate);
   }
+  function changeCollectionLayout(target: 'shelf' | 'stack' | 'grid' | 'tracks') {
+    setStackMode(target === 'stack');
+    changeMobileLayout(target === 'grid' ? 1 : target === 'tracks' ? 2 : 0);
+  }
   const release = selected === null ? null : releases[selected];
   useEffect(() => {
     if (initialRouteApplied.current) return;
@@ -764,7 +769,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     for (let i = 0; i < Math.min(3, ids.length); i++) void worker();
     return () => { cancelled = true; };
   }, [detailKey, user?.id]);
-  return <section ref={stage} style={{ '--grid-mix': gridMix, '--list-mix': listMix, '--list-size': `${listSize}px`, '--side-size': `${sideSize}px`, '--grid-size': `${gridSize}px`, '--grid-top': `${gridBounds.top}px`, '--grid-bottom': `${gridBounds.bottom}px` } as CSSProperties} className={`home-stage home-stage--shelf paper-archive${motionEnabled ? ' has-motion' : ''}${release ? ' is-open' : ''}${expanded ? ' is-expanded' : ''}${filtering ? ' is-filtering' : ''}${isDragging || autoLayout ? ' is-stretching' : ''}${gridMix >= 1 ? ' is-grid' : ''}${listMix > 0 ? ' is-listing' : ''}${isTrackCollection || playlistTransition || (mixesMode && listMix > 0) ? ' is-playlist' : ''}${mixesMode ? ' is-mixes' : ''}`} aria-label={mixesMode ? 'Mixes' : 'Vinyl collection'} onPointerMoveCapture={e => {
+  return <section ref={stage} style={{ '--grid-mix': gridMix, '--list-mix': listMix, '--list-size': `${listSize}px`, '--side-size': `${sideSize}px`, '--grid-size': `${gridSize}px`, '--grid-top': `${gridBounds.top}px`, '--grid-bottom': `${gridBounds.bottom}px` } as CSSProperties} className={`home-stage home-stage--shelf paper-archive${motionEnabled ? ' has-motion' : ''}${release ? ' is-open' : ''}${expanded ? ' is-expanded' : ''}${filtering ? ' is-filtering' : ''}${isDragging || autoLayout ? ' is-stretching' : ''}${stackMode ? ' is-stack' : ''}${gridMix >= 1 ? ' is-grid' : ''}${listMix > 0 ? ' is-listing' : ''}${isTrackCollection || playlistTransition || (mixesMode && listMix > 0) ? ' is-playlist' : ''}${mixesMode ? ' is-mixes' : ''}`} aria-label={mixesMode ? 'Mixes' : 'Vinyl collection'} onPointerMoveCapture={e => {
     if (e.pointerType === 'touch' || motionEnabled) return;
     e.currentTarget.classList.add('has-motion');
     setMotionEnabled(true);
@@ -793,9 +798,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
             <input className="paper-search" type="search" value={search} placeholder={ru ? 'Поиск' : 'Search'} aria-label={ru ? 'Поиск релизов и миксов' : 'Search releases and mixes'} onChange={e => {setSearch(e.target.value);filterByStyle(null, e.target.value);}} />
             {searchStatus && <span className="paper-search-status" role="status">{searchStatus}</span>}
             <nav className="paper-layout-controls" aria-label="Collection view">
-              <button aria-pressed={stretch < .5} onClick={() => changeMobileLayout(0)}>{ru ? 'Полка' : 'Shelf'}</button>
-              <button aria-pressed={stretch >= .5 && stretch < 1.5} onClick={() => changeMobileLayout(1)}>{ru ? 'Сетка' : 'Grid'}</button>
-              <button aria-pressed={stretch >= 1.5} onClick={() => changeMobileLayout(2)}>{ru ? 'Треки' : 'Tracks'}</button>
+              <button aria-pressed={!stackMode && stretch < .5} onClick={() => changeCollectionLayout('shelf')}>{ru ? 'Полка' : 'Shelf'}</button>
+              <button aria-pressed={stackMode} onClick={() => changeCollectionLayout('stack')}>{ru ? 'Стопка' : 'Stack'}</button>
+              <button aria-pressed={!stackMode && stretch >= .5 && stretch < 1.5} onClick={() => changeCollectionLayout('grid')}>{ru ? 'Сетка' : 'Grid'}</button>
+              <button aria-pressed={!stackMode && stretch >= 1.5} onClick={() => changeCollectionLayout('tracks')}>{ru ? 'Треки' : 'Tracks'}</button>
             </nav>
           </div>
         </div>
@@ -818,6 +824,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       }
       if (e.button !== 1) return;
       e.preventDefault();
+      setStackMode(false);
       stopAutoLayout();
       cancelAnimationFrame(scrollFrame.current);
       scrollFrame.current = 0;

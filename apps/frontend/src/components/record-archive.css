@@ -427,6 +427,25 @@ body:has(.paper-favorites-page) :is(.sonic-field,.design-variant-switcher,.mobil
 .paper-layout-controls{position:static;z-index:100006;display:flex;flex:none;align-items:center;gap:10px;font:400 var(--type)/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.6px;white-space:nowrap}
 .paper-layout-controls>button{padding:0 0 3px;border:0;border-bottom:1px solid transparent;border-radius:0;background:none;color:#aaa;font:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer}
 .paper-layout-controls>button[aria-pressed=true]{color:#111;border-bottom-color:#111}
+
+/* Stack is the bridge between the diagonal shelf and the flat grid: the
+   collection stays horizontally browsable while sleeves form a layered deck. */
+.paper-archive.is-stack{--stack-size:min(52vw,54vh,620px)}
+.paper-archive.is-stack .paper-row{overflow:hidden;touch-action:none}
+.paper-archive.is-stack .paper-record:not(.is-selected){
+  left:calc(50% - var(--stack-size)*.5 + (var(--along) - 50vw)*.17);
+  top:calc(var(--grid-top) + 3vh - (var(--along) - 50vw)*.075);
+  width:var(--stack-size);height:var(--stack-size);
+  transform:perspective(1100px) rotateX(42deg) rotateZ(-6deg);
+  transform-origin:50% 55%;
+  box-shadow:0 2px 0 #fff,0 5px 0 #c9c9c6,0 22px 40px #0003
+}
+.paper-archive.is-stack .paper-record.is-hovered:not(.is-selected){
+  transform:translateY(-18px) perspective(1100px) rotateX(38deg) rotateZ(-4deg);
+  box-shadow:0 2px 0 #fff,0 6px 0 #c9c9c6,0 34px 48px #0004
+}
+.paper-archive.is-stack .paper-record-edge{box-shadow:inset 0 0 0 1px #ffffff70}
+.paper-archive.is-stack .paper-record-caption{display:none}
 @media(max-width:700px){
   .paper-archive{--cover:min(48vw,180px);--enlarged:min(74vw,310px);--list-left:3vw}
   .paper-archive .paper-row{touch-action:pan-y}
@@ -444,6 +463,15 @@ body:has(.paper-favorites-page) :is(.sonic-field,.design-variant-switcher,.mobil
   .paper-archive.is-grid :is(.paper-styles,.paper-playlists){transform:translateX(calc(100% + 5vw));opacity:0;visibility:hidden;pointer-events:none}
   .paper-archive.is-grid .paper-sections{transform:translateX(calc(-100% - 5vw));opacity:0;visibility:hidden;pointer-events:none}
   .paper-layout-controls{gap:8px;font-size:var(--type)}
+  .paper-archive.is-stack{--stack-size:min(76vw,46vh)}
+  .paper-archive.is-stack .paper-record:not(.is-selected){
+    top:calc(var(--mobile-content-top,210px) + 8px - (var(--along) - 50vw)*.11);
+    left:calc(50% - var(--stack-size)*.5 + (var(--along) - 50vw)*.2);
+    transform:perspective(850px) rotateX(38deg) rotateZ(-5deg)
+  }
+  .paper-archive.is-stack .paper-record.is-hovered:not(.is-selected){
+    transform:perspective(850px) rotateX(38deg) rotateZ(-5deg)
+  }
   .paper-archive .paper-header h1.paper-heading,
   .paper-layout-controls,
   .paper-archive .paper-footer{transition:transform .8s cubic-bezier(.16,1,.3,1),opacity .4s ease,visibility 0s linear .8s}
