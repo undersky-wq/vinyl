@@ -599,7 +599,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       const state = travel.current;
       state.current += (state.target - state.current) * (reduced.matches ? 1 : .14);
       const offset = state.current - transportOrigin.current;
-      if (transport.current) transport.current.style.transform = `translate3d(${-offset}px, ${offset * element.clientHeight / Math.max(1, element.clientWidth)}px, 0)`;
+      const verticalOffset = stackMode ? 0 : offset * element.clientHeight / Math.max(1, element.clientWidth);
+      if (transport.current) transport.current.style.transform = `translate3d(${-offset}px, ${verticalOffset}px, 0)`;
       setWindowTravel(Math.floor(state.current / 128) * 128);
       if (Math.abs(state.target - state.current) > .1) scrollFrame.current = requestAnimationFrame(draw);
       else {scrollFrame.current = 0; hoverResumeAt.current = performance.now() + 160; element.classList.remove('is-scrolling');}
@@ -630,7 +631,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     };
     element.addEventListener('wheel', wheel, { passive: false });
     return () => {observer.disconnect(); element.removeEventListener('wheel', wheel); cancelAnimationFrame(scrollFrame.current); scrollFrame.current = 0; element.classList.remove('is-scrolling');};
-  }, [releases.length, sleeves, selected, expanded, gridMix]);
+  }, [releases.length, sleeves, selected, expanded, gridMix, stackMode]);
   useLayoutEffect(() => {
     if (selected === null || !stage.current) return;
     const element = stage.current;
