@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { Plus, Save, Trash2, ImagePlus } from 'lucide-react';
-import { createReleaseTrack, deleteReleaseTrack, deleteTrackAudio, deleteRelease, getRelease, updateReleaseMetadata, updateReleaseStyles, updateTrackMetadata, uploadReleaseCover } from '../lib/api';
+import { createReleaseTrack, deleteReleaseTrack, deleteTrackAudio, deleteRelease, getRelease, removeReleaseBackCover, updateReleaseMetadata, updateReleaseStyles, updateTrackMetadata, uploadReleaseBackCover, uploadReleaseCover } from '../lib/api';
 import { Release } from '../types';
 import { SiteLang } from '../lib/language';
 import { TrackUploadButton } from './track-upload-button';
+import { getBackCoverUrl } from '../lib/release-images';
 
 export function ShelfReleaseForm({ release, lang }: { release: Release; lang: SiteLang }) {
   const ru = lang === 'ru';
@@ -28,8 +29,9 @@ export function ShelfReleaseForm({ release, lang }: { release: Release; lang: Si
     finally { setBusy(false); }
   }
   const tracks=[...data.tracks].sort((a,b)=>(a.position||'').localeCompare(b.position||'',undefined,{numeric:true}));
+  const backCoverUrl = getBackCoverUrl(data);
   return <div className="shelf-release-form">
-    <header><img src={data.coverMediumStorageUrl || data.coverStorageUrl || data.coverImageUrl || '/fallback-cover.svg'} alt="" width={112} height={112}/><div><small>{data.isMix ? (ru?'Микс':'Mix') : (ru?'Релиз':'Release')}</small><h2>{data.title}</h2><p>{data.artist}</p><label className="shelf-form-cover"><ImagePlus size={16}/>{ru?'Заменить обложку':'Replace cover'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={event=>{const file=event.currentTarget.files?.[0];event.currentTarget.value='';if(file)void run(async()=>setData(await uploadReleaseCover(data.id,file)));}}/></label></div></header>
+    <header><div className="shelf-form-covers"><figure><img src={data.coverMediumStorageUrl || data.coverStorageUrl || data.coverImageUrl || '/fallback-cover.svg'} alt={ru?'Лицевая сторона':'Front cover'} width={112} height={112}/><figcaption>{ru?'Лицевая':'Front'}</figcaption></figure>{backCoverUrl&&<figure><img src={backCoverUrl} alt={ru?'Обратная сторона':'Back cover'} width={112} height={112}/><figcaption>{ru?'Обратная':'Back'}</figcaption></figure>}</div><div><small>{data.isMix ? (ru?'Микс':'Mix') : (ru?'Релиз':'Release')}</small><h2>{data.title}</h2><p>{data.artist}</p><label className="shelf-form-cover"><ImagePlus size={16}/>{ru?'Заменить лицевую':'Replace front'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={event=>{const file=event.currentTarget.files?.[0];event.currentTarget.value='';if(file)void run(async()=>setData(await uploadReleaseCover(data.id,file)));}}/></label><label className="shelf-form-cover"><ImagePlus size={16}/>{backCoverUrl?(ru?'Заменить обратную':'Replace back'):(ru?'Добавить обратную':'Add back')}<input type="file" accept="image/*" disabled={busy} onChange={event=>{const file=event.currentTarget.files?.[0];event.currentTarget.value='';if(file)void run(async()=>setData(await uploadReleaseBackCover(data.id,file)));}}/></label>{backCoverUrl&&<button type="button" className="shelf-form-remove-back" disabled={busy} onClick={()=>{if(confirm(ru?'Убрать обратную обложку?':'Remove back cover?'))void run(async()=>{await removeReleaseBackCover(data.id);await reload();});}}><Trash2 size={14}/>{ru?'Убрать обратную':'Remove back'}</button>}</div></header>
     <form className="shelf-form-metadata" onSubmit={event=>{event.preventDefault();void run(async()=>{await updateReleaseMetadata(data.id,{artist,title,year:year?Number(year):null});await updateReleaseStyles(data.id,[...new Set(styles.split(',').map(s=>s.trim()).filter(Boolean))]);await reload();});}}>
       <label>{ru?'Исполнитель':'Artist'}<input value={artist} required disabled={busy} onChange={event=>setArtist(event.target.value)}/></label>
       <label>{ru?'Название':'Title'}<input value={title} required disabled={busy} onChange={event=>setTitle(event.target.value)}/></label>

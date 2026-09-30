@@ -37,6 +37,7 @@ export type Release = {
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;
   coverImageUrl: string | null;
+  backCoverUrl?: string | null;
   images?: Array<{
     id: string;
     type: 'COVER' | 'GALLERY';
@@ -61,6 +62,13 @@ export type HomeRelease = {
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;
   coverImageUrl: string | null;
+  backCoverUrl?: string | null;
+  images?: Array<{
+    id: string;
+    type: 'COVER' | 'GALLERY';
+    url: string;
+    storageKey: string;
+  }>;
   tracks: Array<{
     id: string;
     title: string;
@@ -89,6 +97,13 @@ export type HomeReleaseApi = {
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;
   coverImageUrl: string | null;
+  backCoverUrl?: string | null;
+  images?: Array<{
+    id: string;
+    type: 'COVER' | 'GALLERY';
+    url: string;
+    storageKey: string;
+  }>;
   tracks: Array<{
     id: string;
     title: string;

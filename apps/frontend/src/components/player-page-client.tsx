@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ListOrdered, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronDown, ListOrdered, Pause, Play, Repeat2, Rotate3D, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -13,7 +13,7 @@ import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
-import { usePlayerArtwork } from '../lib/use-player-artwork';
+import { usePlayerArtwork, usePlayerBackArtwork } from '../lib/use-player-artwork';
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -52,6 +52,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   } = usePlayerTransport();
   const { currentTime, duration, progress } = usePlayerProgress();
   const fullArtwork = usePlayerArtwork(currentTrack, true);
+  const backArtwork = usePlayerBackArtwork(currentTrack, true);
   const { playQueue, playPrevious, playNext, togglePlayback, seekToPercent, toggleShuffle, toggleRepeat } =
     usePlayerActions();
   const [dragProgress, setDragProgress] = useState<number | null>(null);
@@ -60,6 +61,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [isCoverFlipped, setIsCoverFlipped] = useState(false);
   const lastHapticStepRef = useRef(-1);
   const currentTrackId = currentTrack?.id || '';
   const previousTrackIdRef = useRef(currentTrackId);
@@ -119,6 +121,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     setDragProgress(null);
     setActiveCommentId(null);
     lastHapticStepRef.current = -1;
+    setIsCoverFlipped(false);
   }, [currentTrackId]);
 
   if (!currentTrack) {
@@ -205,15 +208,18 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         <ChevronDown size={24} />
       </button>
 
-      <button
-        type="button"
-        className={`player-page__cover-frame player-page__cover-button slide-${trackDirection}`}
-        key={`cover-${currentTrack.id}`}
-        onClick={collapsePlayer}
-        aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
-      >
-        <CoverImage src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
-      </button>
+      <div className="player-page__cover-shell" key={`cover-${currentTrack.id}`}>
+        <button
+          type="button"
+          className={`player-page__cover-frame player-page__cover-button slide-${trackDirection}${isCoverFlipped ? ' is-flipped' : ''}`}
+          onClick={collapsePlayer}
+          aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
+        >
+          <CoverImage className="player-cover-face player-cover-front" src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
+          {backArtwork ? <CoverImage className="player-cover-face player-cover-back" src={backArtwork} alt={lang === 'ru' ? `Обратная сторона ${currentTrack.title}` : `${currentTrack.title} back cover`} width={520} height={520} loading="eager" /> : null}
+        </button>
+        {backArtwork ? <button type="button" className="player-page__cover-flip" aria-pressed={isCoverFlipped} aria-label={isCoverFlipped ? (lang === 'ru'?'Показать лицевую сторону':'Show front cover') : (lang === 'ru'?'Показать обратную сторону':'Show back cover')} onClick={()=>setIsCoverFlipped(value=>!value)}><Rotate3D size={19}/><span>{isCoverFlipped ? (lang === 'ru'?'Лицевая':'Front') : (lang === 'ru'?'Обратная':'Back')}</span></button> : null}
+      </div>
       <div className={`player-page__meta slide-${trackDirection}`} key={`meta-${currentTrack.id}`}>
         <p>{currentTrack.artist}</p>
         <h1>{currentTrack.title}</h1>

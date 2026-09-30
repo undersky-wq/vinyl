@@ -19,7 +19,7 @@ const envSchema = z.object({
   SELECTEL_S3_BUCKET_COVERS: z.string().default('covers'),
   SELECTEL_S3_BUCKET_AUDIO: z.string().default('audio'),
   SELECTEL_S3_BUCKET_AVATARS: z.string().optional(),
-  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  STORAGE_DRIVER: z.enum(['local', 's3', 's3-readonly']).default('local'),
   AUDIO_STORAGE_DRIVER: z.enum(['local', 's3']).optional(),
   LOCAL_STORAGE_PATH: z.string().min(1).default('/data/storage'),
   REGISTRATION_INVITE_CODE: z.string().optional(),

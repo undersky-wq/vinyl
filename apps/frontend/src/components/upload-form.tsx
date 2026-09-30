@@ -40,6 +40,7 @@ export function UploadForm({ lang }: UploadFormProps) {
   const [country, setCountry] = useState('');
   const [styles, setStyles] = useState('');
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [backCoverFile, setBackCoverFile] = useState<File | null>(null);
   const [tracks, setTracks] = useState<ManualTrackRow[]>(() => [createTrackRow(0)]);
   const [status, setStatus] = useState('');
   const [createdReleaseId, setCreatedReleaseId] = useState('');
@@ -89,6 +90,9 @@ export function UploadForm({ lang }: UploadFormProps) {
 
     if (coverFile) {
       payload.append('cover', coverFile);
+    }
+    if (backCoverFile) {
+      payload.append('backCover', backCoverFile);
     }
 
     validTracks.forEach((track, index) => {
@@ -158,6 +162,16 @@ export function UploadForm({ lang }: UploadFormProps) {
               accept="image/jpeg,image/png,image/webp"
               className="file-input"
               onChange={(event) => setCoverFile(event.target.files?.[0] || null)}
+            />
+          </div>
+          <div className="field manual-upload__wide">
+            <label htmlFor="manual-back-cover">{lang === 'ru' ? 'Обратная сторона обложки' : 'Back cover artwork'}</label>
+            <input
+              id="manual-back-cover"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="file-input"
+              onChange={(event) => setBackCoverFile(event.target.files?.[0] || null)}
             />
           </div>
         </div>

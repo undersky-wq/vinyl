@@ -40,6 +40,7 @@ export class ReleasesService {
 
     const discogsReleaseId = await this.getNextManualDiscogsId();
     const coverFile = files.find((file) => file.fieldname === 'cover') || null;
+    const backCoverFile = files.find((file) => file.fieldname === 'backCover') || null;
     const audioFilesByTrackIndex = new Map<number, Express.Multer.File>();
     const collectionUserIds = [...new Set(['default-user', user.id])];
 
@@ -93,6 +94,10 @@ export class ReleasesService {
 
     if (coverFile) {
       await this.uploadManualCover(createdRelease.id, coverFile);
+    }
+
+    if (backCoverFile) {
+      await this.uploadBackCover(createdRelease.id, backCoverFile);
     }
 
     for (let index = 0; index < createdRelease.tracks.length; index += 1) {
@@ -904,6 +909,67 @@ export class ReleasesService {
     return this.findOne(id, true);
   }
 
+  async removeBackCover(id: string) {
+    const images = await this.prisma.image.findMany({
+      where: {
+        releaseId: id,
+        type: ImageType.GALLERY,
+        storageKey: { startsWith: `covers/manual/${id}/back.` },
+      },
+    });
+    const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    await Promise.all(images.map((image) => this.deleteStorageObject(coversBucket, image.storageKey)));
+    await this.prisma.image.deleteMany({
+      where: { id: { in: images.map((image) => image.id) } },
+    });
+    return { success: true };
+  }
+
+  async uploadBackCover(id: string, file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Back cover file is required');
+    }
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Back cover must be an image');
+    }
+    const release = await this.prisma.release.findUnique({ where: { id }, select: { id: true } });
+    if (!release) {
+      throw new NotFoundException('Release not found');
+    }
+
+    const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    const storageKey = `covers/manual/${id}/back.webp`;
+    const buffer = await sharp(file.buffer)
+      .rotate()
+      .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 88 })
+      .toBuffer();
+    const url = await this.storageService.uploadObject({
+      bucket: coversBucket,
+      key: storageKey,
+      body: buffer,
+      contentType: 'image/webp',
+    });
+    const previous = await this.prisma.image.findMany({
+      where: {
+        releaseId: id,
+        type: ImageType.GALLERY,
+        storageKey: { startsWith: `covers/manual/${id}/back.` },
+      },
+    });
+    const obsoleteKeys = previous
+      .map((image) => image.storageKey)
+      .filter((key) => key !== storageKey);
+    await Promise.all(obsoleteKeys.map((key) => this.deleteStorageObject(coversBucket, key)));
+    await this.prisma.$transaction([
+      this.prisma.image.deleteMany({ where: { id: { in: previous.map((image) => image.id) } } }),
+      this.prisma.image.create({
+        data: { releaseId: id, type: ImageType.GALLERY, url: url || '', storageKey },
+      }),
+    ]);
+    return this.findOne(id, true);
+  }
+
   async updateReleaseStyles(id: string, styles: string[]) {
     const normalizedStyles = [
       ...new Map(
@@ -1310,6 +1376,7 @@ export class ReleasesService {
 
   private async signReleaseUrls<
     T extends {
+      id?: string;
       coverStorageKey?: string | null;
       coverStorageUrl?: string | null;
       coverThumbStorageKey?: string | null;
@@ -1320,6 +1387,7 @@ export class ReleasesService {
       images?: Array<{
         storageKey: string;
         url: string;
+        type?: ImageType;
       }>;
       tracks: Array<{
         audioFiles: Array<{
@@ -1336,9 +1404,25 @@ export class ReleasesService {
   ) {
     const audioBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
     const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    const signedImages = release.images
+      ? await Promise.all(
+          release.images.map(async (image) => ({
+            ...image,
+            url:
+              (await this.storageService.getSignedObjectUrl(coversBucket, image.storageKey)) ||
+              image.url,
+          })),
+        )
+      : release.images;
+    const backCoverUrl = signedImages?.find(
+      (image) =>
+        image.type === ImageType.GALLERY &&
+        image.storageKey.startsWith(`covers/manual/${release.id || ''}/back.`),
+    )?.url || null;
 
     return {
       ...release,
+      backCoverUrl,
       audioComplete: release.audioComplete ?? (
         release.tracks.length > 0 && release.tracks.every((track) => track.audioFiles.length > 0)
       ),
@@ -1359,16 +1443,7 @@ export class ReleasesService {
               release.coverMediumStorageKey,
             )) || release.coverMediumStorageUrl
           : release.coverMediumStorageUrl,
-      images: release.images
-        ? await Promise.all(
-            release.images.map(async (image) => ({
-              ...image,
-              url:
-                (await this.storageService.getSignedObjectUrl(coversBucket, image.storageKey)) ||
-                image.url,
-            })),
-          )
-        : release.images,
+      images: signedImages,
       tracks: await Promise.all(
         release.tracks.map(async (track) => ({
           ...track,

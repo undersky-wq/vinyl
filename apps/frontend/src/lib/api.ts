@@ -149,6 +149,8 @@ function mapHomeRelease(release: HomeReleaseApi): HomeRelease {
     coverThumbStorageUrl: release.coverThumbStorageUrl,
     coverMediumStorageUrl: release.coverMediumStorageUrl,
     coverImageUrl: release.coverImageUrl,
+    backCoverUrl: release.backCoverUrl,
+    images: release.images,
     tracks: orderedTracks.map((track) => ({
       id: track.id,
       title: track.title,
@@ -595,6 +597,36 @@ export async function uploadReleaseCover(releaseId: string, file: File) {
   }
 
   return parseJsonResponse<Release>(response);
+}
+
+export async function uploadReleaseBackCover(releaseId: string, file: File) {
+  const payload = new FormData();
+  payload.append('file', file);
+
+  const response = await fetch(`${API_URL}/releases/${releaseId}/back-cover`, {
+    method: 'POST',
+    credentials: 'include',
+    body: payload,
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Back cover upload failed'));
+  }
+
+  return parseJsonResponse<Release>(response);
+}
+
+export async function removeReleaseBackCover(releaseId: string) {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/back-cover`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Back cover removal failed'));
+  }
+
+  return parseJsonResponse<{ success: boolean }>(response);
 }
 
 export async function updateReleaseStyles(releaseId: string, styles: string[]) {

@@ -71,6 +71,8 @@ export class StorageService {
     body: Buffer;
     contentType: string;
   }) {
+    this.assertWritesAllowed();
+
     if (this.isLocalBucket(params.bucket)) {
       const filePath = this.resolveLocalObjectPath(params.bucket, params.key);
       await mkdir(path.dirname(filePath), { recursive: true });
@@ -88,6 +90,9 @@ export class StorageService {
         Key: params.key,
         Body: params.body,
         ContentType: params.contentType,
+        // Signed cover URLs live for one hour; cache their image bytes only in
+        // the visitor's browser and for less than that URL lifetime.
+        CacheControl: params.key.startsWith('covers/') ? 'private, max-age=1800' : undefined,
       }),
     );
 
@@ -95,6 +100,8 @@ export class StorageService {
   }
 
   async deleteObject(bucket: string, key: string) {
+    this.assertWritesAllowed();
+
     if (this.isLocalBucket(bucket)) {
       await rm(this.resolveLocalObjectPath(bucket, key), { force: true });
       return;
@@ -139,6 +146,9 @@ export class StorageService {
       new GetObjectCommand({
         Bucket: bucket,
         Key: key,
+        // Apply browser caching to existing cover objects too; PutObject only
+        // affects files uploaded after this deployment.
+        ResponseCacheControl: key.startsWith('covers/') ? 'private, max-age=1800' : undefined,
       }),
       { expiresIn },
     );
@@ -186,6 +196,12 @@ export class StorageService {
       this.configService.get<string>('SELECTEL_S3_BUCKET_AVATARS') || 'avatars',
     ]);
     return driver.toLowerCase() === 'local' && localBuckets.has(bucket);
+  }
+
+  private assertWritesAllowed() {
+    if (this.configService.get<string>('STORAGE_DRIVER')?.toLowerCase() === 's3-readonly') {
+      throw new Error('S3 storage is read-only in this environment');
+    }
   }
 
   resolveLocalObjectPath(bucket: string, key: string) {

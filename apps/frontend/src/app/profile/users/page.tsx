@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { getCurrentUser, getSiteSettings, getUsers } from '../../../lib/api';
 import { normalizeSiteLang } from '../../../lib/language';
 import { Topbar } from '../../../components/topbar';
+import '../../../components/record-archive.css';
 import '../profile.css';
 import '../profile-player.css';
 

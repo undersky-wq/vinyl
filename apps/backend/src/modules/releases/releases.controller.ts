@@ -163,6 +163,29 @@ export class ReleasesController {
     return this.releasesService.uploadCover(id, file);
   }
 
+  @Delete(':id/back-cover')
+  @UseGuards(AdminGuard)
+  async removeBackCover(@Param('id') id: string) {
+    return this.releasesService.removeBackCover(id);
+  }
+
+  @Post(':id/back-cover')
+  @UseGuards(AdminGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 20 * 1024 * 1024,
+      },
+    }),
+  )
+  async uploadBackCover(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.releasesService.uploadBackCover(id, file);
+  }
+
   @Patch(':id/styles')
   @UseGuards(AdminGuard)
   async updateReleaseStyles(

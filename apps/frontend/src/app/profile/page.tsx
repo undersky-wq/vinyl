@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Topbar } from '../../components/topbar';
+import '../../components/record-archive.css';
 import './profile.css';
 import './profile-player.css';
 import { getAuthSettings, getCurrentUser, getProfileStats, getSiteSettings } from '../../lib/api';

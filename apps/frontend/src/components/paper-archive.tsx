@@ -10,7 +10,7 @@ import { normalizeDurationLabel } from '../lib/time';
 import { useAuth } from '../providers/auth-provider';
 import { usePlaylists } from '../providers/playlists-provider';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
-import { Heart, Library, ListMusic, Disc3 } from 'lucide-react';
+import { Heart, Library, ListMusic, Disc3, Rotate3D } from 'lucide-react';
 import { useCollectionCounts } from './use-collection-counts';
 import { ShelfThemeToggle } from './shelf-theme-toggle';
 import { LanguageSwitcher } from './language-switcher';
@@ -19,6 +19,7 @@ import { getHomeReleaseDetails, getHomeReleases } from '../lib/api';
 import { ShelfReleaseEditor } from './shelf-release-editor';
 import { shelfMobileLayout } from '../lib/shelf-mobile-layout';
 import { CollectionPosition } from './collection-position';
+import { getBackCoverUrl } from '../lib/release-images';
 const coverPreview = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || r.coverStorageUrl || r.coverImageUrl || '/icon.png';
 const coverFull = (r: HomeRelease) => r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
 const cover = coverPreview;
@@ -29,9 +30,13 @@ function ShelfCoverImage({ release, eager, priority, selected, stack = false }: 
     ? release.coverMediumStorageUrl || release.coverStorageUrl || release.coverImageUrl || release.coverThumbStorageUrl || '/icon.png'
     : coverPreview(release);
   const full = coverFull(release);
+  const back = getBackCoverUrl(release);
   return <>
-    <img src={preview} alt="" width={320} height={320} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} />
-    {selected && full !== preview ? <img className="paper-record-hires" src={full} alt="" loading="eager" fetchPriority="high" decoding="async" draggable={false} /> : null}
+    <span className="paper-record-face paper-record-front">
+      <img src={preview} alt="" width={320} height={320} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} />
+      {selected && full !== preview ? <img className="paper-record-hires" src={full} alt="" loading="eager" fetchPriority="high" decoding="async" draggable={false} /> : null}
+    </span>
+    {back ? <span className="paper-record-face paper-record-back"><img src={back} alt="" width={900} height={900} loading={selected ? 'eager' : 'lazy'} decoding="async" draggable={false}/></span> : null}
   </>;
 }
 
@@ -296,6 +301,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     ...sleeve, position: sleeve.position * (1 + Math.min(stretch,1) * 2),
   })), [baseSleeves, stretch]);
   const [selected, setSelected] = useState<number | null>(null);
+  const [isCoverFlipped, setIsCoverFlipped] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const stage = useRef<HTMLElement | null>(null);
   const transport = useRef<HTMLDivElement | null>(null);
@@ -554,6 +560,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     layoutFrame.current = requestAnimationFrame(settle);
   }
   const release = selected === null ? null : releases[selected];
+  const backCoverUrl = getBackCoverUrl(release);
+  useEffect(() => setIsCoverFlipped(false), [release?.id, expanded]);
   useLayoutEffect(() => {
     const root = stage.current;
     const label = root?.querySelector<HTMLElement>('.is-stack-preview');
@@ -1132,7 +1140,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       const p = sleeves[i].position / 24;
       const side = selected === null ? 0 : gridMix >= 1 ? (i % columns < Math.ceil(columns / 2) ? -1 : 1) : i < selected ? -1 : 1;
       const isPriorityCover = selected === i || mobilePriorityIndices.has(i) || (visibleRank >= priorityCoverStart && visibleRank < priorityCoverStart + 6);
-      return <button type="button" key={`${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} data-index={i} className={`paper-record${selected === i ? ' is-selected' : ''}${selected !== null && gridMix === 0 && (i === selected + 1 || i === 0) ? ' is-front-sleeve' : ''}${hovered === i && selected !== i ? ' is-hovered' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`}
+      return <button type="button" key={`${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} data-index={i} className={`paper-record${selected === i ? ' is-selected' : ''}${selected === i && isCoverFlipped ? ' is-flipped' : ''}${selected !== null && gridMix === 0 && (i === selected + 1 || i === 0) ? ' is-front-sleeve' : ''}${hovered === i && selected !== i ? ' is-hovered' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`}
 style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${stackMode && selected === null && hovered !== null ? (i > hovered ? -.12 : i < hovered ? .23 : -.03) : 0})`, '--rise': `${sleeves[i].rise}px`, '--stack-relative': selected === null ? 0 : selected - i, '--stack-side': selected === null ? 0 : Math.sign(selected - i), '--grid-x': `${gridLeft + (i % columns) * cell}px`, '--grid-y': `${gridBounds.top + 12 + Math.floor(i / columns) * cell - (gridMix < 1 ? gridPan : 0)}px`, '--list-y': `${listLayout.positions[i]}px`, '--mix-list-x': `${3 + (i % 2) * 48.5}vw`, '--mix-column': i % 2, '--grid-side-x': `${i % columns < Math.ceil(columns / 2) ? 12 + (i % columns) * sideStep : viewport.width - sideSize - 12 - (columns - 1 - i % columns) * sideStep}px`, '--split': side, zIndex: selected === i ? releases.length + 2 : releases.length - i } as CSSProperties}
         aria-label={`${r.artist} — ${r.title}`} aria-expanded={selected === i}
         onFocus={() => {if(!stackMode && !scrollFrame.current && releases.length > 1 && i > 0) setHovered(i);}} onBlur={() => setHovered(null)}
@@ -1205,6 +1213,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
       {expanded && (release.isMix || (gridMix === 0 && listMix === 0)) && <ShelfReleaseEditor id={release.id} lang={uiLang} className={release.isMix ? 'shelf-mix-edit-corner' : undefined}/>}
       {release.isMix ? <><p>{release.artist} <span>{release.year}</span></p><h2>{release.title}</h2></> : <><h2>{release.artist}</h2><p>{release.title} <span>{release.year}</span></p></>}
       {expanded && <>
+      {backCoverUrl && <button type="button" className="paper-cover-flip" aria-pressed={isCoverFlipped} onClick={event=>{event.stopPropagation();setIsCoverFlipped(value=>!value);}}><Rotate3D size={16}/><span>{isCoverFlipped ? (ru?'Лицевая сторона':'Front side') : (ru?'Обратная сторона':'Back side')}</span></button>}
       <ol>{release.tracks.map((t, i) => <li key={t.id} className={`paper-track-line${currentTrack?.id === t.id ? ' is-playing' : ''}`} style={{ '--line-delay': `${.48 + Math.min(i, 12) * .065}s` } as CSSProperties}><button className="paper-track-play" disabled={!t.audioUrl} onClick={() => play(t.id)} aria-label={`${currentTrack?.id === t.id && isPlaying ? 'Pause' : 'Play'}: ${t.title}`}>{mixesMode ? null : <small>{t.position?.trim() || '—'}</small>}<span>{t.title}</span></button>{trackActions(t.id)}<time>{normalizeDurationLabel(t.durationRaw,t.durationSec,'—')}</time></li>)}</ol>
       {!release.tracks.length && <p>{release.tracksLoaded === false ? (detailErrors[release.id] ? <button onClick={() => setDetailErrors(current => ({...current,[release.id]:false}))}>{ru ? 'Повторить загрузку' : 'Retry loading'}</button> : (ru ? 'Загрузка треков…' : 'Loading tracks…')) : (ru ? 'Треклист недоступен' : 'Tracklist unavailable')}</p>}
       <p className="paper-release-styles" style={{ animationDelay: `${.55 + Math.min(release.tracks.length, 12) * .065}s` }} aria-label="Release styles">{release.styles.length ? release.styles.map((style, index) => [index > 0 ? ' · ' : null, <em key={style} className={`paper-release-style${activeStyles.includes(style) ? ' is-active' : ''}`}>{style}</em>]) : (ru ? 'Стиль не указан' : 'Style unavailable')}</p>

@@ -16,6 +16,10 @@ html[data-visual-variant='shelf'][data-shelf-theme='dark'] ::selection { backgro
 .shelf-release-form { font:400 13px/1.4 Arial,Helvetica,sans-serif;color:var(--shelf-web-ink); }
 .shelf-release-form header { display:flex;gap:18px;align-items:center;padding:8px 0 18px;border-bottom:1px solid var(--shelf-web-line); }
 .shelf-release-form header img { width:112px;height:112px;object-fit:cover;border-radius:0; }
+.shelf-form-covers { display:flex;gap:8px;align-items:flex-start; }
+.shelf-form-covers figure { margin:0; }
+.shelf-form-covers figcaption { margin-top:3px;color:var(--shelf-web-muted);font:10px/1.2 Arial,Helvetica,sans-serif; }
+.shelf-release-form .shelf-form-remove-back { color:#b44249; }
 .shelf-release-form :is(h2,h3,p) { margin:0 0 6px;text-transform:none;letter-spacing:-.3px; }
 .shelf-release-form h2 { font-size:18px;line-height:1.25; }
 .shelf-release-form h3 { margin-top:18px;font-size:14px; }
@@ -46,13 +50,15 @@ html[data-visual-variant='shelf'][data-shelf-theme='dark'] ::selection { backgro
 .paper-search-status { position:absolute;top:100%;left:0;font:11px Arial,Helvetica,sans-serif;color:var(--shelf-web-muted); }
 @media(max-width:500px) {
   .shelf-editor:has(.shelf-release-form) { padding:14px; }
-  .shelf-release-form header img { width:80px;height:80px; }
+  .shelf-release-form header { align-items:flex-start; }
+  .shelf-release-form header img { width:72px;height:72px; }
   .shelf-form-track { grid-template-columns:22px minmax(0,1fr) 86px 32px;gap:6px; }
   .shelf-form-track-actions { flex-direction:column;gap:0; }
   .shelf-form-metadata { grid-template-columns:1fr; }
   .shelf-form-add-track { grid-template-columns:36px 1fr; }
 }
 html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__comments { color:var(--shelf-web-ink);font:400 12px/1.4 Arial,Helvetica,sans-serif; }
+html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__cover-flip { right:10px;bottom:10px;border:1px solid var(--shelf-web-line);border-radius:0;background:var(--shelf-web-bg);color:var(--shelf-web-ink);box-shadow:none;backdrop-filter:none;font:600 11px/1 Arial,Helvetica,sans-serif; }
 html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__comments form { display:grid;gap:10px;padding:12px 0;border-block:1px solid var(--shelf-web-line); }
 html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__comments textarea { width:100%;box-sizing:border-box;min-height:64px;padding:8px;background:transparent;color:inherit;border:1px solid var(--shelf-web-line);border-radius:0;font:inherit; }
 html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__comments button { background:transparent;color:inherit;border:0;padding:4px 0;font:inherit; }
@@ -244,7 +250,7 @@ html[data-visual-variant='shelf'] .paper-mix-comments .paper-mix-comment-delete:
     color:var(--shelf-web-ink);font:600 14px/1.35 Arial,Helvetica,sans-serif;
   }
 }
-/* The mini player has no independent panel at any viewport size. */
+/* Desktop stays transparent; phones mask scrolling content behind the player. */
 html[data-visual-variant='shelf'][data-shelf-theme] body .mini-player {
   background:transparent!important;
   box-shadow:none!important;
@@ -255,6 +261,26 @@ html[data-visual-variant='shelf'][data-shelf-theme] body .mini-player {
 html[data-visual-variant='shelf'][data-shelf-theme] body .mini-player::before,
 html[data-visual-variant='shelf'][data-shelf-theme] body .mini-player::after {
   display:none!important;
+}
+@media(max-width:700px) {
+  html[data-visual-variant='shelf'][data-shelf-theme] body .mini-player {
+    background:var(--shelf-web-bg,#fff)!important;
+    isolation:isolate;
+  }
+  html[data-visual-variant='shelf'][data-shelf-theme] body .mini-player::after {
+    content:"";
+    display:block!important;
+    position:absolute;
+    top:-6px;
+    left:calc((100% - 100vw)/2);
+    right:calc((100% - 100vw)/2);
+    bottom:calc(-1 * max(10px,env(safe-area-inset-bottom,0px)));
+    z-index:-1;
+    background:var(--shelf-web-bg,#fff);
+    border:0;border-radius:0;box-shadow:none;
+    transform:none;filter:none;opacity:1;animation:none;
+    pointer-events:none;
+  }
 }
 .shelf-form-track-analysis { display:flex;flex-wrap:wrap;gap:16px;margin-top:6px; }
 html[data-visual-variant='shelf'] .paper-archive .paper-release-title-regular { font-weight:400!important; }
