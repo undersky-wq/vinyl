@@ -176,6 +176,7 @@ export type ProfileStats = {
 };
 
 export type AuthSettings = {
+  playbackRequiresRegistration?: boolean;
   registrationInviteRequired: boolean;
   siteDesign: SiteDesign;
 };
@@ -183,6 +184,7 @@ export type AuthSettings = {
 export type SiteDesign = 'classic' | 'shelf';
 
 export type SiteSettings = {
+  playbackRequiresRegistration?: boolean;
   siteDesign: SiteDesign;
 };
 

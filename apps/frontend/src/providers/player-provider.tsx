@@ -9,6 +9,8 @@ import {
 } from 'react';
 import { refreshPlayerTrack } from '../lib/api';
 import { useAuth } from './auth-provider';
+import { hasNativePlayer } from '../lib/native-player';
+import { useNativePlayer } from './use-native-player';
 
 export type PlayerTrack = {
   id: string;
@@ -22,7 +24,7 @@ export type PlayerTrack = {
   isPublic?: boolean;
 };
 
-type PlayerContextType = {
+export type PlayerContextType = {
   currentTrack: PlayerTrack | null;
   queue: PlayerTrack[];
   displayQueue: PlayerTrack[];
@@ -258,7 +260,24 @@ async function safelyPlay(audio: HTMLAudioElement) {
 }
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
-  const { requireAuth } = useAuth();
+  const [native, setNative] = useState(false);
+  useEffect(() => { setNative(hasNativePlayer()); }, []);
+  return native ? <NativePlayerProvider>{children}</NativePlayerProvider> : <BrowserPlayerProvider>{children}</BrowserPlayerProvider>;
+}
+
+function NativePlayerProvider({ children }: { children: React.ReactNode }) {
+  const value = useNativePlayer();
+  return <PlayerTransportContext.Provider value={value}>
+    <PlayerProgressContext.Provider value={value}>
+      <PlayerActionsContext.Provider value={value}>
+        <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>
+      </PlayerActionsContext.Provider>
+    </PlayerProgressContext.Provider>
+  </PlayerTransportContext.Provider>;
+}
+
+function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
+  const { requirePlayback } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const queueRef = useRef<PlayerTrack[]>(sharedQueue);
   const displayQueueRef = useRef<PlayerTrack[]>(sharedDisplayQueue);
@@ -666,7 +685,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    if (!playableTracks.every((track) => track.isPublic) && !requireAuth()) {
+    if (!requirePlayback()) {
       return null;
     }
 
@@ -816,7 +835,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const togglePlayback = () => {
-    if (!currentTrackRef.current?.isPublic && !requireAuth()) {
+    if (!requirePlayback()) {
       return;
     }
 

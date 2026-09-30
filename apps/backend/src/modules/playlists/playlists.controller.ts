@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guards';
+import { AuthService } from '../auth/auth.service';
 import { AddPlaylistItemDto } from './dto/add-playlist-item.dto';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { ReorderPlaylistDto } from './dto/reorder-playlist.dto';
@@ -9,7 +10,7 @@ import { PlaylistsService } from './playlists.service';
 
 @Controller('playlists')
 export class PlaylistsController {
-  constructor(private readonly playlistsService: PlaylistsService) {}
+  constructor(private readonly playlistsService: PlaylistsService, private readonly authService: AuthService) {}
 
   @Get()
   @UseGuards(AuthGuard)
@@ -24,8 +25,10 @@ export class PlaylistsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.playlistsService.findOne(id);
+  async findOne(@Param('id') id: string, @Req() request: any) {
+    const user = await this.authService.getUserFromRequest(request);
+    const settings = await this.authService.getAuthSettings();
+    return this.playlistsService.findOne(id, Boolean(user) || !settings.playbackRequiresRegistration);
   }
 
   @Put('reorder')

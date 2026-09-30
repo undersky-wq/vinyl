@@ -27,17 +27,10 @@ import {
   setWebEditMode,
 } from './admin-edit-mode-sync';
 import { DesignVariantSwitcher } from './design-variant-switcher';
+import { DancerSetting } from './dancer-setting';
 
 function getUserInitial(user: UserProfile) {
   return (user.displayName || user.email || '?').slice(0, 1).toUpperCase();
-}
-
-function formatUserDate(value: string, lang: SiteLang) {
-  return new Intl.DateTimeFormat(lang === 'ru' ? 'ru-RU' : 'en-US', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(value));
 }
 
 export function ProfileScreen({
@@ -47,7 +40,6 @@ export function ProfileScreen({
   mixesCount,
   tracksCount,
   playlistsCount,
-  users,
   authSettings,
 }: {
   lang: SiteLang;
@@ -56,14 +48,12 @@ export function ProfileScreen({
   mixesCount: number;
   tracksCount: number;
   playlistsCount: number;
-  users?: UserProfile[];
   authSettings?: AuthSettings;
 }) {
   const router = useRouter();
   const webEditMode = useWebEditMode();
   const { setUser, user: authUser } = useAuth();
   const activeUser = authUser ?? user;
-  const registeredUsers = users ?? [];
   const [status, setStatus] = useState('');
   const [isSyncingDiscogs, setIsSyncingDiscogs] = useState(false);
   const [discogsProgress, setDiscogsProgress] = useState(0);
@@ -75,6 +65,8 @@ export function ProfileScreen({
     authSettings?.registrationInviteRequired ?? false,
   );
   const [isSavingAuthSettings, setIsSavingAuthSettings] = useState(false);
+  const [playbackRequiresRegistration, setPlaybackRequiresRegistration] = useState(authSettings?.playbackRequiresRegistration ?? true);
+  const [isSavingPlayback, setIsSavingPlayback] = useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(
     activeUser.avatarStorageUrl || null,
   );
@@ -173,6 +165,20 @@ export function ProfileScreen({
         : `MP3 prepared: ${backfillStatus.normalized}, processed: ${backfillStatus.processed}.`,
     );
     router.refresh();
+  }
+
+  async function handlePlaybackToggle() {
+    setIsSavingPlayback(true);
+    try {
+      const settings = await updateAuthSettings({ playbackRequiresRegistration: !playbackRequiresRegistration });
+      setPlaybackRequiresRegistration(settings.playbackRequiresRegistration ?? true);
+      setStatus(lang === 'ru'
+        ? settings.playbackRequiresRegistration ? 'Прослушивание только после входа.' : 'Прослушивание доступно всем.'
+        : settings.playbackRequiresRegistration ? 'Playback requires sign-in.' : 'Playback is available to everyone.');
+      router.refresh();
+    } catch {
+      setStatus(lang === 'ru' ? 'Не удалось сохранить настройку прослушивания.' : 'Failed to save playback setting.');
+    } finally { setIsSavingPlayback(false); }
   }
 
   async function handleAvatar(event: ChangeEvent<HTMLInputElement>) {
@@ -426,8 +432,17 @@ export function ProfileScreen({
         ) : null}
 
         <div className="profile-actions">
+          <DancerSetting lang={lang} />
           {activeUser.role === 'ADMIN' ? (
             <>
+              <Link href="/profile/users" className="profile-action-button">
+                <span className="profile-action-button__label">{lang === 'ru' ? 'Список зарегистрированных' : 'Registered users'}</span>
+                <span aria-hidden="true">&rarr;</span>
+              </Link>
+              <button type="button" className={`profile-action-button profile-action-button--switch${playbackRequiresRegistration ? ' active' : ''}`} aria-pressed={playbackRequiresRegistration} disabled={isSavingPlayback} onClick={handlePlaybackToggle}>
+                <span className="profile-action-button__label">{lang === 'ru' ? 'Треки только для зарегистрированных' : 'Playback requires registration'}</span>
+                <strong>{playbackRequiresRegistration ? 'ON' : 'OFF'}</strong>
+              </button>
               <Link href="/upload" className="profile-action-button">
                 <Upload size={16} />
                 <span className="profile-action-button__label">
@@ -528,61 +543,6 @@ export function ProfileScreen({
         {status ? <p className="muted" role="status">{status}</p> : null}
       </article>
 
-      {activeUser.role === 'ADMIN' ? (
-        <article className="release-panel profile-panel profile-users-panel">
-          <div className="profile-users-header">
-            <div>
-              <p className="muted">{lang === 'ru' ? 'Пользователи' : 'Users'}</p>
-              <h2>{lang === 'ru' ? 'Зарегистрированные аккаунты' : 'Registered accounts'}</h2>
-            </div>
-            <strong>{registeredUsers.length}</strong>
-          </div>
-
-          <div className="profile-users-list">
-            {registeredUsers.map((item) => (
-              <div className="profile-user-row" key={item.id}>
-                <div className="profile-user-avatar">
-                  {item.avatarStorageUrl ? (
-                    <img src={item.avatarStorageUrl} alt={item.displayName} />
-                  ) : (
-                    <span>{getUserInitial(item)}</span>
-                  )}
-                </div>
-
-                <div className="profile-user-main">
-                  <div className="profile-user-name">
-                    <strong>{item.displayName}</strong>
-                    <span>{item.role}</span>
-                  </div>
-                  <p className="muted">{item.email || 'No email'}</p>
-                  <p className="profile-user-date">
-                    {lang === 'ru' ? 'Регистрация' : 'Joined'} {formatUserDate(item.createdAt, lang)}
-                  </p>
-                </div>
-
-                <div className="profile-user-stats">
-                  <span>
-                    <b>{item._count.playlists}</b>
-                    <em>{lang === 'ru' ? 'плейлисты' : 'playlists'}</em>
-                  </span>
-                  <span>
-                    <b>{item._count.favoriteTracks}</b>
-                    <em>{lang === 'ru' ? 'избранное' : 'favourites'}</em>
-                  </span>
-                  <span>
-                    <b>{item._count.audioFiles}</b>
-                    <em>MP3</em>
-                  </span>
-                  <span>
-                    <b>{item._count.collectionItems}</b>
-                    <em>{lang === 'ru' ? 'коллекция' : 'collection'}</em>
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-      ) : null}
     </section>
   );
 }

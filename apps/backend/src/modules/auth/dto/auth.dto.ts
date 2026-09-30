@@ -32,6 +32,10 @@ export class LoginDto {
 export class UpdateAuthSettingsDto {
   @IsOptional()
   @IsBoolean()
+  playbackRequiresRegistration?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   registrationInviteRequired?: boolean;
 
   @IsOptional()

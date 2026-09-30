@@ -9,6 +9,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   setUser: (user: AuthUser | null) => void;
   requireAuth: () => boolean;
+  requirePlayback: () => boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -16,9 +17,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({
   children,
   initialUser,
+  playbackRequiresRegistration = true,
 }: {
   children: React.ReactNode;
   initialUser: AuthUser | null;
+  playbackRequiresRegistration?: boolean;
 }) {
   const lang = getBrowserSiteLang();
   const [user, setUser] = useState<AuthUser | null>(initialUser);
@@ -28,6 +31,11 @@ export function AuthProvider({
     () => ({
       user,
       setUser,
+      requirePlayback: () => {
+        if (user || !playbackRequiresRegistration) return true;
+        setIsPromptOpen(true);
+        return false;
+      },
       requireAuth: () => {
         if (user) {
           return true;
@@ -37,7 +45,7 @@ export function AuthProvider({
         return false;
       },
     }),
-    [user],
+    [user, playbackRequiresRegistration],
   );
 
   return (

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AdminGuard, AuthGuard } from './auth/auth.guards';
+import { AdminGuard, AuthGuard, PlaybackGuard } from './auth/auth.guards';
 import { PrismaService } from './prisma/prisma.service';
 import { StorageService } from './storage/storage.service';
 
@@ -151,7 +151,7 @@ export class AppController {
   }
 
   @Get('tracks/:id/player')
-  @UseGuards(AuthGuard)
+  @UseGuards(PlaybackGuard)
   async playerTrack(@Param('id') id: string) {
     const audioBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
     const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';

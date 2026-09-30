@@ -414,7 +414,7 @@ export class ReleasesService {
     return rows.map((row) => row.id);
   }
 
-  async findLibraryFeed(query: QueryReleasesDto) {
+  async findLibraryFeed(query: QueryReleasesDto, includeAudioUrls = false) {
     const userId = query.userId || 'default-user';
     const take = query.limit ? Math.min(Math.max(Number(query.limit), 1), 60) : 40;
     const skip = query.offset ? Math.max(Number(query.offset), 0) : 0;
@@ -558,7 +558,7 @@ export class ReleasesService {
         this.signReleaseUrls({
           ...release,
           audioComplete: release.tracks.length > 0 && _count.tracks === 0,
-        }, true),
+        }, includeAudioUrls),
       ),
     );
 
@@ -572,7 +572,7 @@ export class ReleasesService {
     };
   }
 
-  async findLibraryQueue(query: QueryReleasesDto) {
+  async findLibraryQueue(query: QueryReleasesDto, includeAudioUrls = false) {
     const userId = query.userId || 'default-user';
     const styles = this.splitList(query.style);
     const keys = this.splitList(query.key);
@@ -628,7 +628,7 @@ export class ReleasesService {
     return Promise.all(
       tracks.map(async (track) => {
         const audioFile = track.audioFiles[0];
-        const audioUrl = audioFile
+        const audioUrl = audioFile && includeAudioUrls
           ? (await this.storageService.getSignedObjectUrl(
               audioBucket,
               audioFile.normalizedStorageKey || audioFile.storageKey,
@@ -680,7 +680,7 @@ export class ReleasesService {
       return null;
     }
 
-    return this.signReleaseUrls(release, includeAudioUrls || release.isMix);
+    return this.signReleaseUrls(release, includeAudioUrls);
   }
 
   async findTimelineComments(releaseId: string) {
@@ -1388,6 +1388,9 @@ export class ReleasesService {
             : track.audioFiles.map((audioFile) => ({
                 ...audioFile,
                 storageUrl: null,
+                normalizedStorageUrl: null,
+                storageKey: null,
+                normalizedStorageKey: null,
               })),
         })),
       ),

@@ -19,6 +19,21 @@ export class AuthGuard implements CanActivate {
 }
 
 @Injectable()
+export class PlaybackGuard implements CanActivate {
+  constructor(private readonly authService: AuthService) {}
+
+  async canActivate(context: ExecutionContext) {
+    const request = context.switchToHttp().getRequest();
+    const user = await this.authService.getUserFromRequest(request);
+    if (!user && (await this.authService.getAuthSettings()).playbackRequiresRegistration) {
+      throw new UnauthorizedException('Authentication required for playback');
+    }
+    request.user = user;
+    return true;
+  }
+}
+
+@Injectable()
 export class AdminGuard implements CanActivate {
   constructor(private readonly authService: AuthService) {}
 

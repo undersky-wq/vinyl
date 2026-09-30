@@ -85,24 +85,27 @@ export class AuthService {
   }
 
   async getAuthSettings() {
-    const [registrationSetting, designSetting] = await Promise.all([
+    const [registrationSetting, designSetting, playbackSetting] = await Promise.all([
       this.prisma.appSetting.findUnique({ where: { key: REGISTRATION_INVITE_REQUIRED_SETTING } }),
       this.prisma.appSetting.findUnique({ where: { key: SITE_DESIGN_SETTING } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'playbackRequiresRegistration' } }),
     ]);
 
     return {
       registrationInviteRequired: registrationSetting?.value === true,
+      playbackRequiresRegistration: playbackSetting?.value !== false,
       siteDesign: designSetting?.value === 'shelf' ? 'shelf' as const : 'classic' as const,
     };
   }
 
   async getSiteSettings() {
     const settings = await this.getAuthSettings();
-    return { siteDesign: settings.siteDesign };
+    return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration };
   }
 
   async updateAuthSettings(input: {
     registrationInviteRequired?: boolean;
+    playbackRequiresRegistration?: boolean;
     siteDesign?: 'classic' | 'shelf';
   }) {
     if (typeof input.registrationInviteRequired === 'boolean') {
@@ -115,6 +118,14 @@ export class AuthService {
         update: {
           value: input.registrationInviteRequired,
         },
+      });
+    }
+
+    if (typeof input.playbackRequiresRegistration === 'boolean') {
+      await this.prisma.appSetting.upsert({
+        where: { key: 'playbackRequiresRegistration' },
+        create: { key: 'playbackRequiresRegistration', value: input.playbackRequiresRegistration },
+        update: { value: input.playbackRequiresRegistration },
       });
     }
 

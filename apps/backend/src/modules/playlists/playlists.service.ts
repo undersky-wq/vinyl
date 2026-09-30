@@ -61,7 +61,7 @@ export class PlaylistsService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, includeAudioUrls = true) {
     const playlist = await this.prisma.playlist.findUnique({
       where: { id },
       include: {
@@ -85,7 +85,7 @@ export class PlaylistsService {
       return null;
     }
 
-    return this.signPlaylistAudioUrls(playlist);
+    return this.signPlaylistAudioUrls(playlist, includeAudioUrls);
   }
 
   async create(userId: string, dto: CreatePlaylistDto) {
@@ -313,7 +313,7 @@ export class PlaylistsService {
         };
       }>;
     },
-  >(playlist: T) {
+  >(playlist: T, includeAudioUrls = true) {
     const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
 
     return {
@@ -347,7 +347,7 @@ export class PlaylistsService {
                     )) || item.track.release.coverMediumStorageUrl
                   : item.track.release.coverMediumStorageUrl,
             },
-            audioFiles: await Promise.all(
+            audioFiles: includeAudioUrls ? await Promise.all(
               item.track.audioFiles.map(async (audioFile) => ({
                 ...audioFile,
                 storageUrl:
@@ -358,7 +358,7 @@ export class PlaylistsService {
                   audioFile.normalizedStorageUrl ||
                   audioFile.storageUrl,
               })),
-            ),
+            ) : item.track.audioFiles.map(audioFile => ({ ...audioFile, storageUrl: null, normalizedStorageUrl: null, storageKey: null, normalizedStorageKey: null })),
           },
         })),
       ),

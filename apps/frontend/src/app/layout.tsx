@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const hasSession = Boolean(cookieStore.get('vinyl_session')?.value);
   const [currentUser, siteSettings] = await Promise.all([
     hasSession ? getCurrentUser(cookieHeader) : Promise.resolve(null),
-    getRequestSiteSettings().catch(() => ({ siteDesign: 'classic' as const })),
+    getRequestSiteSettings().catch(() => ({ siteDesign: 'classic' as const, playbackRequiresRegistration: true })),
   ]);
   const favoriteTrackIds = currentUser ? await getFavorites(cookieHeader) : [];
 
@@ -45,7 +45,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body>
         <AdminEditModeSync />
-        <AuthProvider initialUser={currentUser}>
+        <AuthProvider initialUser={currentUser} playbackRequiresRegistration={siteSettings.playbackRequiresRegistration ?? true}>
           <FavoritesProvider initialFavoriteTrackIds={favoriteTrackIds}>
             <PlaylistsProvider>
               <PlayerProvider>

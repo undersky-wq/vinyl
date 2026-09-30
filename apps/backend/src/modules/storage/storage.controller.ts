@@ -5,16 +5,18 @@ import {
   Param,
   Req,
   Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { StorageService } from './storage.service';
+import { AuthService } from '../auth/auth.service';
 
 @Controller('media')
 export class StorageController {
-  constructor(private readonly storageService: StorageService) {}
+  constructor(private readonly storageService: StorageService, private readonly authService: AuthService) {}
 
   @Get(':bucket/*')
   async streamLocalObject(
@@ -23,6 +25,12 @@ export class StorageController {
     @Res() response: Response,
   ) {
     const key = decodeURIComponent(String(request.params[0] || ''));
+    if (path.extname(key).toLowerCase() === '.mp3') {
+      const settings = await this.authService.getAuthSettings();
+      if (settings.playbackRequiresRegistration && !await this.authService.getUserFromRequest(request)) {
+        throw new UnauthorizedException('Authentication required for playback');
+      }
+    }
     let filePath: string;
 
     try {

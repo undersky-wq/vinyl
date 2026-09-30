@@ -40,7 +40,8 @@ export class ReleasesController {
   @Get()
   async findAll(@Req() request: any, @Query() query: QueryReleasesDto) {
     const user = await this.authService.getUserFromRequest(request);
-    return this.releasesService.findAll(query, Boolean(user));
+    const settings = await this.authService.getAuthSettings();
+    return this.releasesService.findAll(query, Boolean(user) || !settings.playbackRequiresRegistration);
   }
 
   @Get('styles')
@@ -49,13 +50,17 @@ export class ReleasesController {
   }
 
   @Get('library-feed')
-  async findLibraryFeed(@Query() query: QueryReleasesDto) {
-    return this.releasesService.findLibraryFeed(query);
+  async findLibraryFeed(@Req() request: any, @Query() query: QueryReleasesDto) {
+    const user = await this.authService.getUserFromRequest(request);
+    const settings = await this.authService.getAuthSettings();
+    return this.releasesService.findLibraryFeed(query, Boolean(user) || !settings.playbackRequiresRegistration);
   }
 
   @Get('library-queue')
-  async findLibraryQueue(@Query() query: QueryReleasesDto) {
-    return this.releasesService.findLibraryQueue(query);
+  async findLibraryQueue(@Req() request: any, @Query() query: QueryReleasesDto) {
+    const user = await this.authService.getUserFromRequest(request);
+    const settings = await this.authService.getAuthSettings();
+    return this.releasesService.findLibraryQueue(query, Boolean(user) || !settings.playbackRequiresRegistration);
   }
 
   @Get('suggestions')
@@ -89,7 +94,8 @@ export class ReleasesController {
   @Get(':id')
   async findOne(@Req() request: any, @Param('id') id: string) {
     const user = await this.authService.getUserFromRequest(request);
-    return this.releasesService.findOne(id, Boolean(user));
+    const settings = await this.authService.getAuthSettings();
+    return this.releasesService.findOne(id, Boolean(user) || !settings.playbackRequiresRegistration);
   }
 
   @Get(':id/comments')
