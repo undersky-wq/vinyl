@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { MobileNav } from '../components/mobile-nav';
 import { CollectionTransitions } from '../components/collection-transitions';
 import { PlayerChrome } from '../components/player-chrome';
+import { TechnoDancer } from '../components/techno-dancer';
 import { AdminEditModeSync } from '../components/admin-edit-mode-sync';
 import { getCurrentUser, getFavorites } from '../lib/api';
 import { getRequestSiteSettings } from '../lib/server-site-settings';
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                   {children}
                   {siteSettings.siteDesign === 'shelf' ? <CollectionTransitions lang={lang} /> : null}
                   <PlayerChrome lang={lang} />
+                  <TechnoDancer />
                   <MobileNav lang={lang} />
                   <CookieConsent lang={lang} />
                 </DesignVariantProvider>

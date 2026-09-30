@@ -1,0 +1,37 @@
+.dancer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 151px;
+  width: auto;
+  aspect-ratio: 204 / 304;
+  max-height: 23vh;
+  z-index: 1201;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  animation: arrive 240ms ease-out both;
+}
+
+.dancer[data-dragging='true'] { cursor: grabbing; }
+.dancer:focus-visible { outline: 2px solid #4386db; outline-offset: 4px; }
+.dancer img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+
+@keyframes arrive {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .dancer {
+    height: 112px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dancer { display: none; animation: none; }
+}
