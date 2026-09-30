@@ -18,6 +18,7 @@ export function AuthScreen({
   const [currentMode, setCurrentMode] = useState<'login' | 'register'>(mode);
   const [status, setStatus] = useState('');
   const [isPending, setIsPending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const isRu = lang === 'ru';
   const isLogin = currentMode === 'login';
 
@@ -38,8 +39,10 @@ export function AuthScreen({
         ? 'Создай аккаунт, чтобы слушать треки, сохранять избранное и собирать личные плейлисты.'
         : 'Create an account to listen to tracks, save favorites and build personal playlists.',
     displayName: isRu ? 'Имя' : 'Display name',
-    loginName: 'Display name',
+    loginName: isRu ? 'Почта' : 'Email',
     password: isRu ? 'Пароль' : 'Password',
+    showPassword: isRu ? 'Показать' : 'Show',
+    hidePassword: isRu ? 'Скрыть' : 'Hide',
     inviteCode: isRu ? 'Инвайт-код администратора' : 'Admin invite code',
     privacyConsent: isRu
       ? 'Я даю согласие на обработку персональных данных и принимаю Политику обработки персональных данных.'
@@ -95,12 +98,31 @@ export function AuthScreen({
 
           <div className="field">
             <label htmlFor="email">{copy.loginName}</label>
-            <input id="email" name="email" type="email" required />
+            <input id="email" name="email" type="email" autoComplete="email" required />
           </div>
 
           <div className="field">
             <label htmlFor="password">{copy.password}</label>
-            <input id="password" name="password" type="password" minLength={8} required />
+            <div className="auth-password-field">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
+                minLength={8}
+                required
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                aria-controls="password"
+                aria-label={isRu ? 'Показать пароль' : 'Show password'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? copy.hidePassword : copy.showPassword}
+              </button>
+            </div>
           </div>
 
           {currentMode === 'register' ? (
@@ -130,7 +152,10 @@ export function AuthScreen({
         <button
           type="button"
           className="auth-mode-switch"
-          onClick={() => setCurrentMode((current) => (current === 'login' ? 'register' : 'login'))}
+          onClick={() => {
+            setCurrentMode((current) => (current === 'login' ? 'register' : 'login'));
+            setShowPassword(false);
+          }}
         >
           {copy.switchMode}
         </button>

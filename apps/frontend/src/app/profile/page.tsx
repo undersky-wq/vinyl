@@ -10,7 +10,6 @@ import { AuthScreen } from '../../components/auth-screen';
 import { ProfileScreen } from '../../components/profile-screen';
 import { ShelfThemeToggle } from '../../components/shelf-theme-toggle';
 import { LanguageSwitcher } from '../../components/language-switcher';
-import { DancerSetting } from '../../components/dancer-setting';
 
 function ProfileHeader({ lang }: { lang: 'ru' | 'en' }) {
   return <header className="paper-profile-header">
@@ -45,7 +44,6 @@ export default async function ProfilePage({
       <main className={siteSettings.siteDesign === 'shelf' ? 'paper-profile-page' : 'page-shell'}>
         {siteSettings.siteDesign === 'shelf' ? <ProfileHeader lang={lang} /> : <Topbar lang={lang} active="profile" />}
         <AuthScreen lang={lang} mode={mode === 'register' ? 'register' : 'login'} />
-        <div className="profile-actions"><DancerSetting lang={lang} /></div>
       </main>
     );
   }

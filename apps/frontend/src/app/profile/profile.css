@@ -74,6 +74,11 @@ body:has(.paper-profile-page) .mobile-nav{display:none}
 .paper-profile-page .auth-form .field label{color:#777;font:inherit}
 .paper-profile-page .auth-submit-button{background:#111;color:white;border:1px solid #111;border-radius:0;box-shadow:none;font:inherit}
 .paper-profile-page .auth-mode-switch{color:#777;font:inherit}
+.auth-password-field{display:flex;align-items:stretch;gap:12px;min-width:0}
+.auth-password-field input{flex:1;min-width:0}
+.auth-password-toggle{flex-shrink:0;padding:0 4px;border:0;border-bottom:1px solid currentColor;border-radius:0;background:none;color:inherit;font:inherit;box-shadow:none;cursor:pointer;transform:none}
+.auth-password-toggle:hover{opacity:.65;background:none;transform:none;box-shadow:none}
+.auth-password-toggle::before,.auth-password-toggle::after{display:none}
 .paper-profile-page :is(button,a):focus-visible{outline:1px solid #111;outline-offset:4px}
 .paper-profile-page .profile-panel,.paper-profile-page .auth-panel{animation:paper-profile-enter .7s cubic-bezier(.16,1,.3,1) both}
 @keyframes paper-profile-enter{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
