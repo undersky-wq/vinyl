@@ -88,6 +88,12 @@ html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(
 .paper-record-back{transform:rotateY(180deg)}
 .paper-record.is-flipped .paper-record-front{transform:rotateY(-180deg)}
 .paper-record.is-flipped .paper-record-back{transform:rotateY(0deg)}
+/* Only the two rotating faces may draw pixels; the stationary hit area
+   must never leave a rectangular shadow or edge behind the turning sleeve. */
+html body .paper-archive .paper-record:has(.paper-record-back){background:transparent!important;box-shadow:none!important}
+html body .paper-archive .paper-record:has(.paper-record-back)>.paper-record-edge{display:none}
+html body .paper-archive .paper-record:has(.paper-record-back)::before,
+html body .paper-archive .paper-record:has(.paper-record-back)::after{display:none}
 .paper-record img.paper-record-hires{position:absolute;inset:0}
 .paper-record{box-shadow:1px 1px 0 #0005,8px 16px 20px #00000018}
 .paper-record.is-hovered{transform:translateY(-72px) matrix(.76,.43,0,1,0,0);box-shadow:1px 1px 0 #0005,12px 40px 28px #0002}
