@@ -24,6 +24,7 @@ import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { PlayerMixActions } from './player-mix-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 import { usePlayerArtwork } from '../lib/use-player-artwork';
+import { useMiniPlayerLayoutMotion } from './use-mini-player-layout-motion';
 
 type MiniPlayerProps = {
   lang: SiteLang;
@@ -48,6 +49,7 @@ function formatTime(value: number) {
 
 export function MiniPlayer({ lang }: MiniPlayerProps) {
   const router = useRouter();
+  const miniPlayerRef = useRef<HTMLDivElement | null>(null);
   const {
     currentTrack,
     queue,
@@ -70,6 +72,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     toggleRepeat,
     togglePlayback,
   } = usePlayer();
+  useMiniPlayerLayoutMotion(miniPlayerRef, Boolean(currentTrack));
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
@@ -282,6 +285,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   return (
     <>
     <div
+      ref={miniPlayerRef}
       className={`mini-player${isFullPlayerOpen ? ' mini-player--hidden' : ''}`}
       role="button"
       tabIndex={0}

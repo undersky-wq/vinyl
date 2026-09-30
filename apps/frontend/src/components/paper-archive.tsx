@@ -18,6 +18,7 @@ import { ShelfMixTrack } from './shelf-mix-track';
 import { getHomeReleaseDetails, getHomeReleases } from '../lib/api';
 import { ShelfReleaseEditor } from './shelf-release-editor';
 import { shelfMobileLayout } from '../lib/shelf-mobile-layout';
+import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress } from '../lib/collection-layout-motion';
 import { CollectionPosition } from './collection-position';
 import { getBackCoverUrl, isBackSidePosition } from '../lib/release-images';
 const coverPreview = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || r.coverStorageUrl || r.coverImageUrl || '/icon.png';
@@ -189,6 +190,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     cancelAnimationFrame(layoutFrame.current);
     layoutFrame.current = 0;
     setAutoLayout(false);
+    setDragLayout(null);
   }
   useEffect(() => () => {
     cancelAnimationFrame(layoutFrame.current);
@@ -207,6 +209,9 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   // Without this, the grid's scrolling and opening styles never activate.
   const gridMix = dragLayout !== null ? Math.max(0, Math.min(1, dragLayout - 1)) : stretch >= .999 ? 1 : Math.max(0, (stretch - .55) / .45);
   const listMix = Math.max(0, Math.min(1, stretch - 1));
+  const activeLayout = dragLayout !== null
+    ? dragLayout < .5 ? 'shelf' : dragLayout < 1.5 ? 'stack' : dragLayout < 2.5 ? 'grid' : 'tracks'
+    : stackMode ? 'stack' : stretch < .5 ? 'shelf' : stretch < 1.5 ? 'grid' : 'tracks';
   // A tiny overshoot past the grid is still a cover view, not a playable row.
   const isTrackListInteractive = listMix > .85;
   const [listPan, setListPan] = useState(0);
@@ -395,6 +400,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     if (id === null) setShowPlaylists(false);
     stopAutoLayout();
     if (filterTimer.current) clearTimeout(filterTimer.current);
+    middleDrag.current = null;
+    setIsDragging(false);
     cancelAnimationFrame(scrollFrame.current);
     scrollFrame.current = 0;
     setPlaylistTransition(Boolean(id));
@@ -403,6 +410,12 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     filterTimer.current = setTimeout(() => {
       activeStylesRef.current = []; setActiveStyles([]); replaceStyleHash([]);
       setActivePlaylist(id); setSearch(''); setAppliedSearch('');
+      // Do not leave Stack's projection active over the Grid/Tracks layouts.
+      setStackMode(false); setStackSpread(false); setStackTransitioning(false);
+      if (stackTransitionTimer.current) clearTimeout(stackTransitionTimer.current);
+      stackTransitionTimer.current = null;
+      stackGridAnimations.current.forEach(animation => animation.cancel());
+      stackGridAnimations.current = []; stackGridFrames.current = null;
       setStretch(returnToShelf ? 2 : 0); setGridPan(0); setListPan(0);
       setWindowTravel(0); setWindowScroll(0);
       travel.current = {current:0,target:0}; transportOrigin.current = 0;
@@ -410,35 +423,26 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       if (transport.current) transport.current.style.transform = 'none';
       setFiltering(false);
       setPlaylistTransition(false);
-      if (returnToShelf) {
+      if (returnToShelf || id || favoritesMode || mixesMode) {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          setStretch(0);
+          setStretch(returnToShelf ? 0 : 2);
+          setDragLayout(null);
         } else {
+          // Reuse the same continuous Shelf -> Stack -> Grid -> Tracks morph
+          // as the middle-button gesture, including the reverse journey.
           setAutoLayout(true);
-          const start = performance.now() + 120;
-          const fold = (now: number) => {
-            const progress = Math.max(0, Math.min(1, (now - start) / 1500));
-            const eased = 1 - Math.pow(1 - progress, 3);
-            setStretch(2 * (1 - eased));
-            if (progress < 1) layoutFrame.current = requestAnimationFrame(fold);
-            else {layoutFrame.current = 0; setAutoLayout(false);}
+          applyMiddleLayout(returnToShelf ? 3 : 0, 0);
+          const start = performance.now() + 200;
+          const animate = (now: number) => {
+            const elapsed = Math.max(0, now - start);
+            applyMiddleLayout(collectionLayoutProgress(elapsed, returnToShelf), 0);
+            if (elapsed < COLLECTION_LAYOUT_DURATION) layoutFrame.current = requestAnimationFrame(animate);
+            else {
+              layoutFrame.current = 0;
+              setDragLayout(null); setAutoLayout(false);
+            }
           };
-          layoutFrame.current = requestAnimationFrame(fold);
-        }
-      } else if (id || favoritesMode || mixesMode) {
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          setStretch(2);
-        } else {
-          setAutoLayout(true);
-          const start = performance.now() + 250;
-          const unfold = (now: number) => {
-            const progress = Math.max(0, Math.min(1, (now - start) / 2000));
-            const eased = progress * progress * (3 - 2 * progress);
-            setStretch(2 * eased);
-            if (progress < 1) layoutFrame.current = requestAnimationFrame(unfold);
-            else {layoutFrame.current = 0; setAutoLayout(false);}
-          };
-          layoutFrame.current = requestAnimationFrame(unfold);
+          layoutFrame.current = requestAnimationFrame(animate);
         }
       }
     }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240);
@@ -964,7 +968,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     aria-label={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
     title={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
     onClick={event=>{event.stopPropagation();setIsCoverFlipped(value=>!value);}}><Rotate3D size={17}/></button> : null;
-  return <section ref={stage} style={{ '--drag-shelf': dragLayout === null ? 0 : Math.max(0, 1-dragLayout), '--drag-stack': dragLayout === null ? 0 : Math.max(0, 1-Math.abs(dragLayout-1)), '--drag-grid': dragLayout === null ? 0 : Math.max(0, Math.min(1, dragLayout-1)), '--grid-mix': gridMix, '--list-mix': listMix, '--list-size': `${listSize}px`, '--side-size': `${sideSize}px`, '--grid-size': `${gridSize}px`, '--grid-top': `${gridBounds.top}px`, '--grid-bottom': `${gridBounds.bottom}px` } as CSSProperties} className={`home-stage home-stage--shelf paper-archive${dragLayout !== null && dragLayout < 2 ? ' is-middle-morph' : ''}${motionEnabled ? ' has-motion' : ''}${release ? ' is-open' : ''}${expanded ? ' is-expanded' : ''}${filtering ? ' is-filtering' : ''}${isDragging || autoLayout ? ' is-stretching' : ''}${stackMode ? ' is-stack' : ''}${stackTransitioning ? ' is-stack-transitioning' : ''}${stackMode && stackSpread ? ' is-stack-spread' : ''}${gridMix >= 1 ? ' is-grid' : ''}${listMix > 0 ? ' is-listing' : ''}${isTrackCollection || playlistTransition || (mixesMode && listMix > 0) ? ' is-playlist' : ''}${mixesMode ? ' is-mixes' : ''}`} aria-label={mixesMode ? 'Mixes' : 'Vinyl collection'} onPointerMoveCapture={e => {
+  return <section ref={stage}
+    data-layout={activeLayout}
+    data-player-layout={activeLayout === 'stack' ? 'stack' : listMix > 0 ? 'tracks' : 'shelf'}
+    style={{ '--drag-shelf': dragLayout === null ? 0 : Math.max(0, 1-dragLayout), '--drag-stack': dragLayout === null ? 0 : Math.max(0, 1-Math.abs(dragLayout-1)), '--drag-grid': dragLayout === null ? 0 : Math.max(0, Math.min(1, dragLayout-1)), '--grid-mix': gridMix, '--list-mix': listMix, '--list-size': `${listSize}px`, '--side-size': `${sideSize}px`, '--grid-size': `${gridSize}px`, '--grid-top': `${gridBounds.top}px`, '--grid-bottom': `${gridBounds.bottom}px` } as CSSProperties} className={`home-stage home-stage--shelf paper-archive${dragLayout !== null && dragLayout < 2 ? ' is-middle-morph' : ''}${motionEnabled ? ' has-motion' : ''}${release ? ' is-open' : ''}${expanded ? ' is-expanded' : ''}${filtering ? ' is-filtering' : ''}${isDragging || autoLayout ? ' is-stretching' : ''}${stackMode ? ' is-stack' : ''}${stackTransitioning ? ' is-stack-transitioning' : ''}${stackMode && stackSpread ? ' is-stack-spread' : ''}${gridMix >= 1 ? ' is-grid' : ''}${listMix > 0 ? ' is-listing' : ''}${isTrackCollection || playlistTransition || (mixesMode && listMix > 0) ? ' is-playlist' : ''}${mixesMode ? ' is-mixes' : ''}`} aria-label={mixesMode ? 'Mixes' : 'Vinyl collection'} onPointerMoveCapture={e => {
     if (e.pointerType === 'touch' || motionEnabled) return;
     e.currentTarget.classList.add('has-motion');
     setMotionEnabled(true);
@@ -993,10 +1000,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
             <input className="paper-search" type="search" value={search} placeholder={ru ? 'Поиск' : 'Search'} aria-label={ru ? 'Поиск релизов и миксов' : 'Search releases and mixes'} onChange={e => {setSearch(e.target.value);filterByStyle(null, e.target.value);}} />
             {searchStatus && <span className="paper-search-status" role="status">{searchStatus}</span>}
             <nav className="paper-layout-controls" aria-label="Collection view">
-              <button aria-pressed={!stackMode && stretch < .5} onClick={() => changeCollectionLayout('shelf')}>{ru ? 'Полка' : 'Shelf'}</button>
-              <button aria-pressed={stackMode} onClick={() => changeCollectionLayout('stack')}>{ru ? 'Стопка' : 'Stack'}</button>
-              <button aria-pressed={!stackMode && stretch >= .5 && stretch < 1.5} onClick={() => changeCollectionLayout('grid')}>{ru ? 'Сетка' : 'Grid'}</button>
-              <button aria-pressed={!stackMode && stretch >= 1.5} onClick={() => changeCollectionLayout('tracks')}>{ru ? 'Треки' : 'Tracks'}</button>
+              <button aria-pressed={activeLayout === 'shelf'} onClick={() => changeCollectionLayout('shelf')}>{ru ? 'Полка' : 'Shelf'}</button>
+              <button aria-pressed={activeLayout === 'stack'} onClick={() => changeCollectionLayout('stack')}>{ru ? 'Стопка' : 'Stack'}</button>
+              <button aria-pressed={activeLayout === 'grid'} onClick={() => changeCollectionLayout('grid')}>{ru ? 'Сетка' : 'Grid'}</button>
+              <button aria-pressed={activeLayout === 'tracks'} onClick={() => changeCollectionLayout('tracks')}>{ru ? 'Треки' : 'Tracks'}</button>
             </nav>
           </div>
         </div>

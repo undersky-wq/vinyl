@@ -37,27 +37,25 @@ html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(
 html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page)) .mini-player .progress-slider::-webkit-slider-thumb{background:#111;box-shadow:none;width:6px;height:6px;margin-top:-2px}
 html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page)) .mini-player .progress-slider::-moz-range-thumb{background:#111;box-shadow:none;width:6px;height:6px;border:0}
 @media(min-width:701px){
-  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive.is-stack) .mini-player{
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive[data-player-layout='stack']) .mini-player{
     --stack-player-gap:clamp(20px,3vw,56px);
     left:3vw!important;right:3vw!important;width:auto!important;
     grid-template-columns:minmax(150px,calc(47vw - min(17vw,20vh,210px) - var(--stack-player-gap) - 16px)) calc(min(34vw,40vh,420px) + var(--stack-player-gap) + var(--stack-player-gap)) auto minmax(90px,1fr);
     align-items:center
   }
-  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive.is-stack) .mini-player__track{
-    grid-column:1;justify-self:center;width:min(100%,clamp(240px,20vw,360px));animation:paper-player-left-in .85s cubic-bezier(.16,1,.3,1) both
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive[data-player-layout='stack']) .mini-player__track{
+    grid-column:1;justify-self:center;width:min(100%,clamp(240px,20vw,360px))
   }
-  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive.is-stack) .mini-player__controls{
-    grid-column:3;animation:paper-player-right-in .85s cubic-bezier(.16,1,.3,1) both
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive[data-player-layout='stack']) .mini-player__controls{
+    grid-column:3
   }
-  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive.is-stack) .mini-player__timeline{
-    grid-column:4;min-width:0;animation:paper-player-right-in .85s cubic-bezier(.16,1,.3,1) both
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive[data-player-layout='stack']) .mini-player__timeline{
+    grid-column:4;min-width:0
   }
-  @keyframes paper-player-left-in{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:translateX(0)}}
-  @keyframes paper-player-right-in{from{opacity:0;transform:translateX(-48px)}to{opacity:1;transform:translateX(0)}}
 }
 @media(min-width:701px) and (prefers-reduced-motion:reduce){
-  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive.is-stack) .mini-player,
-  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive.is-stack) :is(.mini-player__track,.mini-player__controls,.mini-player__timeline){transition:none;animation:none}
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive[data-player-layout='stack']) .mini-player,
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive[data-player-layout='stack']) :is(.mini-player__track,.mini-player__controls,.mini-player__timeline){transition:none;animation:none}
 }
 @media(max-width:700px){html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page)) .mini-player{bottom:max(18px,env(safe-area-inset-bottom));grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;font-size:14px}html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page)) .mini-player__timeline{grid-column:1/-1;max-width:180px;justify-self:end;width:100%}}
 .paper-header{position:absolute;z-index:5;top:28px;left:3%;right:3%;display:flex;justify-content:space-between;font-size:14px;font-weight:600;pointer-events:none}
@@ -409,6 +407,12 @@ html body .paper-archive .paper-release-styles .paper-release-style.is-active{co
 .paper-archive{--list-left:29vw}
 .paper-archive.is-playlist .paper-playlists{max-width:22vw}
 html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page)) .mini-player{transition:width 1s cubic-bezier(.16,1,.3,1),right 1s cubic-bezier(.16,1,.3,1)}
+/* Desktop geometry is animated as three continuous pieces by the layout hook.
+   A competing container transition would move them twice on Stack changes. */
+@media(min-width:701px){
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive) .mini-player{transition:background-color .35s ease,color .35s ease!important}
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive) :is(.mini-player__track,.mini-player__controls,.mini-player__timeline){transition:none!important}
+}
 html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive.is-playlist.is-listing) .mini-player{width:68vw;right:3vw}
 @media(max-width:700px){
   .paper-archive{--list-left:42vw}
