@@ -23,8 +23,10 @@ import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { PlayerMixActions } from './player-mix-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
-import { usePlayerArtwork } from '../lib/use-player-artwork';
+import { usePlayerArtwork, usePlayerBackArtwork } from '../lib/use-player-artwork';
 import { useMiniPlayerLayoutMotion } from './use-mini-player-layout-motion';
+import { isBackSidePosition } from '../lib/release-images';
+import { PlayerReleaseDetails } from './player-release-details';
 
 type MiniPlayerProps = {
   lang: SiteLang;
@@ -77,6 +79,11 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const fullArtwork = usePlayerArtwork(currentTrack, isFullPlayerOpen);
+  const backArtwork = usePlayerBackArtwork(currentTrack, isFullPlayerOpen);
+  const [isCoverFlipped, setIsCoverFlipped] = useState(false);
+  useEffect(() => {
+    setIsCoverFlipped(Boolean(backArtwork) && isBackSidePosition(currentTrack?.position));
+  }, [currentTrack?.id, currentTrack?.position, backArtwork]);
   const [overlayDragProgress, setOverlayDragProgress] = useState<number | null>(null);
   const [isOverlayQueueOpen, setIsOverlayQueueOpen] = useState(false);
   const [overlayQueueClosing, setOverlayQueueClosing] = useState(false);
@@ -504,16 +511,18 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
 
           <button
             type="button"
-            className={`player-page__cover-frame player-page__cover-button slide-${trackDirection}`}
+            className={`player-page__cover-frame player-page__cover-button slide-${trackDirection}${isCoverFlipped ? ' is-flipped' : ''}`}
             key={`mobile-cover-${currentTrack.id}`}
             onClick={() => setIsFullPlayerOpen(false)}
             aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
           >
-            <CoverImage src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
+            <CoverImage className="player-cover-face player-cover-front" src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
+            {backArtwork ? <CoverImage className="player-cover-face player-cover-back" src={backArtwork} alt={lang === 'ru' ? `Обратная сторона ${currentTrack.title}` : `${currentTrack.title} back cover`} width={520} height={520} loading="eager" /> : null}
           </button>
           <div className={`player-page__meta slide-${trackDirection}`} key={`mobile-meta-${currentTrack.id}`}>
-            <p>{currentTrack.artist}</p>
-            <h1>{currentTrack.title}</h1>
+            <h1 className="player-page__artist">{currentTrack.artist}</h1>
+            <p className="player-page__track-title">{currentTrack.title}</p>
+            <PlayerReleaseDetails releaseId={currentTrack.releaseId} backArtwork={backArtwork} flipped={isCoverFlipped} onFlip={()=>setIsCoverFlipped(value=>!value)} lang={lang}/>
           </div>
 
           <div className={`player-page__timeline slide-${trackDirection}`} key={`mobile-timeline-${currentTrack.id}`}>

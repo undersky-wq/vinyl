@@ -37,7 +37,8 @@ html[data-visual-variant='shelf'][data-shelf-theme='dark'] ::selection { backgro
 .shelf-form-status { min-height:18px;font-size:11px;color:var(--shelf-web-muted); }
 .shelf-form-track { display:grid;grid-template-columns:30px minmax(0,1fr) 112px 42px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--shelf-web-line); }
 .shelf-form-track-text input { padding:4px 0; }
-.shelf-form-track-text input+input { font-size:11px;color:var(--shelf-web-muted)!important; }
+.shelf-form-track-text input.shelf-form-track-artist { font-size:14px;font-weight:600; }
+.shelf-form-track-text input.shelf-form-track-title { font-size:12px;font-weight:400;color:var(--shelf-web-muted)!important; }
 .shelf-form-audio { display:grid;gap:2px; }
 .shelf-form-audio .has-audio { color:#31805a; }
 .shelf-form-track-actions { display:flex;gap:10px; }

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ListOrdered, Pause, Play, Repeat2, Rotate3D, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronDown, ListOrdered, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -15,6 +15,7 @@ import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 import { usePlayerArtwork, usePlayerBackArtwork } from '../lib/use-player-artwork';
 import { isBackSidePosition } from '../lib/release-images';
+import { PlayerReleaseDetails } from './player-release-details';
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -219,11 +220,11 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
           <CoverImage className="player-cover-face player-cover-front" src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
           {backArtwork ? <CoverImage className="player-cover-face player-cover-back" src={backArtwork} alt={lang === 'ru' ? `Обратная сторона ${currentTrack.title}` : `${currentTrack.title} back cover`} width={520} height={520} loading="eager" /> : null}
         </button>
-        {backArtwork ? <button type="button" className="player-page__cover-flip" aria-pressed={isCoverFlipped} aria-label={isCoverFlipped ? (lang === 'ru'?'Показать лицевую сторону':'Show front cover') : (lang === 'ru'?'Показать обратную сторону':'Show back cover')} onClick={()=>setIsCoverFlipped(value=>!value)}><Rotate3D size={19}/><span>{isCoverFlipped ? (lang === 'ru'?'Лицевая':'Front') : (lang === 'ru'?'Обратная':'Back')}</span></button> : null}
       </div>
       <div className={`player-page__meta slide-${trackDirection}`} key={`meta-${currentTrack.id}`}>
-        <p>{currentTrack.artist}</p>
-        <h1>{currentTrack.title}</h1>
+        <h1 className="player-page__artist">{currentTrack.artist}</h1>
+        <p className="player-page__track-title">{currentTrack.title}</p>
+        <PlayerReleaseDetails releaseId={currentTrack.releaseId} backArtwork={backArtwork} flipped={isCoverFlipped} onFlip={()=>setIsCoverFlipped(value=>!value)} lang={lang}/>
       </div>
 
       <div className={`player-page__timeline slide-${trackDirection}`} key={`timeline-${currentTrack.id}`}>

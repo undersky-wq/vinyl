@@ -6,6 +6,7 @@ import { Trash2 } from 'lucide-react';
 import { useDancerPreference } from '../lib/use-dancer-preference';
 import { getHomeReleaseDetails } from '../lib/api';
 import { usePlayerTransport } from '../providers/player-provider';
+import type { ArtistFact } from '../lib/artist-facts';
 import styles from './techno-dancer.module.css';
 
 const remarks = [
@@ -49,6 +50,21 @@ const remarks = [
   'Ты мышкой, я ножками. Каждому свое.',
   'Я пришел за хлебом, но услышал техно.',
   'Все вопросы после сета, пожалуйста.',
+  'Я не завис. Это брейкдаун длиной в жизнь.',
+  'Не трогай артиста во время работы ногами.',
+  'Два клика — это уже перкуссия.',
+  'У меня четыре четверти и ноль свободного времени.',
+  'Кнопка «домой» на этом рейве не работает.',
+  'Я на удалёнке. Удалённо от бара.',
+  'Ты меня таскаешь, а я таскаюсь по рейвам.',
+  'Можно без запросов? Я не Shazam, я шаман.',
+  'Мои колени приняли пользовательское соглашение.',
+  'Не закрывай вкладку. Я тут прописан по груву.',
+  'Охрана сказала: танцуй. Я человек обязательный.',
+  'Я маленький, зато бас воспринимаю в натуральную величину.',
+  'Не кликай по мне: у меня и так жизнь в четыре четверти.',
+  'Подвинь курсор. У нас тут соло локтем.',
+  'Физкультура? Нет, культурная программа.',
 ];
 
 const thoughts = [
@@ -82,6 +98,26 @@ const thoughts = [
   'Все дела подождут до конца сета.',
   '«{track}» явно знает, что делает.',
   'Такой грув просто так не отпускает.',
+  'Будильник на утро? Оптимистично.',
+  'Кардио оплатил винилом.',
+  'Вышел на пять минут. Вернулся в понедельник.',
+  'Серьёзное лицо. Несерьёзные движения.',
+  'В этой бочке больше порядка, чем в моём расписании.',
+  '«{track}» — уважительная причина опоздать.',
+  'Где гардероб? Я сдал туда чувство времени.',
+  'Мои шаги считает драм-машина.',
+  'Понедельник отменяется по техническим причинам.',
+  'Пластинка круглая. Планы снова пошли по кругу.',
+  'Сон — это длинный брейкдаун без баса.',
+  'Мне бы такую стабильность, как у этого кика.',
+  'Кто поставил «{track}»? Вы приняты в семью.',
+  'Танцую так, будто завтра нет созвона.',
+  'Вода, бас, повторить. Сложная стратегия.',
+  'Тут даже интроверт вышел на припев.',
+  'Соседи тоже коллекционируют. Жалобы.',
+  'Рейв закончится. Этот трек останется.',
+  'Ещё один релиз. Последний. В этой вкладке.',
+  'Мой фитнес-тренер — человек за вертушками.',
 ];
 
 export function TechnoDancer() {
@@ -101,6 +137,10 @@ export function TechnoDancer() {
   const bubbleRef = useRef<HTMLSpanElement>(null);
   const [remark, setRemark] = useState<string | null>(null);
   const [thought, setThought] = useState<string | null>(null);
+  const artistFact = useRef<ArtistFact | null>(null);
+  const factCache = useRef(new Map<string, { fact: ArtistFact | null; expires: number }>());
+  const lastFactAt = useRef(0);
+  const spokenFacts = useRef(new Set<string>());
   const lastThought = useRef(-1);
   const lastRemark = useRef(-1);
   const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -165,6 +205,26 @@ export function TechnoDancer() {
   }, [visible]);
 
   useEffect(() => {
+    artistFact.current = null;
+    const artist = currentTrack?.artist?.trim();
+    if (!visible || !artist || document.hidden) return;
+    const cached = factCache.current.get(artist);
+    if (cached && cached.expires > Date.now()) { artistFact.current = cached.fact; return; }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    fetch(`/artist-facts?artist=${encodeURIComponent(artist)}`, { signal: controller.signal })
+      .then(response => response.ok ? response.json() : null)
+      .then((data: { fact?: ArtistFact | null } | null) => {
+        if (controller.signal.aborted) return;
+        const fact = data?.fact || null;
+        if (factCache.current.size >= 100) factCache.current.delete(factCache.current.keys().next().value!);
+        factCache.current.set(artist, { fact, expires: Date.now() + (fact ? 86400000 : 600000) });
+        artistFact.current = fact;
+      }).catch(() => {}).finally(() => clearTimeout(timer));
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [visible, currentTrack?.artist]);
+
+  useEffect(() => {
     setThought(null);
     if (!visible || dragging || remark !== null) return;
     let nextTimer: ReturnType<typeof setTimeout>;
@@ -172,19 +232,28 @@ export function TechnoDancer() {
     const schedule = (delay: number) => {
       nextTimer = setTimeout(() => {
         if (document.hidden) { schedule(16000); return; }
+        const fact = artistFact.current;
+        const showFact = Boolean(fact && !spokenFacts.current.has(fact.source) && Date.now() - lastFactAt.current > 90000);
         const choices = thoughts.map((_, index) => index).filter(index => index !== lastThought.current);
         const index = choices[Math.floor(Math.random() * choices.length)];
         lastThought.current = index;
-        setThought(thoughts[index].replaceAll('{track}', currentTrack?.title.trim() || 'Этот трек'));
+        if (showFact && fact) {
+          lastFactAt.current = Date.now();
+          if (spokenFacts.current.size >= 100) spokenFacts.current.clear();
+          spokenFacts.current.add(fact.source);
+          setThought(`Между двумя бочками — мини-факт: ${fact.text}`);
+        } else {
+          setThought(thoughts[index].replaceAll('{track}', currentTrack?.title.trim() || 'Этот трек'));
+        }
         hideTimer = setTimeout(() => {
           setThought(null);
           schedule(16000 + Math.random() * 12000);
-        }, 6000);
+        }, showFact ? 14000 : 6000);
       }, delay);
     };
     schedule(12000 + Math.random() * 8000);
     return () => { clearTimeout(nextTimer); clearTimeout(hideTimer); };
-  }, [visible, dragging, remark, currentTrack?.id, currentTrack?.title]);
+  }, [visible, dragging, remark, currentTrack?.id, currentTrack?.title, currentTrack?.artist]);
 
   useLayoutEffect(() => {
     if (!remark && !thought) return;
@@ -344,7 +413,9 @@ export function TechnoDancer() {
       <img ref={imageRef} src="/techno-dancer.webp" alt="" draggable={false} />
       <canvas ref={frameRef} className={styles.frozenFrame} aria-hidden="true" />
     </button>
-    {(remark || thought) && <span ref={bubbleRef} key={remark || thought} className={`${styles.bubble}${remark ? '' : ` ${styles.thought}`}`} role={remark ? 'status' : undefined} aria-live={remark ? 'polite' : 'off'}>{remark || thought}</span>}
+    {(remark || thought) && <span ref={bubbleRef} key={remark || thought} className={`${styles.bubble}${remark ? '' : ` ${styles.thought}`}`} role={remark ? 'status' : undefined} aria-live={remark ? 'polite' : 'off'}>
+      {remark || thought}
+    </span>}
     {dragging && <div ref={trashRef} className={styles.trash} data-active={overTrash} aria-hidden="true">
       <Trash2 size={28} />
       <span>{overTrash ? 'Отпусти, чтобы убрать' : 'Убрать персонажа'}</span>

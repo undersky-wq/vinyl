@@ -2507,7 +2507,8 @@ textarea {
 .player-page__meta {
   display: grid;
   gap: 6px;
-  text-align: center;
+  width: min(72vw, 420px);
+  text-align: left;
 }
 
 .player-page__meta p,
@@ -2517,13 +2518,39 @@ textarea {
 
 .player-page__meta p {
   color: var(--muted);
-  font-weight: 700;
+  font-size: clamp(1rem, 3vw, 1.35rem);
+  font-weight: 400;
 }
 
 .player-page__meta h1 {
   font-size: clamp(1.6rem, 7vw, 3rem);
   line-height: 1;
 }
+
+.player-page__release-details {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:24px;
+  color:var(--muted);
+  font:400 12px/1.3 Arial,Helvetica,sans-serif;
+}
+.player-page__release-details:empty { display:none; }
+.player-page__cover-flip.player-page__cover-flip--metadata {
+  position:static;
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:inherit;
+  box-shadow:none;
+  backdrop-filter:none;
+}
+.player-page__cover-flip--metadata:hover { color:var(--text); }
 
 .player-page__play {
   position: relative;
