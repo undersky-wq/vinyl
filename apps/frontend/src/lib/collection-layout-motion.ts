@@ -10,3 +10,9 @@ export function collectionLayoutProgress(elapsed: number, reverse = false) {
   const value = leg + t * t * (3 - 2 * t);
   return reverse ? 3 - value : value;
 }
+
+export function mergeVisibleReleaseIndices(previous: number[], current: number[], count: number) {
+  return [...new Set([...previous, ...current])]
+    .filter(index => Number.isInteger(index) && index >= 0 && index < count)
+    .sort((a, b) => a - b);
+}

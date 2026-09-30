@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress } from '../src/lib/collection-layout-motion.ts';
+import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress, mergeVisibleReleaseIndices } from '../src/lib/collection-layout-motion.ts';
 
 assert.equal(collectionLayoutProgress(-100), 0);
 assert.equal(collectionLayoutProgress(COLLECTION_LAYOUT_DURATION + 100), 3);
@@ -22,3 +22,7 @@ for (const reverse of [false, true]) {
   assert.equal(previous, reverse ? 0 : 3);
 }
 console.log('PASS: Shelf / Stack / Grid / Tracks, continuous forward and reverse morphs');
+assert.deepEqual(mergeVisibleReleaseIndices([25, 32, 63], [0, 1, 2], 3), [0, 1, 2]);
+assert.deepEqual(mergeVisibleReleaseIndices([0, 1], [], 0), []);
+assert.deepEqual(mergeVisibleReleaseIndices([0, 1, 1, -1], [1, 2, 999], 3), [0, 1, 2]);
+console.log('PASS: catalog -> short playlist, empty playlist and deduplicated visible windows');

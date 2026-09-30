@@ -18,7 +18,7 @@ import { ShelfMixTrack } from './shelf-mix-track';
 import { getHomeReleaseDetails, getHomeReleases } from '../lib/api';
 import { ShelfReleaseEditor } from './shelf-release-editor';
 import { shelfMobileLayout } from '../lib/shelf-mobile-layout';
-import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress } from '../lib/collection-layout-motion';
+import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress, mergeVisibleReleaseIndices } from '../lib/collection-layout-motion';
 import { CollectionPosition } from './collection-position';
 import { getBackCoverUrl, isBackSidePosition } from '../lib/release-images';
 const coverPreview = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || r.coverStorageUrl || r.coverImageUrl || '/icon.png';
@@ -882,8 +882,14 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     return nearY && nearX ? [i] : [];
   });
   const shelfVisibleIndices = useRef<number[]>([]);
+  const visibleCatalogKey = useMemo(() => releases.map(item => item.id).join('\0'), [releases]);
+  const previousVisibleCatalogKey = useRef(visibleCatalogKey);
+  if (previousVisibleCatalogKey.current !== visibleCatalogKey) {
+    shelfVisibleIndices.current = [];
+    previousVisibleCatalogKey.current = visibleCatalogKey;
+  }
   const visibleIndices = (shelfTransitioning && !stackMode) || stackTransitioning || dragLayout !== null
-    ? [...new Set([...shelfVisibleIndices.current, ...rawVisibleIndices])].sort((a,b) => a-b)
+    ? mergeVisibleReleaseIndices(shelfVisibleIndices.current, rawVisibleIndices, releases.length)
     : rawVisibleIndices;
   shelfVisibleIndices.current = visibleIndices;
   useLayoutEffect(() => {
