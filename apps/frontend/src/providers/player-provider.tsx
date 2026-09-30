@@ -19,6 +19,11 @@ export type PlayerTrack = {
   audioUrl: string;
   coverUrl: string;
   coverFullUrl?: string;
+  frontCoverUrl?: string;
+  frontCoverFullUrl?: string;
+  backCoverUrl?: string;
+  position?: string | null;
+  coverSide?: 'front' | 'back';
   releaseId?: string;
   waveformData?: number[];
   isPublic?: boolean;

@@ -2311,6 +2311,7 @@ textarea {
   place-items: center;
   overflow: hidden;
   border-radius: 24px;
+  background: transparent;
   will-change: transform, opacity;
 }
 

@@ -19,7 +19,7 @@ import { getHomeReleaseDetails, getHomeReleases } from '../lib/api';
 import { ShelfReleaseEditor } from './shelf-release-editor';
 import { shelfMobileLayout } from '../lib/shelf-mobile-layout';
 import { CollectionPosition } from './collection-position';
-import { getBackCoverUrl } from '../lib/release-images';
+import { getBackCoverUrl, isBackSidePosition } from '../lib/release-images';
 const coverPreview = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || r.coverStorageUrl || r.coverImageUrl || '/icon.png';
 const coverFull = (r: HomeRelease) => r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
 const cover = coverPreview;
@@ -302,6 +302,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   })), [baseSleeves, stretch]);
   const [selected, setSelected] = useState<number | null>(null);
   const [isCoverFlipped, setIsCoverFlipped] = useState(false);
+  const [flippedListCovers, setFlippedListCovers] = useState<Set<string>>(() => new Set());
   const [expanded, setExpanded] = useState(false);
   const stage = useRef<HTMLElement | null>(null);
   const transport = useRef<HTMLDivElement | null>(null);
@@ -561,7 +562,12 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   }
   const release = selected === null ? null : releases[selected];
   const backCoverUrl = getBackCoverUrl(release);
+  const activeReleaseTrackPosition = release?.tracks.find(track => track.id === currentTrack?.id)?.position;
   useEffect(() => setIsCoverFlipped(false), [release?.id, expanded]);
+  useEffect(() => {
+    if (!expanded || !release || !backCoverUrl || !activeReleaseTrackPosition) return;
+    setIsCoverFlipped(isBackSidePosition(activeReleaseTrackPosition));
+  }, [activeReleaseTrackPosition, backCoverUrl, currentTrack?.id, expanded, release?.id]);
   useLayoutEffect(() => {
     const root = stage.current;
     const label = root?.querySelector<HTMLElement>('.is-stack-preview');
@@ -795,7 +801,20 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   function play(id: string, source = release) {
     if (performance.now() < suppressTrackClick.current) return;
     if (!source) return;
-    const queue = (isTrackCollection ? releases : [source]).flatMap(r => r.tracks.filter(t => t.audioUrl).map(t => ({ ...t, waveformData: t.waveformData || [], artist: r.artist, coverUrl: cover(r), coverFullUrl: r.coverStorageUrl || r.coverImageUrl || cover(r), releaseId: r.id, isPublic: Boolean(r.isMix) })));
+    const queue = (isTrackCollection ? releases : [source]).flatMap(r => {
+      const frontCoverUrl = cover(r);
+      const frontCoverFullUrl = r.coverStorageUrl || r.coverImageUrl || frontCoverUrl;
+      const backCoverUrl = getBackCoverUrl(r);
+      return r.tracks.filter(t => t.audioUrl).map(t => {
+        const backSide = Boolean(backCoverUrl) && isBackSidePosition(t.position);
+        return { ...t, waveformData: t.waveformData || [], artist: r.artist,
+          coverUrl: backSide ? backCoverUrl : frontCoverUrl,
+          coverFullUrl: backSide ? backCoverUrl : frontCoverFullUrl,
+          frontCoverUrl, frontCoverFullUrl, backCoverUrl,
+          coverSide: backSide ? 'back' as const : 'front' as const,
+          releaseId: r.id, isPublic: Boolean(r.isMix) };
+      });
+    });
     if (currentTrack?.id === id) {togglePlayback(); return;}
     const index = queue.findIndex(t => t.id === id); if (index >= 0) playQueue(queue, index);
   }
@@ -941,6 +960,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     const maximum = sleeves.at(-1)?.position || 0;
     return { index, progress: maximum ? center / maximum : 0 };
   }
+  const coverFlipControl = expanded && backCoverUrl ? <button type="button" className="paper-cover-flip paper-cover-flip--icon" aria-pressed={isCoverFlipped}
+    aria-label={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
+    title={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
+    onClick={event=>{event.stopPropagation();setIsCoverFlipped(value=>!value);}}><Rotate3D size={17}/></button> : null;
   return <section ref={stage} style={{ '--drag-shelf': dragLayout === null ? 0 : Math.max(0, 1-dragLayout), '--drag-stack': dragLayout === null ? 0 : Math.max(0, 1-Math.abs(dragLayout-1)), '--drag-grid': dragLayout === null ? 0 : Math.max(0, Math.min(1, dragLayout-1)), '--grid-mix': gridMix, '--list-mix': listMix, '--list-size': `${listSize}px`, '--side-size': `${sideSize}px`, '--grid-size': `${gridSize}px`, '--grid-top': `${gridBounds.top}px`, '--grid-bottom': `${gridBounds.bottom}px` } as CSSProperties} className={`home-stage home-stage--shelf paper-archive${dragLayout !== null && dragLayout < 2 ? ' is-middle-morph' : ''}${motionEnabled ? ' has-motion' : ''}${release ? ' is-open' : ''}${expanded ? ' is-expanded' : ''}${filtering ? ' is-filtering' : ''}${isDragging || autoLayout ? ' is-stretching' : ''}${stackMode ? ' is-stack' : ''}${stackTransitioning ? ' is-stack-transitioning' : ''}${stackMode && stackSpread ? ' is-stack-spread' : ''}${gridMix >= 1 ? ' is-grid' : ''}${listMix > 0 ? ' is-listing' : ''}${isTrackCollection || playlistTransition || (mixesMode && listMix > 0) ? ' is-playlist' : ''}${mixesMode ? ' is-mixes' : ''}`} aria-label={mixesMode ? 'Mixes' : 'Vinyl collection'} onPointerMoveCapture={e => {
     if (e.pointerType === 'touch' || motionEnabled) return;
     e.currentTarget.classList.add('has-motion');
@@ -1140,7 +1163,11 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       const p = sleeves[i].position / 24;
       const side = selected === null ? 0 : gridMix >= 1 ? (i % columns < Math.ceil(columns / 2) ? -1 : 1) : i < selected ? -1 : 1;
       const isPriorityCover = selected === i || mobilePriorityIndices.has(i) || (visibleRank >= priorityCoverStart && visibleRank < priorityCoverStart + 6);
-      return <button type="button" key={`${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} data-index={i} className={`paper-record${selected === i ? ' is-selected' : ''}${selected === i && isCoverFlipped ? ' is-flipped' : ''}${selected !== null && gridMix === 0 && (i === selected + 1 || i === 0) ? ' is-front-sleeve' : ''}${hovered === i && selected !== i ? ' is-hovered' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`}
+      const activeTrack = r.tracks.find(track => track.id === currentTrack?.id);
+      const showBackCover = Boolean(getBackCoverUrl(r)) && (selected === i
+        ? isCoverFlipped
+        : flippedListCovers.has(r.id) || isBackSidePosition(activeTrack?.position) || (isTrackCollection && isBackSidePosition(r.tracks[0]?.position)));
+      return <button type="button" key={`${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} data-index={i} className={`paper-record${selected === i ? ' is-selected' : ''}${showBackCover ? ' is-flipped' : ''}${selected !== null && gridMix === 0 && (i === selected + 1 || i === 0) ? ' is-front-sleeve' : ''}${hovered === i && selected !== i ? ' is-hovered' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`}
 style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${stackMode && selected === null && hovered !== null ? (i > hovered ? -.12 : i < hovered ? .23 : -.03) : 0})`, '--rise': `${sleeves[i].rise}px`, '--stack-relative': selected === null ? 0 : selected - i, '--stack-side': selected === null ? 0 : Math.sign(selected - i), '--grid-x': `${gridLeft + (i % columns) * cell}px`, '--grid-y': `${gridBounds.top + 12 + Math.floor(i / columns) * cell - (gridMix < 1 ? gridPan : 0)}px`, '--list-y': `${listLayout.positions[i]}px`, '--mix-list-x': `${3 + (i % 2) * 48.5}vw`, '--mix-column': i % 2, '--grid-side-x': `${i % columns < Math.ceil(columns / 2) ? 12 + (i % columns) * sideStep : viewport.width - sideSize - 12 - (columns - 1 - i % columns) * sideStep}px`, '--split': side, zIndex: selected === i ? releases.length + 2 : releases.length - i } as CSSProperties}
         aria-label={`${r.artist} — ${r.title}`} aria-expanded={selected === i}
         onFocus={() => {if(!stackMode && !scrollFrame.current && releases.length > 1 && i > 0) setHovered(i);}} onBlur={() => setHovered(null)}
@@ -1182,7 +1209,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
         onDragOver={e => {const target=r.tracks[0];if(activePlaylist&&dragTrack&&target){e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:target.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}
         onDrop={e => {const target=r.tracks[0];if(!activePlaylist||!dragTrack||!target)return;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();void movePlaylistTrack(dragTrack,target.id,e.clientY<rect.top+rect.height/2?'before':'after');setDragTrack(null);setDropTarget(null);suppressTrackClick.current=performance.now()+250;}}
         className={`paper-list-tracks${isTrackCollection ? ' is-compact-track' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`} key={`tracks-${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} style={{ top: (gridBounds.top + 12 + Math.floor(i / columns)*cell)*(1-listMix) + listLayout.positions[i]*listMix, opacity:listMix, pointerEvents:isTrackListInteractive ? 'auto':'none' }}>
-        {!isTrackCollection && <h2><span>{r.artist} : <span className="paper-release-title-regular">{r.title}</span></span>{r.year ? <time dateTime={String(r.year)}>{r.year}</time> : null}</h2>}
+        {!isTrackCollection && <><h2><span>{r.artist} : <span className="paper-release-title-regular">{r.title}</span></span>{r.year ? <time dateTime={String(r.year)}>{r.year}</time> : null}</h2>{getBackCoverUrl(r) ? <button type="button" className="paper-list-cover-flip" aria-pressed={flippedListCovers.has(r.id)} aria-label={ru?'Перевернуть обложку':'Flip cover'} title={ru?'Перевернуть обложку':'Flip cover'} onClick={event=>{event.stopPropagation();setFlippedListCovers(current=>{const next=new Set(current);if(next.has(r.id))next.delete(r.id);else next.add(r.id);return next;});}}><Rotate3D size={16}/></button> : null}</>}
         {mixesMode ? <ShelfMixTrack release={r} lang={uiLang} yearInHeading actions={r.tracks[0] ? trackActions(r.tracks[0].id) : null} onCommentsOpenChange={(open,count)=>setOpenMixComments(current=>{const next=new Map(current);if(open)next.set(r.id,count);else next.delete(r.id);return next;})} /> : r.tracks.map(t => <div key={t.id} className={`paper-track-line${dragTrack === t.id ? ' is-dragging' : ''}${dropTarget?.trackId === t.id ? ` is-drop-${dropTarget.side}` : ''}${currentTrack?.id === t.id ? ' is-playing' : ''}`}
           draggable={Boolean(activePlaylist) && !savingOrder && isTrackListInteractive}
           onDragStart={e => {if ((e.target as Element).closest('.paper-track-actions')) {e.preventDefault();return;} e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',t.id);setDragTrack(t.id);suppressTrackClick.current=Infinity;}}
@@ -1211,9 +1238,8 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
     </div>}
     {release && (expanded || stackMode) && <aside className={`paper-tracklist${stackMode && !expanded ? ' is-stack-preview' : ''}`} aria-label={`${expanded ? 'Tracks' : 'Release'}: ${release.title}`} key={release.id}>
       {expanded && (release.isMix || (gridMix === 0 && listMix === 0)) && <ShelfReleaseEditor id={release.id} lang={uiLang} className={release.isMix ? 'shelf-mix-edit-corner' : undefined}/>}
-      {release.isMix ? <><p>{release.artist} <span>{release.year}</span></p><h2>{release.title}</h2></> : <><h2>{release.artist}</h2><p>{release.title} <span>{release.year}</span></p></>}
+      {release.isMix ? <><p>{release.artist} <span>{release.year}</span></p><h2 className="paper-release-heading"><span>{release.title}</span>{coverFlipControl}</h2></> : <><h2 className="paper-release-heading"><span>{release.artist}</span>{coverFlipControl}</h2><p>{release.title} <span>{release.year}</span></p></>}
       {expanded && <>
-      {backCoverUrl && <button type="button" className="paper-cover-flip" aria-pressed={isCoverFlipped} onClick={event=>{event.stopPropagation();setIsCoverFlipped(value=>!value);}}><Rotate3D size={16}/><span>{isCoverFlipped ? (ru?'Лицевая сторона':'Front side') : (ru?'Обратная сторона':'Back side')}</span></button>}
       <ol>{release.tracks.map((t, i) => <li key={t.id} className={`paper-track-line${currentTrack?.id === t.id ? ' is-playing' : ''}`} style={{ '--line-delay': `${.48 + Math.min(i, 12) * .065}s` } as CSSProperties}><button className="paper-track-play" disabled={!t.audioUrl} onClick={() => play(t.id)} aria-label={`${currentTrack?.id === t.id && isPlaying ? 'Pause' : 'Play'}: ${t.title}`}>{mixesMode ? null : <small>{t.position?.trim() || '—'}</small>}<span>{t.title}</span></button>{trackActions(t.id)}<time>{normalizeDurationLabel(t.durationRaw,t.durationSec,'—')}</time></li>)}</ol>
       {!release.tracks.length && <p>{release.tracksLoaded === false ? (detailErrors[release.id] ? <button onClick={() => setDetailErrors(current => ({...current,[release.id]:false}))}>{ru ? 'Повторить загрузку' : 'Retry loading'}</button> : (ru ? 'Загрузка треков…' : 'Loading tracks…')) : (ru ? 'Треклист недоступен' : 'Tracklist unavailable')}</p>}
       <p className="paper-release-styles" style={{ animationDelay: `${.55 + Math.min(release.tracks.length, 12) * .065}s` }} aria-label="Release styles">{release.styles.length ? release.styles.map((style, index) => [index > 0 ? ' · ' : null, <em key={style} className={`paper-release-style${activeStyles.includes(style) ? ' is-active' : ''}`}>{style}</em>]) : (ru ? 'Стиль не указан' : 'Style unavailable')}</p>

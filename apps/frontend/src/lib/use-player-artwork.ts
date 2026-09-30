@@ -7,7 +7,7 @@ import { getBackCoverUrl } from './release-images';
 export function usePlayerArtwork(track: PlayerTrack | null, enabled: boolean) {
   const [artwork,setArtwork] = useState<{id:string;url:string}|null>(null);
   useEffect(() => {
-    if (!enabled || !track?.releaseId || track.coverFullUrl) return;
+    if (!enabled || !track?.releaseId || track.frontCoverFullUrl || (track.coverFullUrl && track.coverSide !== 'back')) return;
     let cancelled=false;
     const id=track.releaseId;
     void getRelease(id).then(release=>{
@@ -15,8 +15,8 @@ export function usePlayerArtwork(track: PlayerTrack | null, enabled: boolean) {
       if(!cancelled && url)setArtwork({id,url});
     }).catch(()=>{});
     return () => {cancelled=true;};
-  }, [enabled,track?.releaseId,track?.coverFullUrl]);
-  return track?.coverFullUrl || (artwork?.id===track?.releaseId ? artwork?.url : '') || track?.coverUrl;
+  }, [enabled,track?.releaseId,track?.coverFullUrl,track?.coverSide,track?.frontCoverFullUrl]);
+  return track?.frontCoverFullUrl || (track?.coverSide !== 'back' ? track?.coverFullUrl : '') || (artwork?.id===track?.releaseId ? artwork?.url : '') || track?.frontCoverUrl || track?.coverUrl;
 }
 
 export function usePlayerBackArtwork(track: PlayerTrack | null, enabled: boolean) {
@@ -30,5 +30,5 @@ export function usePlayerBackArtwork(track: PlayerTrack | null, enabled: boolean
     }).catch(()=>{if(!cancelled)setArtwork({id,url:''});});
     return () => {cancelled=true;};
   }, [enabled,track?.releaseId]);
-  return artwork && artwork.id===track?.releaseId ? artwork.url : '';
+  return track?.backCoverUrl || (artwork && artwork.id===track?.releaseId ? artwork.url : '');
 }

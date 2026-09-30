@@ -14,6 +14,7 @@ import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 import { usePlayerArtwork, usePlayerBackArtwork } from '../lib/use-player-artwork';
+import { isBackSidePosition } from '../lib/release-images';
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -121,8 +122,8 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     setDragProgress(null);
     setActiveCommentId(null);
     lastHapticStepRef.current = -1;
-    setIsCoverFlipped(false);
-  }, [currentTrackId]);
+    setIsCoverFlipped(Boolean(backArtwork) && (currentTrack?.coverSide === 'back' || isBackSidePosition(currentTrack?.position)));
+  }, [backArtwork, currentTrack?.coverSide, currentTrack?.position, currentTrackId]);
 
   if (!currentTrack) {
     return (

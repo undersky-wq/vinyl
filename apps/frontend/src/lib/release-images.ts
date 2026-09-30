@@ -13,3 +13,7 @@ export function getBackCoverUrl(release: ReleaseWithImages | null | undefined) {
     (image) => image.type === 'GALLERY' && isBackCoverStorageKey(release.id, image.storageKey),
   )?.url || '';
 }
+
+export function isBackSidePosition(position: string | null | undefined) {
+  return /^B(?:\d|\b)/i.test(position?.trim() || '');
+}
