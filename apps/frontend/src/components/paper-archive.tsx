@@ -21,6 +21,7 @@ import { shelfMobileLayout } from '../lib/shelf-mobile-layout';
 import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress, mergeVisibleReleaseIndices } from '../lib/collection-layout-motion';
 import { CollectionPosition } from './collection-position';
 import { getBackCoverUrl, isBackSidePosition } from '../lib/release-images';
+import { retryCoverImage } from '../lib/retry-cover-image';
 const coverFull = (r: HomeRelease) => r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
 const coverMobile = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || coverFull(r);
 const cover = coverFull;
@@ -36,11 +37,11 @@ function ShelfCoverImage({ release, eager, priority, selected, highQuality }: { 
     <span className="paper-record-face paper-record-front">
       <picture style={{display:'contents'}}>
       <source media="(max-width:700px)" srcSet={coverMobile(release)} />
-      <img src={full} alt="" width={900} height={900} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} />
+      <img src={full} alt="" width={900} height={900} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} />
       </picture>
-      {highQuality && full !== coverMobile(release) ? <img className="paper-record-hires" src={full} alt="" width={900} height={900} loading="eager" fetchPriority="high" decoding="async" draggable={false} /> : null}
+      {highQuality && full !== coverMobile(release) ? <img className="paper-record-hires" src={full} alt="" width={900} height={900} loading="eager" fetchPriority="high" decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} /> : null}
     </span>
-    {back ? <span className="paper-record-face paper-record-back"><img src={back} alt="" width={900} height={900} loading={selected ? 'eager' : 'lazy'} decoding="async" draggable={false}/></span> : null}
+    {back ? <span className="paper-record-face paper-record-back"><img src={back} alt="" width={900} height={900} loading={selected ? 'eager' : 'lazy'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }}/></span> : null}
   </>;
 }
 

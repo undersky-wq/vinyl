@@ -25,6 +25,17 @@ export class StorageController {
     @Res() response: Response,
   ) {
     const key = decodeURIComponent(String(request.params[0] || ''));
+    if (!this.storageService.isLocalBucket(bucket)) {
+      // Never expose audio, avatars, or arbitrary buckets through this public
+      // redirect. Covers already have public visibility in the release APIs.
+      if (!this.storageService.isPublicCoverObject(bucket, key)) throw new NotFoundException();
+      const url = await this.storageService.getTemporaryObjectUrl(bucket, key);
+      if (!url) throw new NotFoundException();
+      // A cached redirect would recreate the expired-signature problem.
+      response.setHeader('Cache-Control', 'no-store, max-age=0');
+      response.redirect(302, url);
+      return;
+    }
     if (path.extname(key).toLowerCase() === '.mp3') {
       const settings = await this.authService.getAuthSettings();
       if (settings.playbackRequiresRegistration && !await this.authService.getUserFromRequest(request)) {

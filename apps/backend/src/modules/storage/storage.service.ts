@@ -120,6 +120,23 @@ export class StorageService {
   }
 
   async getSignedObjectUrl(bucket: string, key: string, expiresIn = 3600) {
+    // Artwork URLs can stay in an open collection/playlist for hours. Keep the
+    // browser-facing address stable and resolve the short-lived signature only
+    // when the image is actually requested. Audio keeps its existing contract.
+    if (this.client && !this.isLocalBucket(bucket) && this.isPublicCoverObject(bucket, key)) {
+      return this.buildLocalObjectUrl(bucket, key);
+    }
+    return this.getTemporaryObjectUrl(bucket, key, expiresIn);
+  }
+
+  isPublicCoverObject(bucket: string, key: string) {
+    return bucket === (this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers')
+      && key.startsWith('covers/')
+      && !key.includes('\\') && !key.includes('\0')
+      && !key.split('/').some(part => part === '.' || part === '..');
+  }
+
+  async getTemporaryObjectUrl(bucket: string, key: string, expiresIn = 3600) {
     if (this.isLocalBucket(bucket)) {
       try {
         await stat(this.resolveLocalObjectPath(bucket, key));

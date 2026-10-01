@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useSyncExternalStore } from 'react';
+import { retryCoverImage } from '../lib/retry-cover-image';
 
 const FALLBACK_COVER = '/fallback-cover.svg';
 const mobileQuery = '(max-width:700px)';
@@ -47,7 +48,8 @@ export function CoverImage({
       className={className}
       loading={loading}
       decoding={decoding}
-      onError={() => {
+      onError={(event) => {
+        if (retryCoverImage(event.currentTarget)) return;
         if (currentSrc !== FALLBACK_COVER) {
           setFailedSrc(safeSrc);
         }
