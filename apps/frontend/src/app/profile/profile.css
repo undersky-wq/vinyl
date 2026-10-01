@@ -72,7 +72,46 @@ body:has(.paper-profile-page) .mobile-nav{display:none}
 .paper-profile-page .auth-form .field input{border:0;border-bottom:1px solid #bbb;border-radius:0;background:#fff;color:#111;box-shadow:none;padding:12px 0;font:inherit}
 .paper-profile-page .auth-form .field input:focus{border-color:#111;outline:none;box-shadow:none}
 .paper-profile-page .auth-form .field label{color:#777;font:inherit}
-.paper-profile-page .auth-submit-button{background:#111;color:white;border:1px solid #111;border-radius:0;box-shadow:none;font:inherit}
+/* Auth controls must follow the profile theme, including browser autofill. */
+.paper-profile-page{--auth-ink:#111;--auth-surface:#fff;--auth-muted:#666;--auth-line:#aaa}
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-profile-page{--auth-ink:#f3f3f1;--auth-surface:#111214;--auth-muted:#b0b2b7;--auth-line:#ffffff70}
+html body .paper-profile-page .auth-panel{color:var(--auth-ink)}
+html body .paper-profile-page .auth-form .field label{color:var(--auth-muted)}
+html body .paper-profile-page .auth-form .field input{
+  color:var(--auth-ink)!important;
+  -webkit-text-fill-color:var(--auth-ink)!important;
+  caret-color:var(--auth-ink)!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  transition:border-color .2s ease!important;
+  border-bottom-color:var(--auth-line)!important;
+}
+html body .paper-profile-page .auth-form .field input::placeholder{color:var(--auth-muted)!important;-webkit-text-fill-color:var(--auth-muted)!important;opacity:1}
+html body .paper-profile-page .auth-form #inviteCode::placeholder{font-size:.85em;font-style:italic;opacity:.65;transition:opacity .15s ease}
+html body .paper-profile-page .auth-form #inviteCode:focus::placeholder{opacity:0}
+html body .paper-profile-page .auth-form .field input:focus{border-bottom-color:var(--auth-ink)!important}
+html body .paper-profile-page .auth-form .field input:autofill,
+html body .paper-profile-page .auth-form .field input:-webkit-autofill{
+  -webkit-text-fill-color:var(--auth-ink)!important;
+  caret-color:var(--auth-ink)!important;
+  background:transparent!important;
+  background-clip:text!important;
+  -webkit-background-clip:text!important;
+  box-shadow:none!important;
+  transition:none!important;
+}
+html body .paper-profile-page .auth-consent{color:var(--auth-ink);font-family:inherit}
+html body .paper-profile-page .auth-consent input{accent-color:var(--auth-ink)}
+html body .paper-profile-page .auth-consent a{color:inherit;text-decoration:underline}
+html body .paper-profile-page .auth-submit-button,
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-profile-page .auth-submit-button{
+  background:var(--auth-ink)!important;
+  color:var(--auth-surface)!important;
+  border:1px solid var(--auth-ink);
+  border-radius:0;box-shadow:none;font:inherit;
+  transition:opacity .2s ease;
+}
+html body .paper-profile-page .auth-submit-button:hover:not(:disabled){opacity:.8}
 .paper-profile-page .auth-mode-switch{color:#777;font:inherit}
 .auth-password-field{display:flex;align-items:stretch;gap:12px;min-width:0}
 .auth-password-field input{flex:1;min-width:0}
