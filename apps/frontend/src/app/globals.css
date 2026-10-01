@@ -2535,6 +2535,15 @@ textarea {
   color:var(--muted);
   font:400 12px/1.3 Arial,Helvetica,sans-serif;
 }
+.player-page__artist-row {
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  min-width:0;
+}
+.player-page__artist-row .player-page__artist { min-width:0;overflow-wrap:anywhere; }
+.player-page__artist-row .player-page__release-details { flex-shrink:0; }
 .player-page__release-details:empty { display:none; }
 .player-page__cover-flip.player-page__cover-flip--metadata {
   position:static;

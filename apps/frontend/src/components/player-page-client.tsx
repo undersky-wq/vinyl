@@ -222,9 +222,11 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         </button>
       </div>
       <div className={`player-page__meta slide-${trackDirection}`} key={`meta-${currentTrack.id}`}>
+        <div className="player-page__artist-row">
         <h1 className="player-page__artist">{currentTrack.artist}</h1>
-        <p className="player-page__track-title">{currentTrack.title}</p>
         <PlayerReleaseDetails releaseId={currentTrack.releaseId} backArtwork={backArtwork} flipped={isCoverFlipped} onFlip={()=>setIsCoverFlipped(value=>!value)} lang={lang}/>
+        </div>
+        <p className="player-page__track-title">{currentTrack.title}</p>
       </div>
 
       <div className={`player-page__timeline slide-${trackDirection}`} key={`timeline-${currentTrack.id}`}>

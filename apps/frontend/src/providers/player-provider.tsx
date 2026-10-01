@@ -21,6 +21,7 @@ export type PlayerTrack = {
   coverFullUrl?: string;
   frontCoverUrl?: string;
   frontCoverFullUrl?: string;
+  frontCoverMobileUrl?: string;
   backCoverUrl?: string;
   position?: string | null;
   coverSide?: 'front' | 'back';

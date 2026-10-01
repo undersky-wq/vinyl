@@ -21,21 +21,24 @@ import { shelfMobileLayout } from '../lib/shelf-mobile-layout';
 import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress, mergeVisibleReleaseIndices } from '../lib/collection-layout-motion';
 import { CollectionPosition } from './collection-position';
 import { getBackCoverUrl, isBackSidePosition } from '../lib/release-images';
-const coverPreview = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || r.coverStorageUrl || r.coverImageUrl || '/icon.png';
 const coverFull = (r: HomeRelease) => r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
-const cover = coverPreview;
+const coverMobile = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || coverFull(r);
+const cover = coverFull;
 const MAX_SELECTED_STYLES = 5;
 
-function ShelfCoverImage({ release, eager, priority, selected, stack = false }: { release: HomeRelease; eager: boolean; priority: boolean; selected: boolean; stack?: boolean }) {
-  const preview = stack
-    ? release.coverMediumStorageUrl || release.coverStorageUrl || release.coverImageUrl || release.coverThumbStorageUrl || '/icon.png'
-    : coverPreview(release);
+function ShelfCoverImage({ release, eager, priority, selected, highQuality }: { release: HomeRelease; eager: boolean; priority: boolean; selected: boolean; highQuality: boolean }) {
+  // The browser chooses the lighter mobile image before fetching the desktop one.
+  // Keep the preview underneath while the expanded mobile cover loads its original.
+  // Off-screen records remain lazy-loaded rather than fetching the whole library.
   const full = coverFull(release);
   const back = getBackCoverUrl(release);
   return <>
     <span className="paper-record-face paper-record-front">
-      <img src={preview} alt="" width={320} height={320} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} />
-      {selected && full !== preview ? <img className="paper-record-hires" src={full} alt="" loading="eager" fetchPriority="high" decoding="async" draggable={false} /> : null}
+      <picture style={{display:'contents'}}>
+      <source media="(max-width:700px)" srcSet={coverMobile(release)} />
+      <img src={full} alt="" width={900} height={900} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} />
+      </picture>
+      {highQuality && full !== coverMobile(release) ? <img className="paper-record-hires" src={full} alt="" width={900} height={900} loading="eager" fetchPriority="high" decoding="async" draggable={false} /> : null}
     </span>
     {back ? <span className="paper-record-face paper-record-back"><img src={back} alt="" width={900} height={900} loading={selected ? 'eager' : 'lazy'} decoding="async" draggable={false}/></span> : null}
   </>;
@@ -350,6 +353,32 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     setWindowTravel(Math.floor(offset / 128) * 128);
     hoverResumeAt.current = performance.now() + 180;
   }
+  const coverTransitionFrames = useRef<Map<string, Keyframe> | null>(null);
+  const coverTransitionAnimations = useRef<Animation[]>([]);
+  const coverTransitionIsLayout = useRef(false);
+  function captureCoverTransition(layout = false) {
+    const root = stage.current;
+    if (!root) return;
+    const matrix = new DOMMatrixReadOnly(transport.current ? getComputedStyle(transport.current).transform : undefined);
+    const row = root.querySelector<HTMLElement>('.paper-row');
+    const frames = new Map<string, Keyframe>();
+    root.querySelectorAll<HTMLElement>('.paper-record').forEach(card => {
+      const style = getComputedStyle(card);
+      frames.set(card.dataset.index!, {
+        left: `${parseFloat(style.left) + matrix.m41}px`,
+        top: `${parseFloat(style.top) + matrix.m42 - (row?.scrollTop ?? 0)}px`,
+        width: style.width, height: style.height, margin: style.margin,
+        transform: style.transform, transformOrigin: style.transformOrigin,
+        opacity: style.opacity,
+      });
+    });
+    // Read the live (possibly still animated) frame before cancelling anything.
+    coverTransitionAnimations.current.forEach(animation => animation.cancel());
+    coverTransitionAnimations.current = [];
+    coverTransitionFrames.current = frames;
+    coverTransitionIsLayout.current = layout;
+    root.classList.add('is-cover-rebasing');
+  }
   const { playQueue, togglePlayback } = usePlayerActions();
   const { currentTrack, isPlaying } = usePlayerTransport();
   useLayoutEffect(() => {
@@ -485,10 +514,13 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       if(transport.current)transport.current.style.transform='none';
       setWindowTravel(Math.floor(position/128)*128);
     };
-    alignShelf(stretch);
+    // Shelf and Stack share a continuous travel coordinate. Do not snap the
+    // nearest record to the centre merely because the layout button was used.
+    const preserveTravel = target === 0 && stretch < .01;
+    if (!preserveTravel) alignShelf(stretch);
     setSelected(null); setExpanded(false); setHovered(null);
     const startValue = stretch;
-    if (!shouldAnimate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {alignShelf(target);setStretch(target);return;}
+    if (!shouldAnimate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {if (!preserveTravel) alignShelf(target);setStretch(target);return;}
     setAutoLayout(true);
     const start = performance.now();
     const animate = (now: number) => {
@@ -503,6 +535,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     layoutFrame.current = requestAnimationFrame(animate);
   }
   function changeCollectionLayout(target: 'shelf' | 'stack' | 'grid' | 'tracks') {
+    if ((target === 'stack' && !stackMode)
+      || (stackMode && target === 'shelf')) captureCoverTransition(true);
     const animateToGrid = stackMode && target === 'grid' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const frames = new Map<string, Keyframe>();
     if (animateToGrid) {
@@ -727,6 +761,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         // immediately after collapsing the enlarged cover.
         if (performance.now() < wheelLock.current) return;
         wheelLock.current = performance.now() + 450;
+        if (!stackMode && gridMix < .01) {
+          captureCoverTransition();
+          protectShelfTransition();
+        }
         setHovered(null);
         if (expanded && !stackMode) {
           setExpanded(false);
@@ -814,7 +852,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         return { ...t, waveformData: t.waveformData || [], artist: r.artist,
           coverUrl: backSide ? backCoverUrl : frontCoverUrl,
           coverFullUrl: backSide ? backCoverUrl : frontCoverFullUrl,
-          frontCoverUrl, frontCoverFullUrl, backCoverUrl,
+          frontCoverUrl, frontCoverFullUrl, frontCoverMobileUrl:coverMobile(r), backCoverUrl,
           coverSide: backSide ? 'back' as const : 'front' as const,
           releaseId: r.id, isPublic: Boolean(r.isMix) };
       });
@@ -892,6 +930,36 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     ? mergeVisibleReleaseIndices(shelfVisibleIndices.current, rawVisibleIndices, releases.length)
     : rawVisibleIndices;
   shelfVisibleIndices.current = visibleIndices;
+  useLayoutEffect(() => {
+    const frames = coverTransitionFrames.current;
+    const root = stage.current;
+    if (!frames || !root) return;
+    coverTransitionFrames.current = null;
+    // React replaces className during the commit. Reapply the guard here so
+    // computed styles are the final layout, not the first frame of a newly
+    // started CSS transition (which would animate back to the old position).
+    root.classList.add('is-cover-rebasing');
+    const row = root.querySelector<HTMLElement>('.paper-row');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    root.querySelectorAll<HTMLElement>('.paper-record').forEach(card => {
+      const style = getComputedStyle(card);
+      const destination: Keyframe = {
+        left: style.left, top: style.top, width: style.width, height: style.height,
+        margin: style.margin, transform: style.transform,
+        transformOrigin: style.transformOrigin, opacity: style.opacity,
+      };
+      const previous = frames.get(card.dataset.index!);
+      if (!reduced && previous) coverTransitionAnimations.current.push(card.animate([
+        { ...previous, top: `${parseFloat(String(previous.top)) + (row?.scrollTop ?? 0)}px` },
+        destination,
+      ], {
+        duration: coverTransitionIsLayout.current ? 1200 : 1050,
+        easing: coverTransitionIsLayout.current ? 'cubic-bezier(.45,0,.2,1)' : 'cubic-bezier(.19,1,.22,1)',
+      }));
+    });
+    root.classList.remove('is-cover-rebasing');
+  });
+  useEffect(() => () => coverTransitionAnimations.current.forEach(animation => animation.cancel()), []);
   useLayoutEffect(() => {
     const frames = stackGridFrames.current;
     if (!frames || stackMode || gridMix < 1) return;
@@ -987,6 +1055,11 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     setMotionEnabled(true);
   }} onPointerDownCapture={() => setMotionEnabled(true)} onKeyDownCapture={() => setMotionEnabled(true)} onClick={e => {
     if (!(e.target instanceof Element) || e.target.closest('.paper-record, .paper-tracklist, a, button, input')) return;
+    if (selected !== null && !stackMode && gridMix < .01 && listMix < .01) {
+      captureCoverTransition();
+      protectShelfTransition();
+      settleShelfMotion();
+    }
     setExpanded(false);
     setSelected(null);
     setHovered(null);
@@ -1187,6 +1260,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
         onClick={e => {
           if (performance.now() < suppressCoverClick.current) return;
           trigger.current = e.currentTarget;
+          if (!stackMode && gridMix < .01 && listMix < .01) captureCoverTransition();
           stopAutoLayout();
           if (gridMix < .01 && listMix < .01) protectShelfTransition();
           settleShelfMotion();
@@ -1213,7 +1287,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
           setHovered(null);
         }}>
         {/* The same sleeve moves out of the row and unfolds; no duplicate cover. */}
-        <ShelfCoverImage release={r} eager={isPriorityCover} priority={isPriorityCover} selected={selected === i} stack={stackMode} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
+        <ShelfCoverImage release={r} eager={isPriorityCover} priority={isPriorityCover} selected={selected === i} highQuality={viewport.width <= 700 && selected === i && expanded} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
       </button>;
     })}
     {listMix > 0 && visibleIndices.map(i => {

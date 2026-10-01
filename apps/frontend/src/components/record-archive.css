@@ -80,6 +80,7 @@ html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(
 @media(prefers-reduced-motion:reduce){.paper-archive .paper-row,.paper-archive.is-filtering .paper-row{transition:none;translate:none}.paper-styles button{transition:none}}
 .paper-record{--size:clamp(160px,19vw,300px);position:absolute;left:calc(3% + var(--position)*78% + var(--split)*17vw);top:calc(72% - var(--position)*57% - var(--split)*12vh);width:var(--size);height:var(--size);padding:0;border:0;border-radius:0;background:transparent;cursor:pointer;transform-origin:0 0;transform:matrix(.76,.43,0,1,0,0);box-shadow:2px 2px 0 #fff,4px 4px 0 #464646,8px 16px 20px #00000018;transition:left 1.15s cubic-bezier(.22,.8,.15,1),top 1.15s cubic-bezier(.22,.8,.15,1),transform .8s cubic-bezier(.22,.8,.15,1),box-shadow .6s;outline-offset:5px}
 .paper-archive:not(.has-motion) .paper-record{transition:none!important}
+.paper-archive.is-cover-rebasing .paper-record{transition:none!important}
 .paper-record img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}.paper-record-edge{position:absolute;inset:0;border:0;box-shadow:inset -1px 0 0 #0003;pointer-events:none}
 .paper-record-face{position:absolute;inset:0;display:block;overflow:hidden;backface-visibility:hidden;transform-style:preserve-3d;transition:transform .85s cubic-bezier(.16,1,.3,1);will-change:transform}
 .paper-record-front{transform:rotateY(0deg)}
@@ -605,12 +606,12 @@ html body .paper-archive .paper-stack-hover-label .paper-release-styles{margin:1
   .paper-layout-controls{gap:8px;font-size:var(--type)}
   .paper-archive:is(.is-stack,.is-middle-morph){--stack-distance-scale:-4}
   .paper-archive.is-stack{--stack-size:min(62vw,32vh);--stack-step:calc(var(--stack-size)*.32)}
-  .paper-archive.is-stack.is-expanded{--stack-size:min(56vw,26dvh,220px)}
-  .paper-archive.is-stack.is-expanded .paper-record.is-selected{top:100px}
+  .paper-archive.is-stack.is-expanded{--stack-size:var(--enlarged)}
+  .paper-archive.is-stack.is-expanded .paper-record.is-selected{top:16vh}
   .paper-archive.is-stack.is-expanded .paper-record:not(.is-selected){opacity:0;pointer-events:none}
   .paper-archive.is-stack.is-expanded .paper-tracklist{
-    left:6vw;top:calc(100px + var(--stack-size) + 20px);width:88vw;
-    max-height:calc(100dvh - 100px - var(--stack-size) - 20px - 120px - env(safe-area-inset-bottom));
+    left:6vw;top:calc(16vh + var(--stack-size) + 16px);width:88vw;
+    max-height:calc(100dvh - 16vh - var(--stack-size) - 16px - 120px - env(safe-area-inset-bottom));
     overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;
     padding:0 0 8px 14px;transform:none;
   }
@@ -632,6 +633,11 @@ html body .paper-archive .paper-stack-hover-label .paper-release-styles{margin:1
   .paper-archive.is-grid .paper-record.is-selected{top:18vh}
   .paper-archive.is-expanded:not(.is-stack) .paper-record.is-selected{top:16vh}
   .paper-archive .paper-tracklist{left:6vw;top:calc(16vh + var(--enlarged) + 16px);width:88vw;max-height:calc(78vh - var(--enlarged));padding-left:14px}
+  /* Stack scrolls the outer panel; other views scroll its track list. */
+  .paper-archive .paper-tracklist,
+  .paper-archive .paper-tracklist ol{scrollbar-width:none}
+  .paper-archive .paper-tracklist::-webkit-scrollbar,
+  .paper-archive .paper-tracklist ol::-webkit-scrollbar{display:none;width:0;height:0}
   .paper-archive .paper-tracklist ol{max-height:calc(66vh - var(--enlarged))}
   .paper-archive .paper-track-line{gap:5px}
   .paper-archive .paper-track-line .paper-track-play{gap:6px}

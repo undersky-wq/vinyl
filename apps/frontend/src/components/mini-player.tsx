@@ -20,6 +20,7 @@ import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayer } from '../providers/player-provider';
 import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
+import { PlayerVolumeControl } from './player-volume-control';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { PlayerMixActions } from './player-mix-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
@@ -310,7 +311,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
           event.stopPropagation();
           openFullPlayer();
         }}>
-          <CoverImage src={currentTrack.coverUrl} alt={currentTrack.title} width={58} height={58} loading="eager" />
+          <CoverImage src={currentTrack.coverUrl} mobileSrc={currentTrack.coverSide === 'back' ? undefined : currentTrack.frontCoverMobileUrl} alt={currentTrack.title} width={58} height={58} loading="eager" />
         </button>
         <div className="mini-player__meta">
           <div className="mini-player__artist">{currentTrack.artist}</div>
@@ -410,6 +411,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             }}
           />
         </div>
+        <PlayerVolumeControl lang={lang} compact />
         <span className="mini-player__stamp muted">{formatTime(duration)}</span>
       </div>
 
@@ -520,9 +522,11 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             {backArtwork ? <CoverImage className="player-cover-face player-cover-back" src={backArtwork} alt={lang === 'ru' ? `Обратная сторона ${currentTrack.title}` : `${currentTrack.title} back cover`} width={520} height={520} loading="eager" /> : null}
           </button>
           <div className={`player-page__meta slide-${trackDirection}`} key={`mobile-meta-${currentTrack.id}`}>
+            <div className="player-page__artist-row">
             <h1 className="player-page__artist">{currentTrack.artist}</h1>
-            <p className="player-page__track-title">{currentTrack.title}</p>
             <PlayerReleaseDetails releaseId={currentTrack.releaseId} backArtwork={backArtwork} flipped={isCoverFlipped} onFlip={()=>setIsCoverFlipped(value=>!value)} lang={lang}/>
+            </div>
+            <p className="player-page__track-title">{currentTrack.title}</p>
           </div>
 
           <div className={`player-page__timeline slide-${trackDirection}`} key={`mobile-timeline-${currentTrack.id}`}>
