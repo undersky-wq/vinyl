@@ -68,6 +68,12 @@ html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(
 .paper-archive.is-filtering .paper-row{opacity:0;translate:-36px 24px;pointer-events:none;transition-duration:.24s}
 .paper-styles{position:absolute;right:3%;top:44%;bottom:165px;z-index:100001;display:flex;flex-direction:column;align-items:flex-end;max-width:190px;font:600 var(--type)/1.4 Arial,Helvetica,sans-serif;letter-spacing:-.6px}
 .paper-styles>div{overflow:auto;overscroll-behavior:contain;scrollbar-width:none;min-height:0;width:100%}
+.paper-styles>div{position:relative}
+.paper-styles-pinned{flex:none;width:100%}
+.paper-styles .is-pinned-placeholder{visibility:hidden;pointer-events:none}
+.paper-styles-pinned button{animation:paper-style-pin .18s ease-out both}
+@keyframes paper-style-pin{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.paper-styles-pinned button{animation:none}}
 .paper-styles>div::-webkit-scrollbar{display:none}
 .paper-styles button{display:block;width:100%;padding:2px 0;border:0;background:none;color:#aaa;text-align:right;font:inherit;letter-spacing:inherit;cursor:pointer;transition:color .2s}
 .paper-styles button:disabled{opacity:.42;cursor:not-allowed}

@@ -243,6 +243,16 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     : Math.max(0, Math.min(gridSize * .48, ((viewport.width - expandedSize) / 2 - sideSize - 40) / 2));
   const [activeStyles, setActiveStyles] = useState<string[]>([]);
   const activeStylesRef = useRef<string[]>([]);
+  const styleScroller = useRef<HTMLDivElement>(null);
+  const [pinnedStyles, setPinnedStyles] = useState<string[]>([]);
+  function updatePinnedStyles() {
+    const scroller = styleScroller.current;
+    if (!scroller) return;
+    const next = Array.from(scroller.querySelectorAll<HTMLButtonElement>('button[data-style]'))
+      .filter(button => activeStyles.includes(button.dataset.style!) && button.offsetTop < scroller.scrollTop)
+      .map(button => button.dataset.style!);
+    setPinnedStyles(previous => previous.length === next.length && previous.every((style, i) => style === next[i]) ? previous : next);
+  }
   const [filtering, setFiltering] = useState(false);
   const filterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingReveal = useRef<string | null>(null);
@@ -283,6 +293,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     allReleases.forEach(r => new Set(r.styles.filter(Boolean)).forEach(style => counts.set(style, (counts.get(style) || 0) + 1)));
     return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [allReleases]);
+  useEffect(() => { updatePinnedStyles(); }, [activeStyles, styleCounts, viewport.width, viewport.height]);
   useEffect(() => {
     if (mixesMode || favoritesMode) return;
     const allowedStyles = new Set(styleCounts.map(([style]) => style));
@@ -1386,11 +1397,19 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
     {activePlaylist && orderStatus && <p className="paper-order-status" role="status">{orderStatus}</p>}
     <nav className="paper-styles" aria-label="Release styles" inert={showPlaylists || expanded || isTrackCollection || playlistTransition || mixesMode} aria-hidden={showPlaylists || expanded || isTrackCollection || playlistTransition || mixesMode}>
       <button aria-pressed={activeStyles.length === 0} onClick={() => filterByStyle(null)}>{ru ? 'Все' : 'All'} <sup>{activeStyles.length === 0 ? <CollectionPosition count={releases.length} read={readCollectionPosition} /> : allReleases.length}</sup></button>
-      <div>{styleCounts.map(([style, count]) => {
+      <section className="paper-styles-pinned" aria-label={ru ? 'Выбранные жанры' : 'Selected genres'}>
+        {pinnedStyles.filter(style => activeStyles.includes(style)).map(style => <button key={style} aria-pressed="true" onClick={() => filterByStyle(style)}>{style} <sup><CollectionPosition count={releases.filter(release => release.styles.includes(style)).length} read={() => {
+          const position = readCollectionPosition();
+          const index = releases.slice(0, position.index + 1).filter(release => release.styles.includes(style)).length - 1;
+          return { ...position, index };
+        }} /></sup></button>)}
+      </section>
+      <div ref={styleScroller} onScroll={updatePinnedStyles}>{styleCounts.map(([style, count]) => {
         const selectedStyle = activeStyles.includes(style);
+        const pinned = selectedStyle && pinnedStyles.includes(style);
         const limitReached = activeStyles.length >= MAX_SELECTED_STYLES && !selectedStyle;
         const matchingCount = selectedStyle ? releases.filter(release => release.styles.includes(style)).length : count;
-        return <button key={style} aria-pressed={selectedStyle} disabled={limitReached} title={limitReached ? (ru ? 'Можно выбрать не больше 5 жанров' : 'Choose up to 5 genres') : undefined} onClick={() => filterByStyle(style)}>{style} <sup>{selectedStyle ? <CollectionPosition count={matchingCount} read={() => {
+        return <button key={style} data-style={style} className={pinned ? 'is-pinned-placeholder' : undefined} aria-hidden={pinned || undefined} tabIndex={pinned ? -1 : undefined} aria-pressed={selectedStyle} disabled={limitReached} title={limitReached ? (ru ? 'Можно выбрать не больше 5 жанров' : 'Choose up to 5 genres') : undefined} onClick={() => filterByStyle(style)}>{style} <sup>{selectedStyle ? <CollectionPosition count={matchingCount} read={() => {
           const position = readCollectionPosition();
           const index = releases.slice(0, position.index + 1).filter(release => release.styles.includes(style)).length - 1;
           return { ...position, index };
