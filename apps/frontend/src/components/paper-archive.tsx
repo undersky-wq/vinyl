@@ -23,6 +23,7 @@ import { CollectionPosition } from './collection-position';
 import { getBackCoverUrl, isBackSidePosition } from '../lib/release-images';
 import { retryCoverImage } from '../lib/retry-cover-image';
 import { warmCoverImages } from '../lib/warm-cover-images';
+import { getPinnedGenres } from '../lib/pinned-genres';
 const coverFull = (r: HomeRelease) => r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
 const coverMobile = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || coverFull(r);
 const cover = coverFull;
@@ -245,13 +246,15 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const activeStylesRef = useRef<string[]>([]);
   const styleScroller = useRef<HTMLDivElement>(null);
   const [pinnedStyles, setPinnedStyles] = useState<string[]>([]);
+  const [bottomPinnedStyles, setBottomPinnedStyles] = useState<string[]>([]);
   function updatePinnedStyles() {
     const scroller = styleScroller.current;
     if (!scroller) return;
-    const next = Array.from(scroller.querySelectorAll<HTMLButtonElement>('button[data-style]'))
-      .filter(button => activeStyles.includes(button.dataset.style!) && button.offsetTop < scroller.scrollTop)
-      .map(button => button.dataset.style!);
-    setPinnedStyles(previous => previous.length === next.length && previous.every((style, i) => style === next[i]) ? previous : next);
+    const rows = Array.from(scroller.querySelectorAll<HTMLButtonElement>('button[data-style]'))
+      .map(button => ({ style: button.dataset.style!, top: button.offsetTop, height: button.offsetHeight }));
+    const next = getPinnedGenres(rows, activeStyles, scroller.scrollTop, scroller.clientHeight);
+    setPinnedStyles(previous => previous.length === next.top.length && previous.every((style, i) => style === next.top[i]) ? previous : next.top);
+    setBottomPinnedStyles(previous => previous.length === next.bottom.length && previous.every((style, i) => style === next.bottom[i]) ? previous : next.bottom);
   }
   const [filtering, setFiltering] = useState(false);
   const filterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1406,7 +1409,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
       </section>
       <div ref={styleScroller} onScroll={updatePinnedStyles}>{styleCounts.map(([style, count]) => {
         const selectedStyle = activeStyles.includes(style);
-        const pinned = selectedStyle && pinnedStyles.includes(style);
+        const pinned = selectedStyle && (pinnedStyles.includes(style) || bottomPinnedStyles.includes(style));
         const limitReached = activeStyles.length >= MAX_SELECTED_STYLES && !selectedStyle;
         const matchingCount = selectedStyle ? releases.filter(release => release.styles.includes(style)).length : count;
         return <button key={style} data-style={style} className={pinned ? 'is-pinned-placeholder' : undefined} aria-hidden={pinned || undefined} tabIndex={pinned ? -1 : undefined} aria-pressed={selectedStyle} disabled={limitReached} title={limitReached ? (ru ? 'Можно выбрать не больше 5 жанров' : 'Choose up to 5 genres') : undefined} onClick={() => filterByStyle(style)}>{style} <sup>{selectedStyle ? <CollectionPosition count={matchingCount} read={() => {
@@ -1415,6 +1418,13 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
           return { ...position, index };
         }} /> : count}</sup></button>;
       })}</div>
+      <section className="paper-styles-pinned paper-styles-pinned--bottom" aria-label={ru ? 'Выбранные жанры внизу' : 'Selected genres below'}>
+        {bottomPinnedStyles.filter(style => activeStyles.includes(style)).map(style => <button key={style} aria-pressed="true" onClick={() => filterByStyle(style)}>{style} <sup><CollectionPosition count={releases.filter(release => release.styles.includes(style)).length} read={() => {
+          const position = readCollectionPosition();
+          const index = releases.slice(0, position.index + 1).filter(release => release.styles.includes(style)).length - 1;
+          return { ...position, index };
+        }} /></sup></button>)}
+      </section>
     </nav>
     {!releases.length && <p className="paper-empty" role="status">{activePlaylist ? (ru ? 'Треков пока нет. Вернитесь в коллекцию или добавьте треки в управлении плейлистом.' : 'No tracks yet. Return to the collection or add tracks from playlist management.') : allReleases.length ? (ru ? 'Ничего не найдено. Измените поиск или выберите «Все».' : 'Nothing found. Change the search or choose All.') : mixesMode ? (ru ? 'Миксов пока нет.' : 'No mixes yet.') : (ru ? 'Релизов пока нет.' : 'No releases yet.')}</p>}
   </section>;

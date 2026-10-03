@@ -1,0 +1,10 @@
+import { strict as assert } from 'node:assert';
+import { getPinnedGenres } from '../src/lib/pinned-genres.ts';
+const rows = ['House', 'Disco', 'Techno', 'Electro', 'Acid'].map((style, i) => ({style, top:i * 24, height:24}));
+assert.deepEqual(getPinnedGenres(rows, ['House','Techno'], 0, 72), {top:[], bottom:[]});
+assert.deepEqual(getPinnedGenres(rows, ['House','Techno'], 24, 72), {top:['House'], bottom:[]});
+assert.deepEqual(getPinnedGenres(rows, ['Techno','Acid'], 0, 48), {top:[], bottom:['Techno','Acid']});
+assert.deepEqual(getPinnedGenres(rows, ['House','Acid'], 24, 48), {top:['House'], bottom:['Acid']});
+assert.deepEqual(getPinnedGenres(rows, [], 24, 48), {top:[], bottom:[]});
+assert.deepEqual(getPinnedGenres(rows, ['House','Acid'], 24, 0), {top:[], bottom:[]});
+console.log('PASS: selected genres pin above/below, return when visible, clear on deselection, preserve order');
