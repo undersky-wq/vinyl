@@ -1,4 +1,5 @@
 import './globals.css';
+import '../components/about-page.css';
 import '../components/shelf-theme.css';
 import '../components/shelf-web.css';
 import '../components/shelf-mobile-layout.css';

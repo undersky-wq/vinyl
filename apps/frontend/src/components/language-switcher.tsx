@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useEffect, useState, useTransition } from 'react';
 import { SiteLang } from '../lib/language';
 
@@ -33,6 +34,7 @@ export function LanguageSwitcher({ lang, single = false }: LanguageSwitcherProps
   if (single) {
     const nextLang: SiteLang = displayLang === 'ru' ? 'en' : 'ru';
     return (
+      <>
       <button
         type="button"
         className="language-switch-button"
@@ -42,10 +44,13 @@ export function LanguageSwitcher({ lang, single = false }: LanguageSwitcherProps
       >
         {displayLang === 'ru' ? 'RU' : 'ENG'}
       </button>
+      <Link className="header-about-link" href="/about">{displayLang === 'ru' ? 'Обо мне' : 'About me'}</Link>
+      </>
     );
   }
 
   return (
+    <>
     <div className="language-toggle" aria-label="Language switcher">
       <button
         type="button"
@@ -66,5 +71,7 @@ export function LanguageSwitcher({ lang, single = false }: LanguageSwitcherProps
         ENG
       </button>
     </div>
+    <Link className="header-about-link" href="/about">{displayLang === 'ru' ? 'Обо мне' : 'About me'}</Link>
+    </>
   );
 }
