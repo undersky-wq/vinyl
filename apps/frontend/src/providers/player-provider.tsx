@@ -11,6 +11,8 @@ import { refreshPlayerTrack } from '../lib/api';
 import { useAuth } from './auth-provider';
 import { hasNativePlayer } from '../lib/native-player';
 import { useNativePlayer } from './use-native-player';
+import { isIOSWebKit, watchPersistentAudioStall } from '../lib/audio-stall-guard';
+import { getMediaArtwork, getMediaMetadataKey, startMediaArtworkUpdate } from '../lib/media-artwork-update';
 
 export type PlayerTrack = {
   id: string;
@@ -204,21 +206,7 @@ function updateMediaSessionPosition(audio: HTMLAudioElement | null) {
   }
 }
 
-function getMediaMetadataKey(track: PlayerTrack) {
-  return `${track.id}:${track.title}:${track.artist}`;
-}
-
-function getMediaArtwork(coverUrl: string) {
-  return [
-    { src: coverUrl, sizes: '96x96' },
-    { src: coverUrl, sizes: '128x128' },
-    { src: coverUrl, sizes: '192x192' },
-    { src: coverUrl, sizes: '256x256' },
-    { src: coverUrl, sizes: '512x512' },
-  ];
-}
-
-function waitForArtwork(coverUrl: string, timeoutMs = 1400) {
+function waitForArtwork(coverUrl: string, timeoutMs = 5000) {
   if (typeof window === 'undefined' || !coverUrl) {
     return Promise.resolve(false);
   }
@@ -452,7 +440,9 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       setDisplayQueue(sharedDisplayQueue);
     };
 
-    const recoverCurrentTrack = async () => {
+    let disposed = false;
+    let pendingRestore: (() => void) | null = null;
+    const recoverCurrentTrack = async (forceReload = false) => {
       const audioElement = audioRef.current;
       const trackToRecover = currentTrackRef.current;
       if (!audioElement || !trackToRecover || recoveryInFlightRef.current) {
@@ -460,14 +450,23 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       }
 
       recoveryInFlightRef.current = true;
-      const resumeTime = audioElement.currentTime || 0;
-      const shouldResume = !audioElement.paused && !audioElement.ended;
+      const originalSource = audioElement.src;
+      const originalTime = audioElement.currentTime;
 
       try {
         const refreshedTrack = await refreshPlayerTrack(trackToRecover.id);
-        if (!refreshedTrack.audioUrl || currentTrackRef.current?.id !== trackToRecover.id) {
+        if (disposed || !refreshedTrack.audioUrl || currentTrackRef.current?.id !== trackToRecover.id
+          || audioElement.src !== originalSource) {
           return;
         }
+        // The network may have recovered while the refresh request was in flight.
+        if (forceReload && !audioElement.error && (audioElement.paused || audioElement.ended
+          || audioElement.seeking || audioElement.readyState >= 3
+          || Math.abs(audioElement.currentTime - originalTime) > .1)) return;
+
+        // Preserve the latest position, not the position before the API request.
+        const resumeTime = audioElement.currentTime || 0;
+        const shouldResume = !audioElement.paused && !audioElement.ended;
 
         const nextTrack = { ...trackToRecover, ...refreshedTrack };
         const nextQueue = mergeTrackById(queueRef.current, nextTrack);
@@ -484,13 +483,20 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
         setQueue(nextQueue);
         setDisplayQueue(nextDisplayQueue);
 
-        if (audioElement.src !== nextTrack.audioUrl) {
+        const needsReload = audioElement.src !== nextTrack.audioUrl || Boolean(audioElement.error) || forceReload;
+        if (needsReload) {
           audioElement.src = nextTrack.audioUrl;
           audioElement.load();
         }
         loadedTrackIdRef.current = nextTrack.id;
 
+        // Refreshing metadata alone must not seek or restart a healthy stream.
+        if (!needsReload) return;
+
         const restoreTime = () => {
+          pendingRestore = null;
+          if (disposed || currentTrackRef.current?.id !== trackToRecover.id
+            || audioElement.src !== nextTrack.audioUrl) return;
           if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
             audioElement.currentTime = Math.min(resumeTime, Math.max(audioElement.duration - 0.2, 0));
           } else {
@@ -505,6 +511,8 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
         if (audioElement.readyState >= 1) {
           restoreTime();
         } else {
+          if (pendingRestore) audioElement.removeEventListener('loadedmetadata', pendingRestore);
+          pendingRestore = restoreTime;
           audioElement.addEventListener('loadedmetadata', restoreTime, { once: true });
         }
 
@@ -529,6 +537,11 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    const iosWebKit = isIOSWebKit(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
+    const stopStallGuard = iosWebKit
+      ? watchPersistentAudioStall(audio, () => void recoverCurrentTrack(true))
+      : null;
+
     const syncAfterPageResume = () => {
       syncPlaybackState();
       setIsPlaying(!audio.paused && !audio.ended);
@@ -544,7 +557,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
-    audio.addEventListener('stalled', onStalled);
+    if (!iosWebKit) audio.addEventListener('stalled', onStalled);
     window.addEventListener('pageshow', syncAfterPageResume);
     document.addEventListener('visibilitychange', syncAfterPageResume);
 
@@ -552,6 +565,9 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     setIsPlaying(!audio.paused);
 
     return () => {
+      disposed = true;
+      stopStallGuard?.();
+      if (pendingRestore) audio.removeEventListener('loadedmetadata', pendingRestore);
       audio.removeEventListener('timeupdate', syncPlaybackState);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('play', onPlay);
@@ -962,9 +978,10 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     const trackForMetadata = currentTrack;
     const waitMs = trackForMetadata.coverUrl ? 80 : 1200;
     let isCancelled = false;
+    let stopArtworkUpdate: (() => void) | undefined;
 
     mediaMetadataTimerRef.current = window.setTimeout(() => {
-      void (async () => {
+      (() => {
         const latestTrack = currentTrackRef.current;
         if (
           isCancelled ||
@@ -976,28 +993,22 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
         }
 
         const coverUrl = latestTrack.coverUrl || trackForMetadata.coverUrl;
-        const isArtworkReady = coverUrl ? await waitForArtwork(coverUrl) : false;
-
-        if (
-          isCancelled ||
-          currentTrackRef.current?.id !== trackForMetadata.id ||
-          mediaMetadataKeyRef.current === metadataKey
-        ) {
-          return;
-        }
-
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: latestTrack.title,
-          artist: latestTrack.artist,
-          album: 'Vinyl Collection',
-          artwork: coverUrl && isArtworkReady ? getMediaArtwork(coverUrl) : [],
-        });
-        mediaMetadataKeyRef.current = metadataKey;
+        stopArtworkUpdate = startMediaArtworkUpdate(coverUrl, () => {
+          if (isCancelled || currentTrackRef.current?.id !== trackForMetadata.id) return;
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: latestTrack.title,
+            artist: latestTrack.artist,
+            album: 'Vinyl Collection',
+            artwork: getMediaArtwork(coverUrl),
+          });
+          mediaMetadataKeyRef.current = metadataKey;
+        }, waitForArtwork);
       })();
     }, waitMs);
 
     return () => {
       isCancelled = true;
+      stopArtworkUpdate?.();
       if (mediaMetadataTimerRef.current) {
         window.clearTimeout(mediaMetadataTimerRef.current);
         mediaMetadataTimerRef.current = null;
