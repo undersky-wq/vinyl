@@ -41,3 +41,14 @@ html[data-visual-variant='shelf'][data-shelf-theme='dark'] .header-about-link{co
 .about-page button:focus-visible,.about-page a:focus-visible,.header-about-link:focus-visible{outline:2px solid #b63c27;outline-offset:4px}
 @media(max-width:700px){.paper-section-page.about-page{padding:20px 6vw 145px}.about-page .about-header{margin:0 0 35px}.about-header .paper-page-brand-row{gap:8px}.about-header .paper-page-avatar{width:36px;height:36px}.about-header form{max-width:none}.about-layout{grid-template-columns:1fr;gap:32px;max-width:480px}.about-track__popup{position:fixed;left:50%;bottom:auto;top:50%;transform:translate(-50%,-50%);width:min(290px,calc(100vw - 44px));max-height:80svh;overflow-y:auto;box-shadow:0 0 0 100vmax #0008}}
 @media(prefers-reduced-motion:reduce){.about-photos img,.about-photos img.is-active{transition:none;transform:none}}
+@media(max-width:700px){
+  /* Keep scrolling photographs and text below the mobile identity/search. */
+  .about-page .about-header{
+    position:sticky;top:0;z-index:100003;isolation:isolate;
+    margin-top:-20px;padding:20px 0 12px;background:var(--about-bg);
+  }
+  .about-page .about-header::before{
+    content:'';position:absolute;inset:0 -6vw;z-index:-1;
+    background:var(--about-bg);pointer-events:none;
+  }
+}
