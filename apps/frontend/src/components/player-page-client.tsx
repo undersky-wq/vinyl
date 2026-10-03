@@ -287,6 +287,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         <button
           type="button"
           className={`player-page__control player-page__control--shuffle${isShuffleEnabled ? ' active' : ''}`}
+          aria-pressed={isShuffleEnabled}
           onClick={(event) => {
             event.stopPropagation();
             toggleShuffle();
@@ -337,6 +338,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
         <button
           type="button"
           className={`player-page__control player-page__control--repeat${isRepeatEnabled ? ' active' : ''}`}
+          aria-pressed={isRepeatEnabled}
           onClick={(event) => {
             event.stopPropagation();
             toggleRepeat();
@@ -350,7 +352,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
 
         <PlayerMixActions track={currentTrack} lang={lang} currentTime={currentTime} duration={duration} comments={comments} onComment={(comment) => setComments((items) => [...items, comment].sort((a, b) => a.second - b.second))} seek={seekToPercent}>
         <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
-        <TrackPlaylistMenu trackId={currentTrack.id} lang={lang} className="player-page__playlist-add" align="up" />
+        <TrackPlaylistMenu trackId={currentTrack.id} lang={lang} className="player-page__playlist-add" align="up" keepOpenAfterAction />
         <div className="player-queue-menu player-page__queue">
           <button
             type="button"

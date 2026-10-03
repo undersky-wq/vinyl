@@ -106,8 +106,6 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   }, [isOverlayQueueOpen]);
   const [overlayQueueDragY, setOverlayQueueDragY] = useState(0);
   const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
-  const [overlayShuffleActive, setOverlayShuffleActive] = useState(isShuffleEnabled);
-  const [overlayRepeatActive, setOverlayRepeatActive] = useState(isRepeatEnabled);
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const lastHapticStepRef = useRef(-1);
@@ -180,13 +178,6 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     };
   }, [isFullPlayerOpen]);
 
-  useEffect(() => {
-    setOverlayShuffleActive(isShuffleEnabled);
-  }, [isShuffleEnabled]);
-
-  useEffect(() => {
-    setOverlayRepeatActive(isRepeatEnabled);
-  }, [isRepeatEnabled]);
 
   function openFullPlayer() {
     if (typeof window === 'undefined') {
@@ -242,14 +233,12 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   function handleOverlayShuffle(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
-    setOverlayShuffleActive((current) => !current);
     toggleShuffle();
   }
 
   function handleOverlayRepeat(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
-    setOverlayRepeatActive((current) => !current);
     toggleRepeat();
   }
 
@@ -586,7 +575,8 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
           <div className="player-page__controls">
             <button
               type="button"
-              className={`player-page__control player-page__control--shuffle${overlayShuffleActive ? ' active' : ''}`}
+              className={`player-page__control player-page__control--shuffle${isShuffleEnabled ? ' active' : ''}`}
+              aria-pressed={isShuffleEnabled}
               onClick={handleOverlayShuffle}
               aria-label={lang === 'ru' ? 'Перемешивание' : 'Shuffle'}
               data-tooltip={lang === 'ru' ? 'Перемешивание' : 'Shuffle'}
@@ -624,7 +614,8 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             </button>
             <button
               type="button"
-              className={`player-page__control player-page__control--repeat${overlayRepeatActive ? ' active' : ''}`}
+              className={`player-page__control player-page__control--repeat${isRepeatEnabled ? ' active' : ''}`}
+              aria-pressed={isRepeatEnabled}
               onClick={handleOverlayRepeat}
               aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
               data-tooltip={lang === 'ru' ? 'Повтор' : 'Repeat'}
@@ -641,6 +632,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
               className="player-page__playlist-add"
               align="up"
               sheetDrag
+              keepOpenAfterAction
             />
             <div className="player-queue-menu player-page__queue" ref={overlayQueueContainerRef}>
               <button
@@ -664,12 +656,19 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                     }
                   }}
                   onPointerDown={(event) => {
+                    if ((event.target as HTMLElement).closest('button, input, textarea, a, .player-queue-menu__list')) {
+                      overlayQueueDidDragRef.current = false;
+                      return;
+                    }
                     startOverlayQueueDrag(event.clientY);
                     event.currentTarget.setPointerCapture(event.pointerId);
                   }}
                   onPointerMove={(event) => moveOverlayQueueDrag(event.clientY)}
                   onPointerUp={(event) => {
-                    event.currentTarget.releasePointerCapture(event.pointerId);
+                    if (overlayQueueDragStartYRef.current === null) return;
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                      event.currentTarget.releasePointerCapture(event.pointerId);
+                    }
                     finishOverlayQueueDrag();
                   }}
                   onPointerCancel={finishOverlayQueueDrag}

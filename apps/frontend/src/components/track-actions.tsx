@@ -49,6 +49,7 @@ type TrackPlaylistMenuProps = {
   align?: 'down' | 'up';
   sheetDrag?: boolean;
   portal?: boolean;
+  keepOpenAfterAction?: boolean;
 };
 
 export function TrackPlaylistMenu({
@@ -58,6 +59,7 @@ export function TrackPlaylistMenu({
   align = 'down',
   sheetDrag = false,
   portal = false,
+  keepOpenAfterAction = false,
 }: TrackPlaylistMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
@@ -155,7 +157,7 @@ export function TrackPlaylistMenu({
 
       if (createdPlaylist) {
         setPlaylistName('');
-        setIsOpen(false);
+        if (!keepOpenAfterAction) setIsOpen(false);
       }
     } catch {
       setStatus(lang === 'ru' ? 'Не удалось создать плейлист.' : 'Failed to create playlist.');
@@ -176,7 +178,7 @@ export function TrackPlaylistMenu({
 
     try {
       await toggleTrackInPlaylist(playlist, trackId);
-      setIsOpen(false);
+      if (!keepOpenAfterAction) setIsOpen(false);
     } catch {
       setStatus(
         alreadyAdded

@@ -26,7 +26,7 @@ export function PlayerReleaseDetails({ releaseId, backArtwork, flipped, onFlip, 
     ? (lang === 'ru' ? 'Показать лицевую сторону' : 'Show front cover')
     : (lang === 'ru' ? 'Показать обратную сторону' : 'Show back cover');
   return <div className="player-page__release-details">
-    {year ? <time dateTime={String(year)} aria-label={lang === 'ru' ? `Год релиза: ${year}` : `Release year: ${year}`}>{year}</time> : null}
     {backArtwork ? <button type="button" className="player-page__cover-flip player-page__cover-flip--metadata" aria-pressed={flipped} aria-label={label} title={label} onClick={onFlip}><Rotate3D size={19}/></button> : null}
+    {year ? <time dateTime={String(year)} aria-label={lang === 'ru' ? `Год релиза: ${year}` : `Release year: ${year}`}>{year}</time> : null}
   </div>;
 }

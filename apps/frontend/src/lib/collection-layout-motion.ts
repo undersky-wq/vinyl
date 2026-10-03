@@ -16,3 +16,19 @@ export function mergeVisibleReleaseIndices(previous: number[], current: number[]
     .filter(index => Number.isInteger(index) && index >= 0 && index < count)
     .sort((a, b) => a - b);
 }
+
+/** Virtualized Shelf newcomers start in the offscreen continuation of Stack. */
+export function extrapolateStackCoverFrame(frames: Map<string, Keyframe>, index: string, step: number): Keyframe | undefined {
+  let nearest: { index: number; frame: Keyframe } | undefined;
+  const target = Number(index);
+  if (!Number.isFinite(target) || !Number.isFinite(step)) return undefined;
+  for (const [key, frame] of frames) {
+    const candidate = Number(key);
+    if (!Number.isFinite(candidate) || !Number.isFinite(parseFloat(String(frame.top)))) continue;
+    if (!nearest || Math.abs(candidate - target) < Math.abs(nearest.index - target)) {
+      nearest = { index: candidate, frame };
+    }
+  }
+  if (!nearest) return undefined;
+  return { ...nearest.frame, top: `${parseFloat(String(nearest.frame.top)) + (target - nearest.index) * step}px` };
+}

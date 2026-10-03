@@ -18,10 +18,11 @@ import { ShelfMixTrack } from './shelf-mix-track';
 import { getHomeReleaseDetails, getHomeReleases } from '../lib/api';
 import { ShelfReleaseEditor } from './shelf-release-editor';
 import { shelfMobileLayout } from '../lib/shelf-mobile-layout';
-import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress, mergeVisibleReleaseIndices } from '../lib/collection-layout-motion';
+import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress, mergeVisibleReleaseIndices, extrapolateStackCoverFrame } from '../lib/collection-layout-motion';
 import { CollectionPosition } from './collection-position';
 import { getBackCoverUrl, isBackSidePosition } from '../lib/release-images';
 import { retryCoverImage } from '../lib/retry-cover-image';
+import { warmCoverImages } from '../lib/warm-cover-images';
 const coverFull = (r: HomeRelease) => r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
 const coverMobile = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || coverFull(r);
 const cover = coverFull;
@@ -357,9 +358,13 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const coverTransitionFrames = useRef<Map<string, Keyframe> | null>(null);
   const coverTransitionAnimations = useRef<Animation[]>([]);
   const coverTransitionIsLayout = useRef(false);
+  const coverTransitionStackStep = useRef<number | null>(null);
   function captureCoverTransition(layout = false) {
     const root = stage.current;
     if (!root) return;
+    coverTransitionStackStep.current = layout && root.classList.contains('is-stack') && !root.classList.contains('is-open')
+      ? 24 * (parseFloat(getComputedStyle(root).getPropertyValue('--stack-distance-scale')) || -1.6)
+      : null;
     const matrix = new DOMMatrixReadOnly(transport.current ? getComputedStyle(transport.current).transform : undefined);
     const row = root.querySelector<HTMLElement>('.paper-row');
     const frames = new Map<string, Keyframe>();
@@ -931,11 +936,37 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     ? mergeVisibleReleaseIndices(shelfVisibleIndices.current, rawVisibleIndices, releases.length)
     : rawVisibleIndices;
   shelfVisibleIndices.current = visibleIndices;
+  // Stack and Shelf expose different windows. Warm the nearby Shelf edges
+  // while Stack is idle, using the same mobile/desktop source as <picture>.
+  const warmedCovers = useRef(new Set<string>());
+  const shelfWarmUrls = stackMode && selected === null
+    ? releases.map((r, i) => ({ r, x: sleeves[i].position - sideTravel - sleeveSize * .38 }))
+      .filter(({ x }) => x + sleeveSize >= -120 && x <= viewport.width + 120)
+      .sort((a, b) => Math.abs(a.x - viewport.width / 2) - Math.abs(b.x - viewport.width / 2))
+      .map(({ r }) => viewport.width <= 700 ? coverMobile(r) : coverFull(r))
+    : [];
+  const shelfWarmKey = JSON.stringify(shelfWarmUrls);
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    const timer = setTimeout(() => {
+      if (!document.hidden) {
+        const loaded = new Set<string>();
+        stage.current?.querySelectorAll<HTMLImageElement>('.paper-record-front img').forEach(image => {
+          if (image.complete && image.naturalWidth > 0) loaded.add(image.currentSrc || image.src);
+        });
+        const urls: string[] = JSON.parse(shelfWarmKey);
+        stop = warmCoverImages(urls.filter(url => !loaded.has(new URL(url, location.href).href)), warmedCovers.current);
+      }
+    }, 180);
+    return () => { clearTimeout(timer); stop?.(); };
+  }, [shelfWarmKey]);
   useLayoutEffect(() => {
     const frames = coverTransitionFrames.current;
     const root = stage.current;
     if (!frames || !root) return;
     coverTransitionFrames.current = null;
+    const stackStep = coverTransitionStackStep.current;
+    coverTransitionStackStep.current = null;
     // React replaces className during the commit. Reapply the guard here so
     // computed styles are the final layout, not the first frame of a newly
     // started CSS transition (which would animate back to the old position).
@@ -949,7 +980,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         margin: style.margin, transform: style.transform,
         transformOrigin: style.transformOrigin, opacity: style.opacity,
       };
-      const previous = frames.get(card.dataset.index!);
+      const previous = frames.get(card.dataset.index!)
+        ?? (stackStep === null ? undefined : extrapolateStackCoverFrame(frames, card.dataset.index!, stackStep));
       if (!reduced && previous) coverTransitionAnimations.current.push(card.animate([
         { ...previous, top: `${parseFloat(String(previous.top)) + (row?.scrollTop ?? 0)}px` },
         destination,
@@ -1288,7 +1320,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
           setHovered(null);
         }}>
         {/* The same sleeve moves out of the row and unfolds; no duplicate cover. */}
-        <ShelfCoverImage release={r} eager={isPriorityCover} priority={isPriorityCover} selected={selected === i} highQuality={viewport.width <= 700 && selected === i && expanded} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
+        <ShelfCoverImage release={r} eager={isPriorityCover || stackTransitioning} priority={isPriorityCover} selected={selected === i} highQuality={viewport.width <= 700 && selected === i && expanded} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
       </button>;
     })}
     {listMix > 0 && visibleIndices.map(i => {

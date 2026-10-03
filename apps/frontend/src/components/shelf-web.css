@@ -6,6 +6,30 @@ html[data-visual-variant='shelf'][data-shelf-theme='dark'] {
 }
 html[data-visual-variant='shelf'] ::selection { background:#d6c6f2!important; color:#191122!important; text-shadow:none!important; }
 html[data-visual-variant='shelf'] body .mini-player.mini-player--hidden { display:none!important; }
+/* Artist and year share one type scale; the year is the rightmost item. */
+html[data-visual-variant='shelf'] .player-page__artist-row{
+  font:600 20px/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.6px;
+}
+html[data-visual-variant='shelf'] .player-page__artist-row :is(.player-page__artist,.player-page__release-details){
+  font:inherit!important;letter-spacing:inherit!important;color:inherit;
+}
+html[data-visual-variant='shelf'] .player-page__release-details time{white-space:nowrap}
+html[data-visual-variant='shelf'] .player-page__controls button:is(.player-page__control--shuffle,.player-page__control--repeat){
+  position:relative;color:var(--shelf-web-muted)!important;
+}
+html[data-visual-variant='shelf'] .player-page__controls :is(.player-page__control--shuffle,.player-page__control--repeat).active{
+  color:var(--shelf-web-ink)!important;
+}
+html[data-visual-variant='shelf'] .player-page__controls :is(.player-page__control--shuffle,.player-page__control--repeat).active::before{
+  content:'';position:absolute;left:50%;bottom:4px;width:4px;height:4px;
+  border-radius:50%;background:currentColor;transform:translateX(-50%);pointer-events:none;
+}
+@media(min-width:701px){
+  html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__meta{width:100%;max-width:none}
+}
+@media(max-width:700px){
+  html[data-visual-variant='shelf'] .player-page__artist-row{font-size:1.46rem;font-weight:900;line-height:1.1;letter-spacing:-.02em}
+}
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] ::selection { background:#71539b!important; color:#fff!important; }
 .shelf-edit-trigger,.shelf-editor-close { display:inline-flex;align-items:center;justify-content:center;padding:6px;border:0;border-radius:0;background:transparent;color:inherit;cursor:pointer; }
 .shelf-edit-trigger:hover { opacity:.6; }
@@ -221,15 +245,28 @@ html[data-visual-variant='shelf'] .paper-mix-comments .paper-mix-comment-delete:
 html[data-visual-variant='shelf'] .paper-mix-comments .paper-mix-comment-delete:disabled { opacity:.4;cursor:default; }
 @media(min-width:701px) {
   /* Transport hints must paint above the following secondary-action row. */
-  html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__controls {
+  html[data-visual-variant='shelf'] .player-page__controls {
     position:relative;z-index:10;overflow:visible;
   }
-  html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__controls [data-tooltip] {
+  html[data-visual-variant='shelf'] .player-page__controls [data-tooltip] {
     position:relative;
   }
-  html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__controls [data-tooltip]:hover,
-  html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__controls [data-tooltip]:focus-visible {
+  html[data-visual-variant='shelf'] .player-page__controls [data-tooltip]:hover,
+  html[data-visual-variant='shelf'] .player-page__controls [data-tooltip]:focus-visible {
     z-index:11;
+  }
+  /* Dim only the unavailable icon, not its tooltip's opaque background. */
+  html[data-visual-variant='shelf'] .player-page__controls [data-tooltip]:disabled{opacity:1}
+  html[data-visual-variant='shelf'] .player-page__controls [data-tooltip]:disabled>svg{opacity:.32}
+  /* One hint style for transport and secondary actions in both full players.
+     Override legacy dark archive hints and the mini player's upward hints. */
+  html[data-visual-variant='shelf'] :is(.player-page__controls,.player-page__secondary-actions) [data-tooltip]::after{
+    top:calc(100% + 9px)!important;bottom:auto!important;
+    padding:5px 8px!important;border:1px solid var(--shelf-web-line)!important;
+    border-radius:0!important;background:var(--shelf-web-bg)!important;
+    color:var(--shelf-web-muted)!important;box-shadow:none!important;
+    font:400 12px/1.35 Arial,Helvetica,sans-serif!important;
+    letter-spacing:0!important;text-transform:none!important;
   }
 }
 @media(min-width:701px) {
