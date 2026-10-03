@@ -10,6 +10,8 @@ import { ShelfThemeToggle } from './shelf-theme-toggle';
 import { useDesignVariant } from './design-variant-switcher';
 import './about-page.css';
 import './paper-sections.css';
+import './record-archive.css';
+import '../app/profile/profile-player.css';
 
 const photos = ['/about/dmitry-01.webp', '/about/dmitry-02.webp', '/about/dmitry-03.webp'];
 

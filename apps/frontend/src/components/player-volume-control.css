@@ -1,6 +1,6 @@
 .shelf-volume{display:none}
 @media(min-width:701px){
-  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page)) .mini-player__timeline{grid-template-columns:minmax(0,1fr) auto auto!important;align-items:center}
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player__timeline{grid-template-columns:minmax(0,1fr) auto auto!important;align-items:center}
   .mini-player__timeline .shelf-volume{order:3}
   .shelf-volume{display:flex;align-items:center;justify-content:center;gap:12px;position:relative;color:inherit;font:400 12px/1.3 Arial,Helvetica,sans-serif;letter-spacing:0}
   .shelf-volume span{min-width:35px;font-variant-numeric:tabular-nums;text-align:right}
@@ -23,7 +23,7 @@
 }
 @media(min-width:901px){
   /* Use the existing right margin, preserving both title and seek-line widths. */
-  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page)) .mini-player__timeline{position:relative!important;grid-template-columns:minmax(0,1fr) auto!important}
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player__timeline{position:relative!important;grid-template-columns:minmax(0,1fr) auto!important}
   .mini-player__timeline .shelf-volume--compact{position:absolute;right:-28px;top:50%;transform:translateY(-50%)}
   .mini-player__timeline .shelf-volume--compact .shelf-volume__button{width:24px;height:28px}
 }

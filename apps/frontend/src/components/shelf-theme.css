@@ -73,15 +73,15 @@ html[data-visual-variant='shelf'][data-shelf-theme='dark'] :is(
 ) { color: #f3f3f1 !important; }
 
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .mini-player .progress { background:#ffffff35 !important; }
-html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page)) .mini-player{border-color:#ffffff70 !important}
-html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page)) .mini-player__timeline{border-left-color:#ffffff70 !important}
-html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page)) .mini-player__controls{border-left-color:#ffffff70 !important}
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player{border-color:#ffffff70 !important}
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player__timeline{border-left-color:#ffffff70 !important}
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player__controls{border-left-color:#ffffff70 !important}
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-tracklist::before { background:#ffffff70 !important; }
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .mini-player .progress>span { background: #f3f3f1 !important; }
-html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page)) .mini-player .progress-slider::-webkit-slider-thumb {
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player .progress-slider::-webkit-slider-thumb {
   background:#fff !important;box-shadow:none !important;
 }
-html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page)) .mini-player .progress-slider::-moz-range-thumb {
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player .progress-slider::-moz-range-thumb {
   background:#fff !important;border-color:#fff !important;box-shadow:none !important;
 }
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-record { box-shadow: 1px 1px 0 #ffffff45, 8px 16px 24px #0008; }
