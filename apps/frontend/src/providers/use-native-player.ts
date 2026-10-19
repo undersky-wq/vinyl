@@ -56,7 +56,8 @@ export function useNativePlayer(): PlayerContextType {
   const displayQueue = queue.filter(track => state.displayIds?.includes(track.id));
   const setQueue = (tracks: PlayerTrack[], index = 0, displayTracks?: PlayerTrack[], autoplay = true, percent = 0, preserve = false) => {
     const playable = tracks.filter(track => track.audioUrl);
-    if (!playable.length || !requirePlayback()) return;
+    const safeIndex = Math.max(0, Math.min(index, playable.length - 1));
+    if (!playable.length || !requirePlayback(playable[safeIndex].isPublic === true, playable[safeIndex].isOriginal === true)) return;
     nativePlayerCommand('queue', {
       tracks: playable, index: Math.max(0, Math.min(index, playable.length - 1)),
       displayIds: (displayTracks || playable).map(track => track.id), autoplay, percent, preserve,
@@ -85,7 +86,7 @@ export function useNativePlayer(): PlayerContextType {
     toggleShuffle: () => nativePlayerCommand('shuffle', { value: !state.shuffle }),
     toggleRepeat: () => nativePlayerCommand('repeat', { value: !state.repeat }),
     togglePlayback: () => {
-      if (currentTrack && requirePlayback()) nativePlayerCommand(state.playing ? 'pause' : 'play');
+      if (currentTrack && requirePlayback(currentTrack.isPublic === true, currentTrack.isOriginal === true)) nativePlayerCommand(state.playing ? 'pause' : 'play');
     },
     getAudioElement: () => audioRef.current,
   };

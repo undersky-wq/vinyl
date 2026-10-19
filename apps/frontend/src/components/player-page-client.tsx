@@ -202,7 +202,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     >
       <button
         type="button"
-        className="player-page__collapse"
+        className="player-page__collapse mobile-player-overlay__collapse"
         onClick={collapsePlayer}
         aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
         data-tooltip={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}

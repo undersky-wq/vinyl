@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, Copy, ImagePlus, Pause, Play, Plus, Share2, Trash2, X } from 'lucide-react';
+import { ChevronLeft, Copy, ImagePlus, Pause, Play, Plus, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -26,7 +26,8 @@ import { Release, TimelineComment } from '../types';
 import { CoverArtwork } from './cover-artwork';
 import { isReleaseAudioComplete, rememberReleaseAudioStatus } from '../lib/release-audio';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
-import { MixShareSheet } from './mix-share-sheet';
+import { CopyMusicLink } from './copy-music-link';
+import { SquareCoverEditor } from './square-cover-input';
 import { TrackUploadButton } from './track-upload-button';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
@@ -359,14 +360,6 @@ function getAvatarInitial(name?: string | null) {
   return (name || 'U').trim().charAt(0).toUpperCase() || 'U';
 }
 
-function getReleaseShareUrl(releaseId: string) {
-  if (typeof window === 'undefined') {
-    return `/releases/${releaseId}`;
-  }
-
-  return `${window.location.origin}/releases/${releaseId}`;
-}
-
 function MixDetailPanel({
   release,
   tracks,
@@ -412,8 +405,6 @@ function MixDetailPanel({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
-  const [shareStatus, setShareStatus] = useState('');
-  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const [isSavingComment, setIsSavingComment] = useState(false);
   const isCurrentMixPlaying = tracks.some((track) => track.id === currentTrackId);
   const durationSec = sourceTrack?.durationSec || 0;
@@ -624,20 +615,6 @@ function MixDetailPanel({
     }
   }
 
-  async function handleCopyLink() {
-    const url = getReleaseShareUrl(release.id);
-    try {
-      await navigator.clipboard.writeText(url);
-      setShareStatus(lang === 'ru' ? 'Ссылка скопирована.' : 'Link copied.');
-    } catch {
-      setShareStatus(url);
-    }
-  }
-
-  async function handleShare() {
-    setIsShareSheetOpen(true);
-  }
-
   if (!tracks.length) {
     return null;
   }
@@ -701,19 +678,8 @@ function MixDetailPanel({
         </div>
 
         <div className="mix-detail-actions">
-          <button type="button" className="mix-share-button" onClick={() => void handleShare()}>
-            <Share2 size={15} />
-            Share
-          </button>
-          {shareStatus ? <span className="muted">{shareStatus}</span> : null}
+          <CopyMusicLink releaseId={release.id} lang={lang} />
         </div>
-        <MixShareSheet
-          release={release}
-          url={getReleaseShareUrl(release.id)}
-          isOpen={isShareSheetOpen}
-          onClose={() => setIsShareSheetOpen(false)}
-          onCopy={handleCopyLink}
-        />
 
         <form className="mix-comment-composer" onSubmit={handleSaveComment}>
           <span className="mix-comment-composer__avatar">
@@ -827,10 +793,10 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
   const [newTrackDraft, setNewTrackDraft] = useState({ position: '', artist: '', title: '' });
   const [isCreatingTrack, setIsCreatingTrack] = useState(false);
   const [uploadedCoverUrl, setUploadedCoverUrl] = useState<string | null>(null);
+  const [pendingCover, setPendingCover] = useState<File | null>(null);
   const [styleTags, setStyleTags] = useState(() => [...release.styles]);
   const [styleDraft, setStyleDraft] = useState('');
   const [isSavingStyles, setIsSavingStyles] = useState(false);
-  const [isMobileMixShareOpen, setIsMobileMixShareOpen] = useState(false);
   const [releaseText, setReleaseText] = useState(() => ({
     artist: release.artist,
     title: release.title,
@@ -941,6 +907,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
         coverUrl: coverSrc,
         releaseId: release.id,
         isPublic: Boolean(release.isMix),
+        isOriginal: release.isOriginal,
         durationRaw: track.durationRaw ?? null,
         durationSec: track.durationSec ?? null,
         waveformData: Array.isArray(track.waveformData)
@@ -1223,13 +1190,9 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
     }
   }
 
-  async function handleMobileMixCopyLink() {
-    const url = getReleaseShareUrl(release.id);
-    await navigator.clipboard.writeText(url);
-  }
-
   return (
     <div className={`release-page${release.isMix ? ' is-mix' : ''}`}>
+      {pendingCover ? <SquareCoverEditor file={pendingCover} lang={lang} onCancel={() => setPendingCover(null)} onApply={file => { setPendingCover(null); void handleCoverUpload(file); }} /> : null}
       <div className="release-mobile-backbar">
         <button
           type="button"
@@ -1303,7 +1266,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   if (file) {
-                    void handleCoverUpload(file);
+                    setPendingCover(file);
                   }
                   event.target.value = '';
                 }}
@@ -1396,25 +1359,9 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                 </form>
               ) : null}
               {release.isMix ? (
-                <button
-                  type="button"
-                  className="release-mix-mobile-share"
-                  onClick={() => setIsMobileMixShareOpen(true)}
-                  aria-label="Share mix"
-                >
-                  <Share2 size={16} />
-                </button>
+                <CopyMusicLink releaseId={release.id} lang={lang} className="release-mix-mobile-share" />
               ) : null}
             </div>
-          ) : null}
-          {release.isMix ? (
-            <MixShareSheet
-              release={release}
-              url={getReleaseShareUrl(release.id)}
-              isOpen={isMobileMixShareOpen}
-              onClose={() => setIsMobileMixShareOpen(false)}
-              onCopy={handleMobileMixCopyLink}
-            />
           ) : null}
         </div>
       </div>

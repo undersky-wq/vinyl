@@ -138,6 +138,7 @@ function mapHomeRelease(release: HomeReleaseApi): HomeRelease {
     trackCount: release.trackCount,
     trackSearchText: release.trackSearchText,
     isMix: release.isMix,
+    isOriginal: release.isOriginal,
     audioComplete: release.audioComplete ?? (
       release.tracks.length > 0 && release.tracks.every((track) => track.audioFiles.length > 0)
     ),

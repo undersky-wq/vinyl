@@ -1,6 +1,8 @@
 'use client';
 
-import { Download, MessageCircle, Share2 } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { CopyMusicLink } from './copy-music-link';
+import { TimelineCommentComposer } from './timeline-comment-composer';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createReleaseTimelineComment, getRelease } from '../lib/api';
@@ -17,7 +19,7 @@ export function PlayerMixActions({ track, lang, currentTime, duration, comments,
   children?: ReactNode;
 }) {
   const { requireAuth } = useAuth();
-  const [isMix, setIsMix] = useState(false);
+  const [isMix, setIsMix] = useState(Boolean(track.isPublic || track.isOriginal));
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [pending, setPending] = useState(false);
@@ -26,30 +28,24 @@ export function PlayerMixActions({ track, lang, currentTime, duration, comments,
   trackRef.current = track.id;
   useEffect(() => {
     let cancelled = false;
-    setIsMix(false); setOpen(false); setText(''); setStatus('');
+    setIsMix(Boolean(track.isPublic || track.isOriginal)); setOpen(false); setText(''); setStatus('');
     if (track.releaseId) getRelease(track.releaseId).then((release) => {
       if (!cancelled) setIsMix(Boolean(release.isMix));
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, [track.releaseId]);
+  }, [track.releaseId, track.isPublic, track.isOriginal]);
   return <div className="player-page__mix-actions">
     <div className="player-page__secondary-actions">
       {children}
       {isMix ? <>
-      <a className="player-page__download" href={track.audioUrl} download aria-label={lang === 'ru' ? 'Скачать микс' : 'Download mix'}><Download size={18} /></a>
-      <button type="button" aria-label={lang === 'ru' ? 'Поделиться' : 'Share'} onClick={async () => {
-        const url = `${window.location.origin}/releases/${track.releaseId}`;
-        try {
-          if (navigator.share) await navigator.share({ title: track.title, url });
-          else { await navigator.clipboard.writeText(url); setStatus(lang === 'ru' ? 'Ссылка скопирована' : 'Link copied'); }
-        } catch (error) { if (!(error instanceof Error && error.name === 'AbortError')) setStatus(lang === 'ru' ? 'Не удалось поделиться' : 'Unable to share'); }
-      }}><Share2 size={18} /></button>
+      <a className="player-page__download" href={track.audioUrl} download aria-label={track.isOriginal ? (lang === 'ru' ? 'Скачать трек' : 'Download track') : (lang === 'ru' ? 'Скачать микс' : 'Download mix')}><Download size={18} /></a>
+      {track.releaseId ? <CopyMusicLink releaseId={track.releaseId} lang={lang} /> : null}
       </> : null}
     </div>
-    {isMix ? <button type="button" className="player-page__comments-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>{lang === 'ru' ? 'Написать комментарий' : 'Write a comment'} <MessageCircle size={14} /><sup>{comments.length}</sup></button> : null}
+    {isMix ? <button type="button" className="player-page__comments-toggle" aria-expanded={open} onClick={() => setOpen(!open)}><span>{lang === 'ru' ? 'Комментарии' : 'Comments'}</span><sup>{comments.length}</sup></button> : null}
     {status ? <p className="player-page__action-status" role="status">{status}</p> : null}
     {isMix && open ? <div className="player-page__comments">
-      <form onSubmit={async (event) => {
+      <TimelineCommentComposer lang={lang} second={currentTime} text={text} onTextChange={setText} pending={pending} onSubmit={async (event) => {
         event.preventDefault();
         if (!track.releaseId || pending || !text.trim() || !requireAuth()) return;
         setPending(true);
@@ -58,11 +54,7 @@ export function PlayerMixActions({ track, lang, currentTime, duration, comments,
           if (trackRef.current === track.id) { onComment(comment); setText(''); }
         } catch { setStatus(lang === 'ru' ? 'Не удалось добавить комментарий' : 'Unable to add comment'); }
         finally { setPending(false); }
-      }}>
-        <label htmlFor="overlay-mix-comment">{lang === 'ru' ? 'Написать комментарий' : 'Write a comment'} · {time(currentTime)}</label>
-        <textarea id="overlay-mix-comment" required maxLength={2000} value={text} onChange={(event) => setText(event.target.value)} />
-        <button type="submit" disabled={pending || !text.trim()}>{pending ? '…' : lang === 'ru' ? 'Отправить' : 'Send'}</button>
-      </form>
+      }} />
       {comments.map((comment) => <div className="player-page__comment" key={comment.id}>
         <button type="button" onClick={() => seek(duration > 0 ? comment.second / duration * 100 : 0)}>{time(comment.second)}</button>
         <div><b>{comment.user.displayName}</b><p>{comment.text}</p></div>

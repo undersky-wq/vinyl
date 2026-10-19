@@ -14,7 +14,7 @@ import { useDesignVariant } from './design-variant-switcher';
 type TopbarProps = {
   lang: SiteLang;
   search?: string;
-  active?: 'home' | 'library' | 'playlists' | 'mixes' | 'favorites' | 'upload' | 'profile';
+  active?: 'home' | 'library' | 'playlists' | 'mixes' | 'originals' | 'favorites' | 'upload' | 'profile';
   hideSearch?: boolean;
 };
 
@@ -119,6 +119,9 @@ export function Topbar({ lang, search, active, hideSearch = false }: TopbarProps
         <Link href="/mixes" className={getNavClass(active === 'mixes')}>
           <AudioLines size={19} />
           <span>{lang === 'ru' ? 'Миксы' : 'Mixes'}</span>
+        </Link>
+        <Link href="/tracks" className={`${getNavClass(active === 'originals')} nav-link--originals`}>
+          <AudioLines size={19} /><span>Tracks</span>
         </Link>
         <Link href="/favorites" className={getNavClass(active === 'favorites')}>
           <Heart size={19} />

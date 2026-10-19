@@ -1,0 +1,16 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+const path = require('node:path');
+const api = {};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/lib/music-slug.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, { exports: api });
+assert.equal(api.musicSlug('Mitya Dima', 'Clockwork Disco'), 'mitya-dima-clockwork-disco');
+assert.equal(api.musicSlug('Митя Дима', 'Ёж & Ночь!'), 'mitya-dima-yozh-noch');
+const rows = [{ id: 'a', artist: 'DJ', title: 'Test' }, { id: 'b', artist: 'DJ', title: 'Test' }, { id: 'c', artist: 'DJ', title: 'Test', isOriginal: true }];
+const links = api.musicShareLinks(rows);
+assert.equal(links[0].path, '/mixes/dj-test');
+assert.equal(links[1].path, '/mixes/dj-test-2');
+assert.equal(links[2].path, '/tracks/dj-test');
+assert.equal(JSON.stringify(links), JSON.stringify(api.musicShareLinks([...rows].reverse())));
+console.log('PASS: readable music links, Russian transliteration, deterministic collisions and separate sections');

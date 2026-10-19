@@ -30,6 +30,7 @@ export type PlayerTrack = {
   releaseId?: string;
   waveformData?: number[];
   isPublic?: boolean;
+  isOriginal?: boolean;
 };
 
 export type PlayerContextType = {
@@ -707,12 +708,11 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    if (!requirePlayback()) {
-      return null;
-    }
-
     const safeIndex = Math.max(0, Math.min(startIndex, playableTracks.length - 1));
     const nextTrack = playableTracks[safeIndex];
+    if (!requirePlayback(nextTrack.isPublic === true, nextTrack.isOriginal === true)) {
+      return null;
+    }
 
     sharedQueue = playableTracks;
     sharedDisplayQueue = (displayTracks || playableTracks).filter((track) => Boolean(track.audioUrl));
@@ -857,7 +857,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const togglePlayback = () => {
-    if (!requirePlayback()) {
+    if (!requirePlayback(currentTrack?.isPublic === true, currentTrack?.isOriginal === true)) {
       return;
     }
 

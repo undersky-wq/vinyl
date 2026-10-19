@@ -1,0 +1,27 @@
+/* Shared by the Tracks timeline and both full-player surfaces. */
+html body :is(.paper-mix-comments,.mobile-player-overlay .player-page__comments,.player-page__comments) form.timeline-comment-composer {
+  display:grid;grid-template-columns:28px 48px minmax(0,1fr) auto;
+  align-items:center;gap:10px;padding:0 0 10px;margin:0;
+  border:0;border-radius:0;background:transparent;
+  color:var(--shelf-comment-ink,var(--shelf-web-ink,inherit));
+}
+form.timeline-comment-composer .timeline-comment-composer__avatar {
+  display:grid;place-items:center;width:26px;height:26px;overflow:hidden;
+  border-radius:50%;background:#ddd;color:#111;font:600 10px Arial,Helvetica,sans-serif;
+}
+form.timeline-comment-composer .timeline-comment-composer__avatar img { width:100%;height:100%;object-fit:cover; }
+:is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer :is(time,input,button) { font:400 12px/1.35 Arial,Helvetica,sans-serif; }
+:is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer time { white-space:nowrap;color:var(--shelf-comment-muted,var(--shelf-web-muted,#888));font-variant-numeric:tabular-nums; }
+:is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer input {
+  width:100%;min-width:0;box-sizing:border-box;padding:0;border:0;
+  border-bottom:1px solid var(--shelf-web-line,#8885);border-radius:0;
+  background:transparent;color:inherit;outline:none;
+}
+:is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer input::placeholder { color:var(--shelf-comment-muted,var(--shelf-web-muted,#888));opacity:1; }
+:is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer>button { width:auto;min-height:0;padding:3px 0;border:0;border-radius:0;background:transparent;color:inherit;cursor:pointer; }
+:is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer>button:disabled { opacity:.4;cursor:default; }
+:is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer>button,
+.paper-mix-comments .paper-mix-comment-delete { display:inline-flex;align-items:center;justify-content:center; }
+:is(.timeline-comment-composer,.paper-mix-comments) button[aria-busy=true] svg { animation:comment-action-spin 1s linear infinite; }
+@keyframes comment-action-spin { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { :is(.timeline-comment-composer,.paper-mix-comments) button[aria-busy=true] svg { animation:none; } }

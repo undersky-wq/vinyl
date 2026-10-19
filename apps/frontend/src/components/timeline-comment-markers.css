@@ -1,0 +1,14 @@
+/* Artwork resets must not turn timeline avatars into square cover images. */
+.player-page__waveform > .mix-comment-marker {
+  flex:none;
+  border-radius:50%!important;
+  overflow:visible;
+}
+.player-page__waveform > .mix-comment-marker > img {
+  display:block;
+  width:100%;
+  height:100%;
+  border-radius:50%!important;
+  object-fit:cover;
+  clip-path:circle(50%);
+}

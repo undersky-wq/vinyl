@@ -197,6 +197,9 @@ html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive .paper-playli
 html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive .paper-mix-index button[aria-pressed='true'] {
   color:var(--shelf-mixes-accent)!important;
 }
+html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive.is-originals .paper-mix-index button[aria-pressed='true'] {
+  color:var(--shelf-collection-accent)!important;
+}
 html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive .paper-heading-context[data-context-section='collection'] {
   color:var(--shelf-collection-accent)!important;
 }

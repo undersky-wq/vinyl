@@ -11,26 +11,44 @@ export function CollectionTransitions({ lang = 'en' }: { lang?: SiteLang }) {
   const pathname = usePathname();
   const [pending, setPending] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     router.prefetch('/');
     router.prefetch('/mixes');
+    router.prefetch('/tracks');
     router.prefetch('/favorites');
+    router.prefetch('/about');
   }, [router]);
 
   useEffect(() => {
     setPending(false);
     document.documentElement.removeAttribute('data-collection-navigating');
+    document.documentElement.removeAttribute('data-about-navigating');
     if (timer.current) clearTimeout(timer.current);
+    if (navigationTimer.current) { clearTimeout(navigationTimer.current); navigationTimer.current = null; }
   }, [pathname]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const link = (event.target as Element).closest<HTMLAnchorElement>('a[href]');
-      if (!link || link.target || link.hasAttribute('download') || !link.closest('.paper-archive,.paper-section-page')) return;
+      if (!link || link.target || link.hasAttribute('download')) return;
       const url = new URL(link.href);
-      if (url.origin !== location.origin || !['/', '/mixes', '/favorites'].includes(url.pathname)) return;
+      if (url.origin === location.origin && url.pathname === '/about' && location.pathname !== '/about') {
+        event.preventDefault();
+        if (navigationTimer.current) return;
+        const reduced = matchMedia('(prefers-reduced-motion:reduce)').matches;
+        document.documentElement.setAttribute('data-about-navigating', 'true');
+        navigationTimer.current = setTimeout(() => {
+          navigationTimer.current = null;
+          router.push(url.pathname + url.search, {scroll:false});
+          timer.current = setTimeout(() => document.documentElement.removeAttribute('data-about-navigating'), 10000);
+        }, reduced ? 0 : 320);
+        return;
+      }
+      if (!link.closest('.paper-archive,.paper-section-page')) return;
+      if (url.origin !== location.origin || !['/', '/mixes', '/tracks', '/favorites'].includes(url.pathname)) return;
       if (url.pathname === location.pathname && url.search === location.search) return;
       event.preventDefault();
       if (document.documentElement.hasAttribute('data-collection-navigating')) return;
@@ -48,6 +66,8 @@ export function CollectionTransitions({ lang = 'en' }: { lang?: SiteLang }) {
     return () => {
       document.removeEventListener('click', onClick, true);
       if (timer.current) clearTimeout(timer.current);
+      if (navigationTimer.current) clearTimeout(navigationTimer.current);
+      document.documentElement.removeAttribute('data-about-navigating');
     };
   }, [router]);
   return <div className="collection-route-loader" role="status" aria-live="polite" aria-label={lang === 'ru' ? 'Загрузка страницы' : 'Loading page'} aria-hidden={!pending}>

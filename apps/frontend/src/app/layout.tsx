@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body>
         <AdminEditModeSync />
-        <AuthProvider initialUser={currentUser} playbackRequiresRegistration={siteSettings.playbackRequiresRegistration ?? true}>
+        <AuthProvider initialUser={currentUser} playbackRequiresRegistration={siteSettings.playbackRequiresRegistration ?? true} allowGuestMixPlayback={'allowGuestMixPlayback' in siteSettings && siteSettings.allowGuestMixPlayback === true}>
           <FavoritesProvider initialFavoriteTrackIds={favoriteTrackIds}>
             <PlaylistsProvider>
               <PlayerProvider>

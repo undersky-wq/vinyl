@@ -67,6 +67,8 @@ export function ProfileScreen({
   const [isSavingAuthSettings, setIsSavingAuthSettings] = useState(false);
   const [playbackRequiresRegistration, setPlaybackRequiresRegistration] = useState(authSettings?.playbackRequiresRegistration ?? true);
   const [isSavingPlayback, setIsSavingPlayback] = useState(false);
+  const [allowGuestMixPlayback, setAllowGuestMixPlayback] = useState(authSettings?.allowGuestMixPlayback ?? false);
+  const [isSavingGuestMixPlayback, setIsSavingGuestMixPlayback] = useState(false);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(
     activeUser.avatarStorageUrl || null,
   );
@@ -173,12 +175,26 @@ export function ProfileScreen({
       const settings = await updateAuthSettings({ playbackRequiresRegistration: !playbackRequiresRegistration });
       setPlaybackRequiresRegistration(settings.playbackRequiresRegistration ?? true);
       setStatus(lang === 'ru'
-        ? settings.playbackRequiresRegistration ? 'Прослушивание только после входа.' : 'Прослушивание доступно всем.'
-        : settings.playbackRequiresRegistration ? 'Playback requires sign-in.' : 'Playback is available to everyone.');
+        ? settings.playbackRequiresRegistration ? 'Отдельные треки доступны только после входа.' : 'Отдельные треки доступны всем.'
+        : settings.playbackRequiresRegistration ? 'Individual tracks require sign-in.' : 'Individual tracks are available to everyone.');
       router.refresh();
     } catch {
       setStatus(lang === 'ru' ? 'Не удалось сохранить настройку прослушивания.' : 'Failed to save playback setting.');
     } finally { setIsSavingPlayback(false); }
+  }
+
+  async function handleGuestMixPlaybackToggle() {
+    setIsSavingGuestMixPlayback(true);
+    try {
+      const settings = await updateAuthSettings({ allowGuestMixPlayback: !allowGuestMixPlayback });
+      setAllowGuestMixPlayback(settings.allowGuestMixPlayback ?? false);
+      setStatus(lang === 'ru'
+        ? settings.allowGuestMixPlayback ? 'Миксы доступны без регистрации.' : 'Миксы доступны только после входа.'
+        : settings.allowGuestMixPlayback ? 'Mixes are available without registration.' : 'Mixes require sign-in.');
+      router.refresh();
+    } catch {
+      setStatus(lang === 'ru' ? 'Не удалось сохранить доступ к миксам.' : 'Failed to save mix playback setting.');
+    } finally { setIsSavingGuestMixPlayback(false); }
   }
 
   async function handleAvatar(event: ChangeEvent<HTMLInputElement>) {
@@ -442,6 +458,10 @@ export function ProfileScreen({
               <button type="button" className={`profile-action-button profile-action-button--switch${playbackRequiresRegistration ? ' active' : ''}`} aria-pressed={playbackRequiresRegistration} disabled={isSavingPlayback} onClick={handlePlaybackToggle}>
                 <span className="profile-action-button__label">{lang === 'ru' ? 'Треки только для зарегистрированных' : 'Playback requires registration'}</span>
                 <strong>{playbackRequiresRegistration ? 'ON' : 'OFF'}</strong>
+              </button>
+              <button type="button" className={`profile-action-button profile-action-button--switch${allowGuestMixPlayback ? ' active' : ''}`} aria-pressed={allowGuestMixPlayback} disabled={isSavingGuestMixPlayback} onClick={handleGuestMixPlaybackToggle}>
+                <span className="profile-action-button__label">{lang === 'ru' ? 'Миксы без регистрации' : 'Mixes without registration'}</span>
+                <strong>{allowGuestMixPlayback ? 'ON' : 'OFF'}</strong>
               </button>
               <Link href="/upload" className="profile-action-button">
                 <Upload size={16} />

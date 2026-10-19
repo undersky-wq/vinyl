@@ -1,6 +1,7 @@
 'use client';
 
 import { TimelineComment } from '../types';
+import './timeline-comment-markers.css';
 
 function getAvatarInitial(name?: string | null) {
   return (name || 'U').trim().charAt(0).toUpperCase() || 'U';

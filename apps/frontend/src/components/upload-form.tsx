@@ -5,10 +5,12 @@ import { useState } from 'react';
 import { createManualRelease } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { Release } from '../types';
+import { SquareCoverInput } from './square-cover-input';
 
 type UploadFormProps = {
   lang: SiteLang;
   releases?: Release[];
+  initialOriginal?: boolean;
 };
 
 type ManualTrackRow = {
@@ -33,7 +35,8 @@ function createTrackRow(index: number): ManualTrackRow {
   };
 }
 
-export function UploadForm({ lang }: UploadFormProps) {
+export function UploadForm({ lang, initialOriginal = false }: UploadFormProps) {
+  const [original, setOriginal] = useState(initialOriginal);
   const [artist, setArtist] = useState('');
   const [title, setTitle] = useState('');
   const [year, setYear] = useState('');
@@ -41,6 +44,8 @@ export function UploadForm({ lang }: UploadFormProps) {
   const [styles, setStyles] = useState('');
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [backCoverFile, setBackCoverFile] = useState<File | null>(null);
+  const [editingCover, setEditingCover] = useState(false);
+  const [editingBackCover, setEditingBackCover] = useState(false);
   const [tracks, setTracks] = useState<ManualTrackRow[]>(() => [createTrackRow(0)]);
   const [status, setStatus] = useState('');
   const [createdReleaseId, setCreatedReleaseId] = useState('');
@@ -56,10 +61,15 @@ export function UploadForm({ lang }: UploadFormProps) {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (editingCover || editingBackCover || isSubmitting) return;
     setStatus('');
     setCreatedReleaseId('');
 
     const validTracks = tracks.filter((track) => track.title.trim());
+    if (original && (validTracks.length !== 1 || !validTracks[0].audioFile)) {
+      setStatus(lang === 'ru' ? 'Для Tracks добавь один трек с MP3. Следующую композицию загрузи отдельно.' : 'For Tracks, add one track with an MP3. Upload each composition separately.');
+      return;
+    }
     if (!artist.trim() || !title.trim() || !validTracks.length) {
       setStatus(
         lang === 'ru'
@@ -75,6 +85,8 @@ export function UploadForm({ lang }: UploadFormProps) {
     payload.append('year', year.trim());
     payload.append('country', country.trim());
     payload.append('styles', styles.trim());
+    payload.append('isOriginal', String(original));
+    payload.append('isMix', String(original));
     payload.append(
       'tracks',
       JSON.stringify(
@@ -105,7 +117,7 @@ export function UploadForm({ lang }: UploadFormProps) {
     try {
       const release = await createManualRelease(payload);
       setCreatedReleaseId(release.id);
-      setStatus(lang === 'ru' ? 'Релиз добавлен в коллекцию.' : 'Release added to collection.');
+      setStatus(original ? (lang === 'ru' ? 'Трек добавлен в Tracks.' : 'Track added to Tracks.') : (lang === 'ru' ? 'Релиз добавлен в коллекцию.' : 'Release added to collection.'));
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
       setStatus(
@@ -123,7 +135,16 @@ export function UploadForm({ lang }: UploadFormProps) {
       <div className="manual-upload__section">
         <div>
           <p className="muted">{lang === 'ru' ? 'Данные релиза' : 'Release details'}</p>
-          <h2>{lang === 'ru' ? 'Новый релиз вручную' : 'New manual release'}</h2>
+          <h2>{original ? (lang === 'ru' ? 'Загрузить свою музыку' : 'Upload your music') : (lang === 'ru' ? 'Новый релиз вручную' : 'New manual release')}</h2>
+        </div>
+
+        <div className="field">
+          <label htmlFor="manual-destination">{lang === 'ru' ? 'Раздел' : 'Section'}</label>
+          <select id="manual-destination" value={original ? 'originals' : 'collection'} disabled={isSubmitting} onChange={event => setOriginal(event.target.value === 'originals')}>
+            <option value="collection">{lang === 'ru' ? 'Коллекция' : 'Collection'}</option>
+            <option value="originals">Tracks — {lang === 'ru' ? 'моя музыка' : 'my music'}</option>
+          </select>
+          {original && <p className="muted">{lang === 'ru' ? 'Одна композиция с обложкой и MP3. Прослушивание открыто всем, комментарии — как у миксов.' : 'One composition with artwork and an MP3. Everyone can listen; comments work like mixes.'}</p>}
         </div>
 
         <div className="manual-upload__grid">
@@ -156,23 +177,11 @@ export function UploadForm({ lang }: UploadFormProps) {
           </div>
           <div className="field manual-upload__wide">
             <label htmlFor="manual-cover">{lang === 'ru' ? 'Обложка' : 'Cover artwork'}</label>
-            <input
-              id="manual-cover"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="file-input"
-              onChange={(event) => setCoverFile(event.target.files?.[0] || null)}
-            />
+            <SquareCoverInput id="manual-cover" lang={lang} disabled={isSubmitting} onChange={setCoverFile} onEditingChange={setEditingCover} />
           </div>
           <div className="field manual-upload__wide">
             <label htmlFor="manual-back-cover">{lang === 'ru' ? 'Обратная сторона обложки' : 'Back cover artwork'}</label>
-            <input
-              id="manual-back-cover"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="file-input"
-              onChange={(event) => setBackCoverFile(event.target.files?.[0] || null)}
-            />
+            <SquareCoverInput id="manual-back-cover" lang={lang} disabled={isSubmitting} onChange={setBackCoverFile} onEditingChange={setEditingBackCover} />
           </div>
         </div>
       </div>
@@ -186,6 +195,7 @@ export function UploadForm({ lang }: UploadFormProps) {
           <button
             type="button"
             className="track-icon-button"
+            disabled={original || isSubmitting}
             onClick={() => setTracks((current) => [...current, createTrackRow(current.length)])}
             aria-label={lang === 'ru' ? 'Добавить трек' : 'Add track'}
           >
@@ -251,18 +261,18 @@ export function UploadForm({ lang }: UploadFormProps) {
       </div>
 
       <div className="manual-upload__footer">
-        <button className="nav-link manual-upload__submit" type="submit" disabled={isSubmitting}>
+        <button className="nav-link manual-upload__submit" type="submit" disabled={isSubmitting || editingCover || editingBackCover}>
           {isSubmitting ? <LoaderCircle size={17} className="track-upload-button__spinner" /> : null}
-          {lang === 'ru' ? 'Добавить релиз' : 'Add release'}
+          {original ? (lang === 'ru' ? 'Загрузить трек' : 'Upload track') : (lang === 'ru' ? 'Добавить релиз' : 'Add release')}
         </button>
         {createdReleaseId ? (
-          <a className="nav-link" href={`/releases/${createdReleaseId}`}>
+          <a className="nav-link" href={original ? '/tracks' : `/releases/${createdReleaseId}`}>
             {lang === 'ru' ? 'Открыть релиз' : 'Open release'}
           </a>
         ) : null}
       </div>
 
-      {status ? <p className="muted">{status}</p> : null}
+      {status ? <p className="muted" role="status">{status}</p> : null}
     </form>
   );
 }

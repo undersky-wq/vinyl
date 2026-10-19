@@ -1,8 +1,11 @@
 'use client';
 import './track-action-colors.css';
+import './playlist-popup-desktop.css';
 
 import { Check, Heart, ListMusic, Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { clampPlaylistPopup, placePlaylistPopup } from '../lib/playlist-popup-position';
 import { createPortal } from 'react-dom';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
@@ -74,10 +77,14 @@ export function TrackPlaylistMenu({
   const popupDragStartYRef = useRef<number | null>(null);
   const popupDragYRef = useRef(0);
   const popupDidDragRef = useRef(false);
+  const [desktopPosition, setDesktopPosition] = useState<{x:number;y:number} | null>(null);
+  const desktopDrag = useRef<{x:number;y:number;left:number;top:number} | null>(null);
+  const desktopMoved = useRef(false);
   const { requireAuth } = useAuth();
   const { createPlaylistWithTrack, isInAnyPlaylist, isLoading, playlists, toggleTrackInPlaylist } = usePlaylists();
   const isInPlaylist = isInAnyPlaylist(trackId);
-  const canSheetDrag = sheetDrag || isMobileSheet;
+  const desktopPopup = isMounted && !isMobileSheet;
+  const canSheetDrag = !desktopPopup && (sheetDrag || isMobileSheet);
 
   useEffect(() => {
     setIsMounted(true);
@@ -91,13 +98,25 @@ export function TrackPlaylistMenu({
     return () => window.removeEventListener('resize', syncMobileSheet);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) {
       return;
     }
 
     function updatePopupDirection() {
       if (!menuRef.current || isMobileSheet) {
+        return;
+      }
+
+      const popup = popupRef.current;
+      if (popup && desktopPopup) {
+        const rect = popup.getBoundingClientRect();
+        const player = menuRef.current.closest('.player-page');
+        const anchor = player?.querySelector('.player-page__cover-frame') || menuRef.current.closest('.paper-list-tracks,.paper-tracklist,.mix-card,.shelf-mix-detail__content') || menuRef.current;
+        const position = desktopMoved.current
+          ? clampPlaylistPopup(rect.left,rect.top,rect.width,rect.height,window.innerWidth,window.innerHeight)
+          : placePlaylistPopup(anchor.getBoundingClientRect(),rect.width,rect.height,window.innerWidth,window.innerHeight);
+        setDesktopPosition(position);
         return;
       }
 
@@ -124,15 +143,18 @@ export function TrackPlaylistMenu({
     const closeOnEscape = (event: KeyboardEvent) => {if (event.key === 'Escape') setIsOpen(false);};
     document.addEventListener('keydown', closeOnEscape);
     window.addEventListener('resize', updatePopupDirection);
-    window.addEventListener('scroll', updatePopupDirection, { passive: true });
+    window.addEventListener('scroll', updatePopupDirection, { passive: true, capture: true });
+    const observer = new ResizeObserver(updatePopupDirection);
+    if (popupRef.current) observer.observe(popupRef.current);
     document.addEventListener('mousedown', handlePointerDown);
     return () => {
       document.removeEventListener('keydown', closeOnEscape);
       window.removeEventListener('resize', updatePopupDirection);
-      window.removeEventListener('scroll', updatePopupDirection);
+      window.removeEventListener('scroll', updatePopupDirection, true);
+      observer.disconnect();
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [align, isMobileSheet, isOpen]);
+  }, [align, isMobileSheet, isOpen, desktopPopup]);
 
   async function handleCreatePlaylist() {
     if (!requireAuth()) {
@@ -229,9 +251,9 @@ export function TrackPlaylistMenu({
 
   const popup = isOpen ? (
     <div
-      className={`track-playlist-menu__popup${portal ? ' paper-track-menu-popup' : ''}${canSheetDrag && popupDragY > 0 ? ' dragging' : ''}`}
+      className={`track-playlist-menu__popup${portal || desktopPopup ? ' paper-track-menu-popup' : ''}${desktopPopup ? ' desktop-playlist-popup' : ''}${canSheetDrag && popupDragY > 0 ? ' dragging' : ''}`}
       ref={popupRef}
-      style={{ transform: canSheetDrag && popupDragY ? `translateY(${popupDragY}px)` : undefined }}
+      style={desktopPopup ? { '--playlist-popup-left':`${desktopPosition?.x ?? 12}px`, '--playlist-popup-top':`${desktopPosition?.y ?? 12}px`, visibility:desktopPosition ? 'visible' : 'hidden' } as CSSProperties : { transform: canSheetDrag && popupDragY ? `translateY(${popupDragY}px)` : undefined }}
       onClickCapture={(event) => {
         if (canSheetDrag && popupDidDragRef.current) {
           event.preventDefault();
@@ -240,6 +262,15 @@ export function TrackPlaylistMenu({
         }
       }}
       onPointerDown={(event) => {
+        if (desktopPopup) {
+          if (event.button !== 0 || !(event.target as HTMLElement).closest('.track-playlist-menu__title')) return;
+          event.preventDefault();
+          const rect = event.currentTarget.getBoundingClientRect();
+          desktopDrag.current = {x:event.clientX,y:event.clientY,left:rect.left,top:rect.top};
+          popupDidDragRef.current = false;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          return;
+        }
         if (!canSheetDrag) {
           return;
         }
@@ -252,11 +283,24 @@ export function TrackPlaylistMenu({
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
+        if (desktopPopup && desktopDrag.current) {
+          const start = desktopDrag.current;
+          const rect = event.currentTarget.getBoundingClientRect();
+          desktopMoved.current = true;
+          popupDidDragRef.current = Math.abs(event.clientX-start.x)+Math.abs(event.clientY-start.y)>6;
+          setDesktopPosition(clampPlaylistPopup(start.left+event.clientX-start.x,start.top+event.clientY-start.y,rect.width,rect.height,window.innerWidth,window.innerHeight));
+          return;
+        }
         if (canSheetDrag) {
           movePopupDrag(event.clientY);
         }
       }}
       onPointerUp={(event) => {
+        if (desktopDrag.current) {
+          desktopDrag.current = null;
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+          return;
+        }
         if (!canSheetDrag || popupDragStartYRef.current === null) {
           return;
         }
@@ -264,10 +308,18 @@ export function TrackPlaylistMenu({
         event.currentTarget.releasePointerCapture(event.pointerId);
         finishPopupDrag();
       }}
-      onPointerCancel={canSheetDrag ? finishPopupDrag : undefined}
+      onPointerCancel={() => {desktopDrag.current = null;if (canSheetDrag) finishPopupDrag();}}
     >
       <div className="track-playlist-menu__create">
-        <div className="track-playlist-menu__title">
+        <div className="track-playlist-menu__title" tabIndex={desktopPopup ? 0 : undefined} title={desktopPopup ? (lang==='ru'?'Перетащить окно; стрелки — переместить':'Drag window; arrow keys to move') : undefined} onKeyDown={event => {
+          if (!desktopPopup || !desktopPosition || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
+          event.preventDefault();event.stopPropagation();
+          const rect = popupRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          const step = event.shiftKey ? 10 : 30;
+          desktopMoved.current = true;
+          setDesktopPosition(clampPlaylistPopup(desktopPosition.x+(event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0),desktopPosition.y+(event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0),rect.width,rect.height,window.innerWidth,window.innerHeight));
+        }}>
           {lang === 'ru' ? 'Добавить в плейлист' : 'Add to playlist'}
         </div>
         <div className="track-playlist-menu__create-row">
@@ -321,7 +373,7 @@ export function TrackPlaylistMenu({
       {status ? <p className="muted track-playlist-menu__status">{status}</p> : null}
     </div>
   ) : null;
-  const renderedPopup = (portal || isMobileSheet) && isMounted && popup ? createPortal(popup, document.body) : popup;
+  const renderedPopup = (portal || isMobileSheet || desktopPopup) && isMounted && popup ? createPortal(popup, document.body) : popup;
 
   return (
     <div
@@ -347,6 +399,9 @@ export function TrackPlaylistMenu({
           setStatus('');
           if (!isOpen) {
             setAutoAlign(align);
+            setDesktopPosition(null);
+            desktopMoved.current = false;
+            desktopDrag.current = null;
           }
           setIsOpen((current) => !current);
         }}

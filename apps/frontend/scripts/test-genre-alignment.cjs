@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.join(__dirname, '../src/components');
+const css = fs.readFileSync(path.join(root,'record-archive.css'),'utf8');
+assert(css.includes('min-height:var(--list-size)'));
+assert(css.includes('>.paper-release-styles{margin: auto 0 0;padding-top:16px}'));
+assert(css.includes('.paper-list-tracks:not(.is-compact-track)>*{flex-shrink:0}'));
+const archive = fs.readFileSync(path.join(root,'paper-archive.tsx'),'utf8');
+assert(archive.includes('activePlaylist && <span className="paper-release-styles paper-compact-genres"'));
+const genreBottom = (coverHeight, tracksBottom, genreHeight) => Math.max(coverHeight, tracksBottom + 16 + genreHeight);
+assert.equal(genreBottom(230,74,20),230);
+assert.equal(genreBottom(230,320,20)-320-20,16);
+assert.equal(genreBottom(230,210,20),246);
+console.log('PASS: cover-bottom alignment, natural overflow, 16px minimum gap, non-shrinking rows and compact playlist genres');

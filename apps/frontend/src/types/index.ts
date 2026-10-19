@@ -33,6 +33,7 @@ export type Release = {
   genres: string[];
   styles: string[];
   isMix?: boolean;
+  isOriginal?: boolean;
   coverStorageUrl: string | null;
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;
@@ -58,6 +59,7 @@ export type HomeRelease = {
   year: number | null;
   styles: string[];
   isMix?: boolean;
+  isOriginal?: boolean;
   coverStorageUrl: string | null;
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;
@@ -93,6 +95,7 @@ export type HomeReleaseApi = {
   year: number | null;
   styles: string[];
   isMix?: boolean;
+  isOriginal?: boolean;
   coverStorageUrl: string | null;
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;
@@ -191,6 +194,7 @@ export type ProfileStats = {
 };
 
 export type AuthSettings = {
+  allowGuestMixPlayback?: boolean;
   playbackRequiresRegistration?: boolean;
   registrationInviteRequired: boolean;
   siteDesign: SiteDesign;
@@ -199,6 +203,7 @@ export type AuthSettings = {
 export type SiteDesign = 'classic' | 'shelf';
 
 export type SiteSettings = {
+  allowGuestMixPlayback?: boolean;
   playbackRequiresRegistration?: boolean;
   siteDesign: SiteDesign;
 };

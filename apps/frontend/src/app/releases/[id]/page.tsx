@@ -1,68 +1,22 @@
 import { ReleaseDetail } from '../../../components/release-detail';
 import { Topbar } from '../../../components/topbar';
 import { getRelease, getSiteSettings } from '../../../lib/api';
-import { ShelfMixDetail } from '../../../components/shelf-mix-detail';
+import { SharedMusicEntry } from '../../../components/shared-music-entry';
 import { cookies } from 'next/headers';
 import { normalizeSiteLang } from '../../../lib/language';
 import type { Metadata } from 'next';
+import { getMusicSharePath } from '../../../lib/music-share-catalog';
+import { musicMetadata } from '../../../lib/music-metadata';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-function getSiteUrl() {
-  return (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://mityadima.ru').replace(/\/$/, '');
-}
-
-function getReleaseCoverUrl(release: Awaited<ReturnType<typeof getRelease>>) {
-  return (
-    release.coverMediumStorageUrl ||
-    release.coverStorageUrl ||
-    release.coverThumbStorageUrl ||
-    release.coverImageUrl ||
-    `${getSiteUrl()}/icon.png`
-  );
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
 
   try {
     const release = await getRelease(id);
-    const siteUrl = getSiteUrl();
-    const releaseUrl = `${siteUrl}/releases/${release.id}`;
-    const title = `${release.artist} - ${release.title}${release.year ? ` • ${release.year}` : ''}`;
-    const description = release.isMix ? 'MityaDima vinyl mix' : 'Vinyl Collection release';
-    const imageUrl = getReleaseCoverUrl(release);
-
-    return {
-      title,
-      description,
-      metadataBase: new URL(siteUrl),
-      alternates: {
-        canonical: releaseUrl,
-      },
-      openGraph: {
-        title,
-        description,
-        url: releaseUrl,
-        siteName: 'MityaDima',
-        images: [
-          {
-            url: imageUrl,
-            width: 1200,
-            height: 1200,
-            alt: title,
-          },
-        ],
-        type: release.isMix ? 'music.song' : 'music.album',
-      },
-      twitter: {
-        card: 'summary_large_image',
-        title,
-        description,
-        images: [imageUrl],
-      },
-    };
+    return musicMetadata(release, release.isMix ? await getMusicSharePath(release.id) : `/releases/${release.id}`);
   } catch {
     return {
       title: 'MityaDima — Vinyl & Mixes',
@@ -81,8 +35,8 @@ export default async function ReleasePage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const release = await getRelease(id, cookieHeader);
   const settings = await getSiteSettings().catch(() => ({siteDesign:'classic' as const}));
-  if (release.isMix && settings.siteDesign === 'shelf') {
-    return <ShelfMixDetail release={release} lang={lang}/>;
+  if (release.isMix && (release.isOriginal || settings.siteDesign === 'shelf')) {
+    return <SharedMusicEntry release={release} lang={lang}/>;
   }
 
   return (

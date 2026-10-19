@@ -3,7 +3,7 @@
 import { CSSProperties, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LoaderCircle, Pause, Pencil, Play, Plus, Save, Share2, Trash2, UploadCloud, X } from 'lucide-react';
+import { LoaderCircle, Pause, Pencil, Play, Plus, Save, Trash2, UploadCloud, X } from 'lucide-react';
 import {
   createManualRelease,
   deleteRelease,
@@ -19,7 +19,7 @@ import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Release, TimelineComment, Track } from '../types';
-import { MixShareSheet } from './mix-share-sheet';
+import { CopyMusicLink } from './copy-music-link';
 import { matchesPaperSearch, usePaperSearch } from './paper-section-shell';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 
@@ -98,6 +98,7 @@ function toPlayerTrack(release: Release, track: Track): MixPlayerTrack | null {
     coverUrl: getCoverUrl(release),
     releaseId: release.id,
     isPublic: true,
+    isOriginal: release.isOriginal,
     durationRaw: track.durationRaw,
     durationSec: track.durationSec,
     waveformData: Array.isArray(track.waveformData)
@@ -118,15 +119,7 @@ function getAvatarInitial(name?: string | null) {
   return (name || 'U').trim().charAt(0).toUpperCase() || 'U';
 }
 
-function getMixShareUrl(releaseId: string) {
-  if (typeof window === 'undefined') {
-    return `/releases/${releaseId}`;
-  }
-
-  return `${window.location.origin}/releases/${releaseId}`;
-}
-
-function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerTrack[] }) {
+function MixWaveform({ release, tracks, pageQueue }: { release: Release; tracks: MixPlayerTrack[]; pageQueue: MixPlayerTrack[] }) {
   const { currentTrack } = usePlayerTransport();
   const { getAudioElement, playQueueAtPercent, seekToPercent } = usePlayerActions();
   const sourceTrack = tracks.find((track) => track.id === currentTrack?.id) || tracks[0];
@@ -210,7 +203,8 @@ function MixWaveform({ release, tracks }: { release: Release; tracks: MixPlayerT
       return;
     }
 
-    playQueueAtPercent(tracks, 0, percent);
+    const startIndex = pageQueue.findIndex(track => track.id === sourceTrack?.id);
+    if (startIndex >= 0) playQueueAtPercent(pageQueue, startIndex, percent);
   }
 
   function handlePointerPreview(event: React.PointerEvent<HTMLButtonElement>) {
@@ -276,8 +270,6 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<MixFormState>(() => getInitialForm());
   const [status, setStatus] = useState('');
-  const [shareStatus, setShareStatus] = useState('');
-  const [shareRelease, setShareRelease] = useState<Release | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const mixes = useMemo(
     () =>
@@ -289,6 +281,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
         .filter((item) => item.tracks.length && matchesPaperSearch(`${item.release.artist} ${item.release.title} ${item.release.styles.join(' ')}`,query)),
     [localReleases, query],
   );
+  const pageQueue = useMemo(() => mixes.flatMap(item => item.tracks), [mixes]);
 
   function updateCreateForm(patch: Partial<MixFormState>) {
     setCreateForm((current) => ({ ...current, ...patch }));
@@ -401,20 +394,6 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
     }
   }
 
-  async function handleCopyLink(release: Release) {
-    const url = getMixShareUrl(release.id);
-    try {
-      await navigator.clipboard.writeText(url);
-      setShareStatus(lang === 'ru' ? 'Ссылка скопирована.' : 'Link copied.');
-    } catch {
-      setShareStatus(url);
-    }
-  }
-
-  async function handleShare(release: Release) {
-    setShareRelease(release);
-  }
-
   function handleCoverOpen(event: React.MouseEvent<HTMLAnchorElement>, release: Release, tracks: MixPlayerTrack[]) {
     if (typeof window === 'undefined' || !window.matchMedia('(max-width: 640px)').matches) {
       return;
@@ -468,7 +447,6 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
           ) : null}
 
           {status ? <p className="muted">{status}</p> : null}
-          {shareStatus ? <p className="muted mix-share-status">{shareStatus}</p> : null}
         </section>
       ) : null}
 
@@ -504,7 +482,8 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
                     return;
                   }
 
-                  playQueue(tracks, 0);
+                  const startIndex = pageQueue.findIndex(track => track.id === tracks[0]?.id);
+                  if (startIndex >= 0) playQueue(pageQueue, startIndex, pageQueue);
                 }}
                 aria-label={isNowPlaying && isPlaying ? 'Pause mix' : 'Play mix'}
               >
@@ -559,7 +538,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
                 </div>
               ) : null}
 
-              <MixWaveform release={release} tracks={tracks} />
+              <MixWaveform release={release} tracks={tracks} pageQueue={pageQueue} />
 
               <div className="mix-card__footer">
                 {release.styles.length && editingId !== release.id ? (
@@ -575,10 +554,7 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
                 )}
 
                 <div className="mix-card__share-actions">
-                  <button type="button" className="mix-share-button" onClick={() => void handleShare(release)}>
-                    <Share2 size={15} />
-                    Share
-                  </button>
+                  <CopyMusicLink releaseId={release.id} lang={lang} />
                 </div>
               </div>
             </div>
@@ -586,15 +562,6 @@ export function MixesBrowser({ lang, releases }: MixesBrowserProps) {
           );
         })}
       </section>
-      {shareRelease ? (
-        <MixShareSheet
-          release={shareRelease}
-          url={getMixShareUrl(shareRelease.id)}
-          isOpen={Boolean(shareRelease)}
-          onClose={() => setShareRelease(null)}
-          onCopy={() => handleCopyLink(shareRelease)}
-        />
-      ) : null}
     </>
   );
 }

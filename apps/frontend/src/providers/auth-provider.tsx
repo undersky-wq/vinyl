@@ -9,7 +9,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   setUser: (user: AuthUser | null) => void;
   requireAuth: () => boolean;
-  requirePlayback: () => boolean;
+  requirePlayback: (isPublicMix?: boolean, isOriginal?: boolean) => boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -18,10 +18,12 @@ export function AuthProvider({
   children,
   initialUser,
   playbackRequiresRegistration = true,
+  allowGuestMixPlayback = false,
 }: {
   children: React.ReactNode;
   initialUser: AuthUser | null;
   playbackRequiresRegistration?: boolean;
+  allowGuestMixPlayback?: boolean;
 }) {
   const lang = getBrowserSiteLang();
   const [user, setUser] = useState<AuthUser | null>(initialUser);
@@ -31,8 +33,8 @@ export function AuthProvider({
     () => ({
       user,
       setUser,
-      requirePlayback: () => {
-        if (user || !playbackRequiresRegistration) return true;
+      requirePlayback: (isPublicMix = false, isOriginal = false) => {
+        if (user || isOriginal || (isPublicMix ? allowGuestMixPlayback : !playbackRequiresRegistration)) return true;
         setIsPromptOpen(true);
         return false;
       },
@@ -45,7 +47,7 @@ export function AuthProvider({
         return false;
       },
     }),
-    [user, playbackRequiresRegistration],
+    [user, playbackRequiresRegistration, allowGuestMixPlayback],
   );
 
   return (
@@ -56,14 +58,14 @@ export function AuthProvider({
           <div className="auth-prompt release-panel" onClick={(event) => event.stopPropagation()}>
             <p className="muted">
               {lang === 'ru'
-                ? 'Прослушивание доступно зарегистрированным пользователям.'
-                : 'Playback is available for registered users.'}
+                ? 'Для прослушивания этой записи нужно войти.'
+                : 'Sign in to listen to this recording.'}
             </p>
             <h2>{lang === 'ru' ? 'Войти или создать аккаунт' : 'Sign in or create an account'}</h2>
             <p className="muted">
               {lang === 'ru'
-                ? 'Коллекцию можно смотреть свободно, но прослушивание, плейлисты и избранное доступны после входа.'
-                : 'You can browse the collection freely, but listening, playlists and favorites require an account.'}
+                ? allowGuestMixPlayback ? 'Миксы можно слушать без регистрации. Для закрытых записей, плейлистов и избранного нужно войти.' : 'Коллекцию можно смотреть свободно. Для закрытых записей, плейлистов и избранного нужно войти.'
+                : allowGuestMixPlayback ? 'Mixes are available without an account. Sign in for restricted recordings, playlists and favorites.' : 'Browse the collection freely. Sign in for restricted recordings, playlists and favorites.'}
             </p>
             <div className="auth-prompt__actions">
               <Link href="/profile?mode=login" className="auth-prompt__button" onClick={() => setIsPromptOpen(false)}>
