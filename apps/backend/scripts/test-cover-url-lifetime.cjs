@@ -25,7 +25,7 @@ async function main() {
   const stable = await service.getSignedObjectUrl('vinyl-covers', key);
   assert.equal(stable, 'https://mityadima.ru/api/media/vinyl-covers/covers/manual/test/%D0%BE%D0%B1%D0%BB%D0%BE%D0%B6%D0%BA%D0%B0.webp');
   const controller = new StorageController(service, {});
-  const request = { params: { 0: encodeURIComponent(key) }, headers: {} };
+  const request = { params: { key: key.split('/') }, headers: {} };
   const response = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, redirect(status, url) { this.status = status; this.url = url; } };
   await controller.streamLocalObject('vinyl-covers', request, response);
   assert.equal(response.status, 302);
@@ -40,7 +40,7 @@ async function main() {
   assert.equal(await service.getSignedObjectUrl('vinyl-covers', key), stable);
   assert.ok((await service.getSignedObjectUrl('audio', 'audio/user/track.mp3')).includes('X-Amz-Signature'));
   for (const [bucket, rejectedKey] of [['audio', 'audio/user/track.mp3'], ['vinyl-covers', 'avatars/user.webp'], ['vinyl-covers', 'covers/../secret']]) {
-    await assert.rejects(controller.streamLocalObject(bucket, { params: { 0: rejectedKey }, headers: {} }, response));
+    await assert.rejects(controller.streamLocalObject(bucket, { params: { key: rejectedKey.split('/') }, headers: {} }, response));
   }
   console.log('PASS: stable artwork, expired signature renewal, uncached redirects, unchanged audio and private-object restrictions');
 }

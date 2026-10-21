@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, RefreshControl, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { FeedbackPressable as Pressable } from '../components/FeedbackPressable';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { ReleaseCover } from '../components/ReleaseCover';
 import { getCoverUrl, getLibraryFeedFiltered } from '../lib/api';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, spacing, shelfStyles } from '../theme';
 import { LanguageProps } from '../types';
 import { PlayerTrack, Release, Track } from '../types';
 
@@ -46,19 +46,28 @@ function toPlayerTrack(release: Release, track: Track): PlayerTrack | null {
 export function MixesScreen({ lang, onLanguageChange: setLang, isAdmin = false, activeTrackId, onPlayTrack, onOpenProfile, avatarUrl }: MixesScreenProps) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const abort = useRef<AbortController | null>(null);
 
   async function load() {
+    abort.current?.abort();
+    const controller = new AbortController();
+    abort.current = controller;
     setIsLoading(true);
+    setError('');
     try {
-      const feed = await getLibraryFeedFiltered(PAGE_SIZE, 0, { isMix: true });
-      setReleases(feed.releases.filter((release) => release.tracks.some((track) => track.audioFiles.some((file) => file.storageUrl))));
+      const feed = await getLibraryFeedFiltered(PAGE_SIZE, 0, { isMix: true }, controller.signal);
+      if (!controller.signal.aborted) setReleases(feed.releases);
+    } catch {
+      if (!controller.signal.aborted) setError(lang === 'ru' ? 'Не удалось загрузить миксы. Потяните вниз, чтобы повторить.' : 'Unable to load mixes. Pull down to retry.');
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) setIsLoading(false);
     }
   }
 
   useEffect(() => {
     void load();
+    return () => abort.current?.abort();
   }, []);
 
   const tracksByReleaseId = useMemo(() => new Map(releases.map((release) => [
@@ -113,6 +122,8 @@ export function MixesScreen({ lang, onLanguageChange: setLang, isAdmin = false, 
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={load} tintColor={colors.accent} />}
+        ListHeaderComponent={error ? <Text style={styles.notice}>{error}</Text> : null}
+        ListEmptyComponent={!isLoading && !error ? <Text style={styles.notice}>{lang === 'ru' ? 'Миксов пока нет или они недоступны для этого аккаунта.' : 'No mixes are available for this account.'}</Text> : null}
         renderItem={({ item }) => {
           const tracks = tracksByReleaseId.get(item.id) || [];
           const firstTrack = tracks[0];
@@ -125,7 +136,7 @@ export function MixesScreen({ lang, onLanguageChange: setLang, isAdmin = false, 
                 if (firstTrack) {
                   const startIndex = queue.findIndex((track) => track.id === firstTrack.id);
                   onPlayTrack(firstTrack, startIndex >= 0 ? queue : tracks);
-                }
+                } else onOpenProfile();
               }}
             >
               <ReleaseCover release={item} isAdmin={isAdmin} style={[styles.cover, isActive && styles.coverActive]} />
@@ -136,6 +147,7 @@ export function MixesScreen({ lang, onLanguageChange: setLang, isAdmin = false, 
                 {item.title}
                 {item.year ? ` • ${item.year}` : ''}
               </Text>
+              {!firstTrack && <Text style={styles.notice}>{lang === 'ru' ? 'Войдите для прослушивания' : 'Sign in to listen'}</Text>}
             </Pressable>
           );
         }}
@@ -144,7 +156,8 @@ export function MixesScreen({ lang, onLanguageChange: setLang, isAdmin = false, 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = shelfStyles(StyleSheet.create({
+  notice: { color: colors.muted, fontSize: 12, lineHeight: 18, paddingVertical: 10 },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -202,9 +215,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   list: {
-    paddingTop: Math.max((StatusBar.currentHeight || 0) + 118, 144),
+    paddingTop: 76,
     paddingHorizontal: spacing.md,
-    paddingBottom: 160,
+    paddingBottom: 84,
   },
   row: {
     gap: 12,
@@ -241,4 +254,4 @@ const styles = StyleSheet.create({
   activeText: {
     color: colors.accent,
   },
-});
+}));

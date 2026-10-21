@@ -3,6 +3,7 @@
 import { Download } from 'lucide-react';
 import { CopyMusicLink } from './copy-music-link';
 import { TimelineCommentComposer } from './timeline-comment-composer';
+import { TimelineCommentRow } from './timeline-comment-row';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createReleaseTimelineComment, getRelease } from '../lib/api';
@@ -55,10 +56,7 @@ export function PlayerMixActions({ track, lang, currentTime, duration, comments,
         } catch { setStatus(lang === 'ru' ? 'Не удалось добавить комментарий' : 'Unable to add comment'); }
         finally { setPending(false); }
       }} />
-      {comments.map((comment) => <div className="player-page__comment" key={comment.id}>
-        <button type="button" onClick={() => seek(duration > 0 ? comment.second / duration * 100 : 0)}>{time(comment.second)}</button>
-        <div><b>{comment.user.displayName}</b><p>{comment.text}</p></div>
-      </div>)}
+      {comments.map((comment) => <TimelineCommentRow key={comment.id} comment={comment} timestamp={time(comment.second)} onSeek={() => seek(duration > 0 ? comment.second / duration * 100 : 0)} />)}
     </div> : null}
   </div>;
 }

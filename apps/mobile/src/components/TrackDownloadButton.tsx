@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { FeedbackPressable as Pressable } from './FeedbackPressable';
 import { Check, Download } from 'lucide-react-native';
 import { downloadTrackAudio, getOfflineAudioUri } from '../lib/offline-audio';
-import { colors, radius } from '../theme';
+import { colors, radius, shelfStyles } from '../theme';
 import { PlayerTrack } from '../types';
 
 type TrackDownloadButtonProps = {
@@ -43,6 +43,8 @@ export function TrackDownloadButton({ track, size = 17 }: TrackDownloadButtonPro
     try {
       await downloadTrackAudio(track);
       setIsDownloaded(true);
+    } catch {
+      Alert.alert('Не удалось скачать', 'Проверьте интернет и попробуйте ещё раз. Для скачивания закрытого трека нужно войти.');
     } finally {
       setIsDownloading(false);
     }
@@ -68,7 +70,7 @@ export function TrackDownloadButton({ track, size = 17 }: TrackDownloadButtonPro
   );
 }
 
-const styles = StyleSheet.create({
+const styles = shelfStyles(StyleSheet.create({
   button: {
     width: 28,
     height: 28,
@@ -81,4 +83,4 @@ const styles = StyleSheet.create({
     opacity: 0.82,
     transform: [{ scale: 0.9 }],
   },
-});
+}));

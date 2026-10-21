@@ -4,8 +4,10 @@ import { User, UserRole } from '@prisma/client';
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual, createHash } from 'crypto';
 import { promisify } from 'util';
 import sharp from 'sharp';
+import { parseBuffer } from 'music-metadata';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { TwoFactorService } from './two-factor.service';
 
 const scrypt = promisify(scryptCallback);
 export const SESSION_COOKIE_NAME = 'vinyl_session';
@@ -29,7 +31,45 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly storageService: StorageService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
+
+  async getAboutAudio() {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: 'aboutAmokkAudio' } });
+    const value = setting?.value;
+    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
+    const key = value && typeof value === 'object' && !Array.isArray(value) ? value.key : null;
+    return {
+      audioUrl: typeof key === 'string' ? await this.storageService.getSignedObjectUrl(bucket, key) : null,
+    };
+  }
+
+  async uploadAboutAudio(file?: Express.Multer.File) {
+    if (!file?.buffer?.length || !/\.mp3$/i.test(file.originalname)) {
+      throw new BadRequestException('Choose an MP3 file (up to 50 MB)');
+    }
+    try {
+      const metadata = await parseBuffer(file.buffer, { mimeType: 'audio/mpeg', size: file.size });
+      if (metadata.format.codec !== 'MPEG 1 Layer 3' && metadata.format.codec !== 'MPEG 2 Layer 3' && metadata.format.codec !== 'MPEG 2.5 Layer 3') {
+        throw new Error('Not MP3');
+      }
+    } catch {
+      throw new BadRequestException('The file is not a valid MP3');
+    }
+    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
+    const key = `audio/about/amokk-${randomBytes(12).toString('hex')}.mp3`;
+    await this.storageService.uploadObject({ bucket, key, body: file.buffer, contentType: 'audio/mpeg' });
+    try {
+      await this.prisma.appSetting.upsert({
+        where: { key: 'aboutAmokkAudio' }, create: { key: 'aboutAmokkAudio', value: { key } }, update: { value: { key } },
+      });
+    } catch (error) {
+      await this.storageService.deleteObject(bucket, key).catch(() => undefined);
+      throw error;
+    }
+    // Keep prior objects: an already-open player may still be using their URLs.
+    return this.getAboutAudio();
+  }
 
   async register(input: {
     email: string;
@@ -85,27 +125,30 @@ export class AuthService {
   }
 
   async getAuthSettings() {
-    const [registrationSetting, designSetting, playbackSetting] = await Promise.all([
+    const [registrationSetting, designSetting, playbackSetting, guestMixSetting] = await Promise.all([
       this.prisma.appSetting.findUnique({ where: { key: REGISTRATION_INVITE_REQUIRED_SETTING } }),
       this.prisma.appSetting.findUnique({ where: { key: SITE_DESIGN_SETTING } }),
       this.prisma.appSetting.findUnique({ where: { key: 'playbackRequiresRegistration' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'allowGuestMixPlayback' } }),
     ]);
 
     return {
       registrationInviteRequired: registrationSetting?.value === true,
       playbackRequiresRegistration: playbackSetting?.value !== false,
+      allowGuestMixPlayback: guestMixSetting?.value === true,
       siteDesign: designSetting?.value === 'shelf' ? 'shelf' as const : 'classic' as const,
     };
   }
 
   async getSiteSettings() {
     const settings = await this.getAuthSettings();
-    return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration };
+    return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration, allowGuestMixPlayback: settings.allowGuestMixPlayback };
   }
 
   async updateAuthSettings(input: {
     registrationInviteRequired?: boolean;
     playbackRequiresRegistration?: boolean;
+    allowGuestMixPlayback?: boolean;
     siteDesign?: 'classic' | 'shelf';
   }) {
     if (typeof input.registrationInviteRequired === 'boolean') {
@@ -129,6 +172,14 @@ export class AuthService {
       });
     }
 
+    if (typeof input.allowGuestMixPlayback === 'boolean') {
+      await this.prisma.appSetting.upsert({
+        where: { key: 'allowGuestMixPlayback' },
+        create: { key: 'allowGuestMixPlayback', value: input.allowGuestMixPlayback },
+        update: { value: input.allowGuestMixPlayback },
+      });
+    }
+
     if (input.siteDesign === 'classic' || input.siteDesign === 'shelf') {
       await this.prisma.appSetting.upsert({
         where: { key: SITE_DESIGN_SETTING },
@@ -140,14 +191,14 @@ export class AuthService {
     return this.getAuthSettings();
   }
 
-  async login(input: { email: string; password: string }, response: CookieResponse) {
+  async login(input: { email: string; password: string; code?: string }, response: CookieResponse) {
     const email = input.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user?.passwordHash || !(await this.verifyPassword(input.password, user.passwordHash))) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const token = await this.createSession(user.id);
+    const { token } = await this.twoFactorService.login(user, input.code);
     this.setSessionCookie(response, token);
     return this.signAvatarUrl(this.toPublicUser(user));
   }
@@ -208,7 +259,7 @@ export class AuthService {
       this.prisma.collectionItem.count({
         where: {
           userId: collectionUserId,
-          release: { isMix: true },
+          release: { isMix: true, isOriginal: false },
         },
       }),
       this.prisma.track.count({
@@ -340,7 +391,7 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  private setSessionCookie(response: CookieResponse, token: string) {
+  setSessionCookie(response: CookieResponse, token: string) {
     response.cookie(SESSION_COOKIE_NAME, token, this.getCookieOptions());
   }
 

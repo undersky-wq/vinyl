@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Vinyl Collection",
+    "name": "Shelf Offline",
     "slug": "vinyl-collection",
-    "version": "0.1.1",
+    "version": "0.6.7",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "icon": "./assets/icon.png",
     "assetBundlePatterns": [
@@ -14,7 +14,7 @@
       "supportsTablet": false
     },
     "android": {
-      "package": "ru.mityadima.vinyl",
+      "package": "ru.mityadima.shelf.offline",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#111111"

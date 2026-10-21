@@ -1,0 +1,12 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const read = file => fs.readFileSync(`src/${file}`,'utf8');
+const source = read('components/mini-player-source.tsx');
+const css = read('components/mini-player-source.css');
+for (const section of ['collection','playlists','mixes','originals','favorites']) assert(source.includes(section));
+assert(source.includes('track.playbackSource?.name'));
+assert(css.includes('@media(min-width:701px)'));
+assert(!css.includes('mini-source-glow') && !css.includes('animation:'));
+assert(read('components/paper-archive.tsx').includes('name: activePlaylistName || undefined'));
+assert(read('providers/player-provider.tsx').includes('track.playbackSource || activeTrack.playbackSource'));
+console.log('PASS: five playback sources, playlist name, source preserved during queue hydration, desktop-only and static source icon');

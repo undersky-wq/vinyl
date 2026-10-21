@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Heart, Pause, Play } from 'lucide-react-native';
-import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { colors, radius, spacing } from '../theme';
-import { normalizeDurationLabel } from '../lib/time';
+import { Image } from 'expo-image';
+import { Pause, Play, SkipBack, SkipForward } from 'lucide-react-native';
+import { adaptiveStyles, colors } from '../theme';
 import { PlayerTrack } from '../types';
+import { MINI_PLAYER_MASK_HEIGHT } from '../lib/mini-player-layout';
 
 type MiniPlayerProps = {
   track: PlayerTrack | null;
@@ -14,177 +15,99 @@ type MiniPlayerProps = {
   onToggle: () => void;
   onFavorite: () => void;
   onOpen: () => void;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  onSeek?: (ratio: number, resumeAfterSeek?: boolean) => void;
 };
 
 function formatMs(value: number) {
-  if (!Number.isFinite(value) || value <= 0) {
-    return '--:--';
-  }
-
-  const totalSeconds = Math.floor(value / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
-
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  const total = Math.floor(Math.max(0, Number.isFinite(value) ? value : 0) / 1000);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = (total % 60).toString().padStart(2, '0');
+  return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds}` : `${minutes}:${seconds}`;
 }
 
 export function MiniPlayer({
-  track,
-  isPlaying,
-  positionMs,
-  durationMs,
-  isFavorite,
-  onToggle,
-  onFavorite,
-  onOpen,
+  track, isPlaying, positionMs, durationMs, isFavorite,
+  onToggle, onFavorite, onOpen, onNext, onPrevious, onSeek,
 }: MiniPlayerProps) {
-  const ringSize = 54;
-  const ringStroke = 2.4;
-  const ringRadius = (ringSize - ringStroke) / 2;
-  const ringCircumference = 2 * Math.PI * ringRadius;
+  const [timelineWidth, setTimelineWidth] = useState(0);
+  if (!track) return null;
 
-  if (!track) {
-    return null;
-  }
-
-  const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
-  const ringOffset = ringCircumference * (1 - progress);
+  const canSeek = Boolean(onSeek) && Number.isFinite(durationMs) && durationMs > 0;
+  const progress = Number.isFinite(durationMs) && durationMs > 0 && Number.isFinite(positionMs)
+    ? Math.max(0, Math.min(positionMs / durationMs, 1)) : 0;
 
   return (
-    <Pressable style={styles.shell} onPress={onOpen}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Svg width="100%" height="100%">
-          <Defs>
-            <LinearGradient id="miniBackground" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor="#343239" />
-              <Stop offset="0.55" stopColor="#494052" />
-              <Stop offset="1" stopColor="#554366" />
-            </LinearGradient>
-          </Defs>
-          <Rect width="100%" height="100%" fill="url(#miniBackground)" />
-        </Svg>
-      </View>
-      <Pressable style={styles.playOuter} onPress={onToggle}>
-        <Svg width={ringSize} height={ringSize} style={styles.playProgressRing}>
-          <Circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
-            r={ringRadius}
-            stroke="rgba(255,255,255,0.16)"
-            strokeWidth={ringStroke}
-            fill="none"
-          />
-          <Circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
-            r={ringRadius}
-            stroke={colors.accent}
-            strokeWidth={ringStroke}
-            fill="none"
-            strokeLinecap="round"
-            strokeDasharray={`${ringCircumference} ${ringCircumference}`}
-            strokeDashoffset={ringOffset}
-            rotation="-90"
-            originX={ringSize / 2}
-            originY={ringSize / 2}
-          />
-        </Svg>
-        <View style={styles.play}>
-          {isPlaying ? <Pause size={20} color="#111111" /> : <Play size={20} color="#111111" fill="#111111" />}
+    <View style={styles.mask} pointerEvents="box-none"><View style={styles.shell}>
+      {onPrevious && (
+        <Pressable style={styles.button} onPress={onPrevious} accessibilityRole="button" accessibilityLabel="Previous track">
+          <SkipBack size={17} color={colors.text} fill={colors.text} />
+        </Pressable>
+      )}
+      <Pressable style={styles.button} onPress={onToggle} accessibilityRole="button" accessibilityLabel={isPlaying ? 'Pause' : 'Play'}>
+        {isPlaying ? <Pause size={20} color={colors.text} fill={colors.text} /> : <Play size={20} color={colors.text} fill={colors.text} />}
+      </Pressable>
+      {onNext && (
+        <Pressable style={styles.button} onPress={onNext} accessibilityRole="button" accessibilityLabel="Next track">
+          <SkipForward size={17} color={colors.text} fill={colors.text} />
+        </Pressable>
+      )}
+      <Pressable style={styles.track} onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open player: ${track.artist}, ${track.title}`}>
+        {track.coverUrl ? <Image source={{ uri: track.coverUrl }} style={styles.artwork} cachePolicy="memory-disk" contentFit="cover" /> : <View style={styles.artwork} />}
+        <View style={styles.textBlock}>
+          <Text numberOfLines={1} style={styles.artist}>{track.artist}</Text>
+          <Text numberOfLines={1} style={styles.title}>{track.title}</Text>
         </View>
       </Pressable>
-      <View style={styles.textBlock}>
-        <Text numberOfLines={1} style={styles.title}>
-          {track.title}
-        </Text>
-        <Text numberOfLines={1} style={styles.artist}>
-          {track.artist}
-        </Text>
-      </View>
-      <Pressable style={styles.heartButton} onPress={onFavorite}>
-        <Heart
-          size={17}
-          strokeWidth={2.3}
-          color={isFavorite ? colors.accent : '#dedee2'}
-          fill={isFavorite ? colors.accent : 'none'}
-        />
+      <Pressable
+        style={styles.timeline}
+        disabled={!canSeek}
+        onPress={(event) => {
+          const x = event.nativeEvent.locationX - 6;
+          if (timelineWidth > 0 && Number.isFinite(x) && x >= 0 && x <= timelineWidth) onSeek?.(Math.max(0, Math.min(x / timelineWidth, 1)), isPlaying);
+        }}
+        accessibilityRole={canSeek ? 'adjustable' : 'progressbar'}
+        accessibilityLabel="Playback progress"
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
+        accessibilityActions={canSeek ? [{ name: 'increment' }, { name: 'decrement' }] : []}
+        onAccessibilityAction={(event) => {
+          if (!canSeek) return;
+          const action = event.nativeEvent.actionName;
+          if (action === 'increment' || action === 'decrement') {
+            onSeek?.(Math.max(0, Math.min(progress + (action === 'increment' ? 0.05 : -0.05), 1)), isPlaying);
+          }
+        }}
+      >
+        <View pointerEvents="none" style={styles.timelineRow}>
+          <View style={styles.progressTrack} onLayout={event => setTimelineWidth(event.nativeEvent.layout.width)}>
+            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+          </View>
+          <Text numberOfLines={1} style={styles.time}>{formatMs(positionMs)}</Text>
+        </View>
       </Pressable>
-      <Text style={styles.time}>{normalizeDurationLabel(track.durationRaw, durationMs / 1000, formatMs(durationMs))}</Text>
-    </Pressable>
+    </View></View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = adaptiveStyles(StyleSheet.create({
+  mask: { position: 'absolute', left: 0, right: 0, bottom: 0, height: MINI_PLAYER_MASK_HEIGHT, zIndex: 40, backgroundColor: colors.background },
   shell: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: 82,
-    zIndex: 20,
-    minHeight: 68,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingLeft: 7,
-    paddingRight: 13,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(16,16,18,0.98)',
-    borderWidth: 1,
-    borderColor: 'rgba(180,180,180,0.45)',
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.45,
-    shadowRadius: 28,
+    position: 'absolute', left: '3%', right: '3%', bottom: 10, zIndex: 20,
+    height: 44, flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingTop: 5, borderTopWidth: 1, borderTopColor: colors.text, backgroundColor: colors.background,
   },
-  playOuter: {
-    width: 54,
-    height: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-  },
-  playProgressRing: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-  },
-  play: {
-    width: 46,
-    height: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-  },
-  textBlock: {
-    flex: 1,
-    gap: 2,
-  },
-  artist: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  time: {
-    color: '#dedee2',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  heartButton: {
-    width: 27,
-    height: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+  button: { width: 30, height: 43, alignItems: 'center', justifyContent: 'center' },
+  track: { width: 150, flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, height: 40 },
+  artwork: { width: 40, height: 40, backgroundColor: colors.panelSoft },
+  textBlock: { flex: 1, minWidth: 0, gap: 2 },
+  artist: { color: colors.text, fontSize: 10, lineHeight: 12, fontWeight: '600', letterSpacing: -0.3 },
+  title: { color: colors.text, fontSize: 10, lineHeight: 12, fontWeight: '400' },
+  timeline: { flex: 1, minWidth: 70, height: 40, paddingLeft: 6, borderLeftWidth: 1, borderLeftColor: colors.border, justifyContent: 'center' },
+  timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  time: { color: colors.text, fontSize: 11, fontVariant: ['tabular-nums'], textAlign: 'right' },
+  progressTrack: { flex: 1, height: 1, backgroundColor: colors.border },
+  progressFill: { height: 1, backgroundColor: colors.text },
+  favorite: { width: 24, height: 43, alignItems: 'center', justifyContent: 'center' },
+}));

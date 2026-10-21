@@ -13,18 +13,21 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { StorageService } from './storage.service';
 import { AuthService } from '../auth/auth.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('media')
 export class StorageController {
-  constructor(private readonly storageService: StorageService, private readonly authService: AuthService) {}
+  constructor(private readonly storageService: StorageService, private readonly authService: AuthService, private readonly prisma: PrismaService) {}
 
-  @Get(':bucket/*')
+  @Get(':bucket/*key')
   async streamLocalObject(
     @Param('bucket') bucket: string,
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    const key = decodeURIComponent(String(request.params[0] || ''));
+    // Express 5 decodes named wildcard segments before passing them here.
+    const segments = request.params.key;
+    const key = Array.isArray(segments) ? segments.join('/') : String(segments || '');
     if (!this.storageService.isLocalBucket(bucket)) {
       // Never expose audio, avatars, or arbitrary buckets through this public
       // redirect. Covers already have public visibility in the release APIs.
@@ -38,8 +41,15 @@ export class StorageController {
     }
     if (path.extname(key).toLowerCase() === '.mp3') {
       const settings = await this.authService.getAuthSettings();
-      if (settings.playbackRequiresRegistration && !await this.authService.getUserFromRequest(request)) {
-        throw new UnauthorizedException('Authentication required for playback');
+      if (!await this.authService.getUserFromRequest(request)) {
+        const audioFile = await this.prisma.audioFile.findFirst({
+          where: {
+            OR: [{ storageKey: key }, { normalizedStorageKey: key }],
+          },
+          select: { track: { select: { release: { select: { isMix: true, isOriginal: true } } } } },
+        });
+        const allowed = audioFile?.track.release.isOriginal || (audioFile?.track.release.isMix ? settings.allowGuestMixPlayback : !settings.playbackRequiresRegistration);
+        if (!audioFile || !allowed) throw new UnauthorizedException('Authentication required for playback');
       }
     }
     let filePath: string;

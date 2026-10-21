@@ -231,6 +231,10 @@ export class AudioService {
   }
 
   private detectMp3DurationFromFrames(buffer: Buffer) {
+    // Container payloads can contain accidental MPEG sync bytes, not MP3 frames.
+    if (buffer.subarray(4, 8).toString('latin1') === 'ftyp'
+      || ['OggS', 'fLaC', 'RIFF'].includes(buffer.subarray(0, 4).toString('latin1'))
+      || buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) return null;
     const mpeg1Bitrates: Record<number, number[]> = {
       1: [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448],
       2: [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384],
@@ -259,9 +263,12 @@ export class AudioService {
 
     let seconds = 0;
     let frames = 0;
+    let streamFormat = '';
 
     while (offset + 4 < buffer.length) {
       if (buffer[offset] !== 0xff || (buffer[offset + 1] & 0xe0) !== 0xe0) {
+        if (frames > 10) break;
+        frames = 0; seconds = 0; streamFormat = '';
         offset += 1;
         continue;
       }
@@ -274,11 +281,13 @@ export class AudioService {
 
       if (
         version === 1 ||
-        layerBits === 0 ||
+        layerBits !== 1 ||
         bitrateIndex === 0 ||
         bitrateIndex === 15 ||
         sampleRateIndex === 3
       ) {
+        if (frames > 10) break;
+        frames = 0; seconds = 0; streamFormat = '';
         offset += 1;
         continue;
       }
@@ -289,6 +298,8 @@ export class AudioService {
       const sampleRate = sampleRates[version]?.[sampleRateIndex];
 
       if (!bitrate || !sampleRate) {
+        if (frames > 10) break;
+        frames = 0; seconds = 0; streamFormat = '';
         offset += 1;
         continue;
       }
@@ -299,11 +310,19 @@ export class AudioService {
           ? Math.floor((12 * bitrate) / sampleRate + padding) * 4
           : Math.floor(((layer === 3 && version !== 3 ? 72 : 144) * bitrate) / sampleRate + padding);
 
-      if (frameLength <= 4 || offset + frameLength > buffer.length + 4096) {
+      if (frameLength <= 4 || offset + frameLength > buffer.length) {
+        if (frames > 10) break;
+        frames = 0; seconds = 0; streamFormat = '';
         offset += 1;
         continue;
       }
 
+      const format = `${version}:${layer}:${sampleRate}`;
+      if (streamFormat && streamFormat !== format) {
+        if (frames > 10) break;
+        frames = 0; seconds = 0;
+      }
+      streamFormat = format;
       seconds += samplesPerFrame / sampleRate;
       frames += 1;
       offset += frameLength;
@@ -312,12 +331,10 @@ export class AudioService {
     return frames > 10 && seconds > 0 ? seconds : null;
   }
 
-  private async detectDurationFromBuffer(buffer: Buffer, mimeType: string, size?: number) {
+  private async detectDurationFromBuffer(buffer: Buffer, _mimeType: string, _size?: number) {
     try {
-      const metadata = await parseBuffer(buffer, {
-        mimeType,
-        size: size ?? buffer.byteLength,
-      });
+      // Browser MIME types and file extensions may be wrong (for example M4A named .mp3).
+      const metadata = await parseBuffer(buffer, { size: buffer.byteLength }, { duration: true });
       const duration = metadata.format.duration;
 
       if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
@@ -326,15 +343,7 @@ export class AudioService {
           durationRaw: this.formatDuration(duration),
         };
       }
-    } catch {
-      const duration = this.detectMp3DurationFromFrames(buffer);
-      return duration
-        ? {
-            durationSec: Math.round(duration),
-            durationRaw: this.formatDuration(duration),
-          }
-        : null;
-    }
+    } catch { /* Only a validated MP3 frame sequence may supply the fallback. */ }
 
     const duration = this.detectMp3DurationFromFrames(buffer);
     if (duration) {

@@ -173,6 +173,8 @@ export type AuthUser = {
 };
 
 export type TimelineComment = {
+  likeCount?: number;
+  likedByMe?: boolean;
   id: string;
   releaseId: string;
   userId: string;

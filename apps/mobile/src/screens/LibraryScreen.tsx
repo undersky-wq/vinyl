@@ -13,7 +13,7 @@ import {
 } from '../lib/api';
 import { normalizeDurationLabel } from '../lib/time';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, spacing, shelfStyles } from '../theme';
 import { LanguageProps } from '../types';
 import { PlayerTrack, Playlist, Release } from '../types';
 
@@ -575,7 +575,7 @@ export function LibraryScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = shelfStyles(StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -661,8 +661,8 @@ const styles = StyleSheet.create({
   list: {
     gap: 22,
     paddingHorizontal: spacing.md,
-    paddingTop: (StatusBar.currentHeight || 0) + 158,
-    paddingBottom: 160,
+    paddingTop: 130,
+    paddingBottom: 84,
   },
   filtersBlock: {
     gap: 12,
@@ -995,4 +995,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-});
+}));

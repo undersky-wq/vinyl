@@ -9,7 +9,7 @@ import { getCoverUrl } from '../lib/api';
 import { getKeyColor } from '../lib/key-color';
 import { normalizeDurationLabel } from '../lib/time';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, spacing, shelfStyles } from '../theme';
 import { LanguageProps } from '../types';
 import { PlayerTrack, Release, Track } from '../types';
 
@@ -23,6 +23,7 @@ type FavoritesScreenProps = LanguageProps & {
   onRefresh: () => Promise<void>;
   showTrackMeta?: boolean;
   avatarUrl?: string | null;
+  requiresSignIn?: boolean;
 };
 
 function getTrackArtist(track: FavoriteTrack) {
@@ -58,17 +59,20 @@ export function FavoritesScreen({
   onRefresh,
   showTrackMeta = true,
   avatarUrl,
+  requiresSignIn = false,
 }: FavoritesScreenProps) {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const debouncedQuery = useDebouncedValue(query);
 
   async function load() {
     setIsLoading(true);
+    setError('');
     try {
       await onRefresh();
     } catch {
-      // Keep the last known favorites visible if refresh fails.
+      setError(lang === 'ru' ? 'Не удалось обновить избранное.' : 'Unable to refresh favorites.');
     } finally {
       setIsLoading(false);
     }
@@ -142,16 +146,13 @@ export function FavoritesScreen({
         windowSize={7}
         removeClippedSubviews
         contentContainerStyle={styles.list}
+        ListHeaderComponent={error ? <Text style={styles.empty}>{error}</Text> : null}
         renderItem={({ item, index }) => {
           const playerTrack = toPlayerTrack(item);
           const isActive = playerTrack?.id === activeTrackId;
 
-          if (!playerTrack) {
-            return null;
-          }
-
           return (
-            <Pressable style={styles.trackRow} onPress={() => onPlayTrack(playerTrack, queue)}>
+            <Pressable style={[styles.trackRow, !playerTrack && { opacity: 0.5 }]} disabled={!playerTrack} onPress={() => { if (playerTrack) onPlayTrack(playerTrack, queue); }}>
               <Image
                 source={{ uri: getCoverUrl(item.release) }}
                 style={styles.cover}
@@ -163,10 +164,10 @@ export function FavoritesScreen({
               <Text style={styles.number}>{index + 1}</Text>
               <View style={styles.trackText}>
                 <Text numberOfLines={1} style={[styles.artist, isActive && styles.trackActiveText]}>
-                  {playerTrack.artist}
+                  {getTrackArtist(item)}
                 </Text>
                 <Text numberOfLines={1} style={[styles.trackTitle, isActive && styles.trackActiveText]}>
-                  {playerTrack.title}
+                  {item.title}
                 </Text>
               </View>
               {showTrackMeta ? (
@@ -189,14 +190,14 @@ export function FavoritesScreen({
                   ) : null}
                 </View>
               ) : null}
-              <TrackDownloadButton track={playerTrack} />
-              <Text style={styles.time}>{normalizeDurationLabel(playerTrack.durationRaw, playerTrack.durationSec, '-')}</Text>
+              {playerTrack ? <TrackDownloadButton track={playerTrack} /> : null}
+              <Text style={styles.time}>{normalizeDurationLabel(item.durationRaw, item.durationSec, '-')}</Text>
             </Pressable>
           );
         }}
         ListEmptyComponent={
           isLoading ? null : (
-            <Text style={styles.empty}>{lang === 'ru' ? 'Избранных треков пока нет.' : 'No liked tracks yet.'}</Text>
+            <Pressable onPress={requiresSignIn ? onOpenProfile : undefined}><Text style={styles.empty}>{requiresSignIn ? (lang === 'ru' ? 'Войдите, чтобы увидеть избранное.' : 'Sign in to see your favorites.') : normalizedQuery ? (lang === 'ru' ? 'Ничего не найдено.' : 'No matching tracks.') : (lang === 'ru' ? 'Избранных треков пока нет.' : 'No liked tracks yet.')}</Text></Pressable>
           )
         }
       />
@@ -204,7 +205,7 @@ export function FavoritesScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = shelfStyles(StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -286,8 +287,8 @@ const styles = StyleSheet.create({
   list: {
     gap: 8,
     paddingHorizontal: spacing.md,
-    paddingTop: (StatusBar.currentHeight || 0) + 158,
-    paddingBottom: 160,
+    paddingTop: 130,
+    paddingBottom: 84,
   },
   trackRow: {
     minHeight: 54,
@@ -347,4 +348,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-});
+}));

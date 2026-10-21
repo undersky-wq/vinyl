@@ -7,6 +7,18 @@
 .paper-mobile-picker button::before,.paper-mobile-picker button::after{display:none}
 .paper-mobile-picker button:hover{background:none;box-shadow:none;transform:none}
 .paper-mobile-picker button[aria-pressed=true]{color:#3478db}
+.paper-mobile-picker button[data-section=collection]{--section-accent:#3478db}
+.paper-mobile-picker button[data-section=playlists]{--section-accent:#27874d}
+.paper-mobile-picker button[data-section=mixes]{--section-accent:#8950c8}
+.paper-mobile-picker button[data-section=originals]{--section-accent:#b77713}
+.paper-mobile-picker button[data-section=favorites]{--section-accent:#db3045}
+html[data-shelf-theme=dark] .paper-mobile-picker button[data-section=originals]{--section-accent:#e5ab4c}
+.paper-mobile-picker__section{display:flex;align-items:center;gap:10px}
+.paper-mobile-picker__music{line-height:1.5;white-space:normal;overflow-wrap:anywhere}
+.paper-mobile-picker__music strong{font-size:16px;font-weight:600;color:var(--shelf-web-ink,#111)}
+.paper-mobile-picker__music-title{font-size:14px;font-weight:400;color:var(--shelf-web-muted,#777)}
+.paper-mobile-picker__section>svg{color:var(--section-accent);width:18px;height:18px}
+.paper-mobile-picker button[data-section][aria-pressed=true]{color:var(--section-accent)}
 .paper-mobile-picker button:disabled{opacity:.4;cursor:not-allowed}
 .paper-mobile-picker button span{min-width:0;overflow-wrap:anywhere}
 .paper-mobile-picker button svg{flex-shrink:0}

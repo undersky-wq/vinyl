@@ -1,7 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { getFavorites, toggleFavoriteTrack } from '../lib/api';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { FavoriteUpdateError, getFavorites, toggleFavoriteTrack } from '../lib/api';
 import { useAuth } from './auth-provider';
 
 type FavoritesContextValue = {
@@ -19,7 +19,8 @@ export function FavoritesProvider({
   children: React.ReactNode;
   initialFavoriteTrackIds?: string[];
 }) {
-  const { requireAuth, user } = useAuth();
+  const { requireAuth, user, setUser } = useAuth();
+  const pendingTracks = useRef(new Set<string>());
   const [favoriteTrackIds, setFavoriteTrackIds] = useState<string[]>(initialFavoriteTrackIds);
 
   useEffect(() => {
@@ -37,10 +38,11 @@ export function FavoritesProvider({
     const isFavorite = (trackId: string) => favoriteTrackIds.includes(trackId);
 
     const toggleFavorite = async (trackId: string) => {
-      if (!requireAuth()) {
+      if (!requireAuth() || pendingTracks.current.has(trackId)) {
         return;
       }
 
+      pendingTracks.current.add(trackId);
       const wasFavorite = favoriteTrackIds.includes(trackId);
       setFavoriteTrackIds((current) =>
         wasFavorite ? current.filter((id) => id !== trackId) : [...new Set([...current, trackId])],
@@ -53,12 +55,18 @@ export function FavoritesProvider({
             ? [...new Set([...current, trackId])]
             : current.filter((id) => id !== trackId),
         );
-      } catch {
+      } catch (error) {
         setFavoriteTrackIds((current) =>
           wasFavorite
             ? [...new Set([...current, trackId])]
             : current.filter((id) => id !== trackId),
         );
+        if (error instanceof FavoriteUpdateError && error.status === 401) {
+          setUser(null);
+          requireAuth(true);
+        }
+      } finally {
+        pendingTracks.current.delete(trackId);
       }
     };
 
@@ -67,7 +75,7 @@ export function FavoritesProvider({
       isFavorite,
       toggleFavorite,
     };
-  }, [favoriteTrackIds, requireAuth]);
+  }, [favoriteTrackIds, requireAuth, setUser]);
 
   return <FavoritesContext.Provider value={value}>{children}</FavoritesContext.Provider>;
 }

@@ -17,12 +17,12 @@ import {
   TextStyle,
   View,
 } from 'react-native';
-import { Heart, ListMusic, ListPlus, MessageCircle, Pause, Pencil, Play, Repeat, Shuffle, SkipBack, SkipForward, Trash2 } from 'lucide-react-native';
+import { ChevronDown, Heart, ListMusic, ListPlus, MessageCircle, Pause, Pencil, Play, Repeat, Shuffle, SkipBack, SkipForward, Trash2 } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
 import { FeedbackPressable as Pressable } from './FeedbackPressable';
-import { colors, radius, spacing } from '../theme';
-import { PlayerBackdrop } from './PlayerBackdrop';
+import { adaptiveStyles, colors, radius, spacing } from '../theme';
 import { normalizeDurationLabel } from '../lib/time';
+import { playbackTimelineComment } from '../lib/timeline-comments';
 import { getHeldSeekPosition, HELD_SEEK_INTERVAL_MS } from '../lib/held-seek';
 import {
   getMarqueeMotion,
@@ -279,6 +279,7 @@ function WaveformCommentTip({ comment }: { comment: TimelineComment }) {
 
   return (
     <Animated.View style={[styles.commentTip, { opacity, transform: [{ translateY }] }]}>
+      <Text numberOfLines={1} style={styles.commentTipName}>{comment.user.displayName} · {formatMs(comment.second * 1000)}</Text>
       <Text numberOfLines={3} style={styles.commentTipText}>
         {comment.text}
       </Text>
@@ -501,6 +502,10 @@ export function FullPlayer({
   }
 
   useEffect(() => {
+    setComments([]);
+    setActiveComment(null);
+    setCommentText('');
+    setEditingCommentId(null);
     if (!track?.releaseId) {
       setComments([]);
       setActiveComment(null);
@@ -687,13 +692,17 @@ export function FullPlayer({
           cancelDrag();
         },
       }),
-    [progressWidth, isPlaying, durationMs],
+    [progressWidth, isPlaying, durationMs, comments],
   );
 
   const waveformBars = useMemo(
     () => sampleWaveform(track?.waveformData, 86),
     [track?.id, track?.waveformData],
   );
+  const displayedComment = activeComment ?? (visible && isPlaying && !isSeeking ? playbackTimelineComment(comments, positionMs) : null);
+  const tipWidth = Math.min(240, progressWidth);
+  const tipLeft = displayedComment && durationMs > 0
+    ? Math.max(0, Math.min(progressWidth - tipWidth, displayedComment.second * 1000 / durationMs * progressWidth - tipWidth / 2)) : 0;
 
   if (!track) {
     return null;
@@ -708,13 +717,12 @@ export function FullPlayer({
       onRequestClose={onClose}
     >
       <View style={styles.screen}>
-        <PlayerBackdrop coverUrl={track.coverUrl} active={visible} />
-
         <KeyboardAvoidingView
-          style={styles.content}
+          style={styles.screen}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={0}
         >
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Pressable
             style={styles.coverButton}
             onPress={onOpenRelease}
@@ -732,6 +740,7 @@ export function FullPlayer({
           </View>
 
           <View style={styles.progressWrap}>
+            {displayedComment && progressWidth > 0 && <View pointerEvents="none" style={[styles.commentTipAnchor, { left: tipLeft, width: tipWidth }]}><WaveformCommentTip key={displayedComment.id} comment={displayedComment} /></View>}
             <View
               ref={waveformTouchRef}
               style={styles.progressTouchArea}
@@ -742,7 +751,7 @@ export function FullPlayer({
               {...waveformPanResponder.panHandlers}
             >
               <View style={[styles.waveformTrack, isSeeking && styles.progressTrackSeeking]}>
-                <WaveformBars bars={waveformBars} color="rgba(255,255,255,0.34)" width="100%" />
+                <WaveformBars bars={waveformBars} color={colors.border} width="100%" />
                 <View
                   pointerEvents="none"
                   style={[styles.waveformPlayedClip, { width: `${visibleProgress * 100}%` }]}
@@ -752,7 +761,7 @@ export function FullPlayer({
                 {durationMs > 0
                   ? comments.map((comment) => {
                       const markerRatio = Math.max(0, Math.min(comment.second / (durationMs / 1000), 1));
-                      const active = activeComment?.id === comment.id;
+                      const active = displayedComment?.id === comment.id;
 
                       return (
                         <View
@@ -769,7 +778,6 @@ export function FullPlayer({
                           ) : (
                             <Text style={styles.commentInitial}>{getAvatarInitial(comment.user.displayName)}</Text>
                           )}
-                          {active ? <WaveformCommentTip comment={comment} /> : null}
                         </View>
                       );
                     })
@@ -836,11 +844,11 @@ export function FullPlayer({
             >
               <SkipBack size={25} color={heldSeekDirection === -1 ? colors.accent : colors.text} fill={heldSeekDirection === -1 ? colors.accent : colors.text} />
             </Pressable>
-            <Pressable style={styles.playButton} onPress={onToggle}>
+            <Pressable style={styles.playButton} onPress={onToggle} accessibilityRole="button" accessibilityLabel={isPlaying ? 'Pause' : 'Play'}>
               {isPlaying ? (
-                <Pause size={34} color="#111111" fill="#111111" />
+                <Pause size={34} color={colors.accent} fill={colors.accent} />
               ) : (
-                <Play size={34} color="#111111" fill="#111111" />
+                <Play size={34} color={colors.accent} fill={colors.accent} />
               )}
             </Pressable>
             <Pressable
@@ -886,6 +894,9 @@ export function FullPlayer({
             {track.isMix ? (
               <Pressable
                 style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`Comments (${comments.length})`}
+                accessibilityState={{ expanded: isCommentsSheetOpen }}
                 onPress={() => {
                   setIsQueueOpen(false);
                   setIsPlaylistSheetOpen(false);
@@ -897,6 +908,7 @@ export function FullPlayer({
                   color={isCommentsSheetOpen || comments.length ? colors.accent : colors.muted}
                   strokeWidth={2.4}
                 />
+                <Text pointerEvents="none" style={styles.commentCount}>{comments.length}</Text>
               </Pressable>
             ) : null}
             <Pressable
@@ -920,7 +932,11 @@ export function FullPlayer({
               <ListMusic size={22} color={isQueueOpen ? colors.accent : colors.muted} strokeWidth={2.4} />
             </Pressable>
           </View>
+          </ScrollView>
         </KeyboardAvoidingView>
+        <Pressable style={styles.closeButton} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close player">
+          <ChevronDown size={24} color={colors.text} />
+        </Pressable>
 
         {isQueueOpen ? (
           <View style={styles.queueLayer}>
@@ -1100,27 +1116,39 @@ export function FullPlayer({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = adaptiveStyles(StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
-    gap: 24,
+    gap: 20,
     paddingHorizontal: spacing.lg,
-    paddingTop: Math.max((StatusBar.currentHeight || 0) + 28, 54),
-    paddingBottom: 42,
+    paddingTop: Math.max((StatusBar.currentHeight || 0) + 54, 64),
+    paddingBottom: 84,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: StatusBar.currentHeight || 0,
+    right: spacing.md,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
   },
   cover: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 28,
+    borderRadius: 0,
     backgroundColor: colors.panelSoft,
   },
   coverButton: {
     width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
   },
   meta: {
     gap: 6,
@@ -1146,20 +1174,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: 20,
+    fontWeight: '600',
     letterSpacing: -0.4,
   },
   artist: {
-    color: '#dedee2',
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-    fontSize: 18,
-    fontWeight: '700',
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '400',
   },
   progressWrap: {
     gap: 8,
@@ -1170,7 +1192,7 @@ const styles = StyleSheet.create({
   },
   waveformTrack: {
     height: 62,
-    borderRadius: radius.pill,
+    borderRadius: 0,
     position: 'relative',
   },
   waveformBars: {
@@ -1194,7 +1216,7 @@ const styles = StyleSheet.create({
   },
   waveformBar: {
     width: 2.2,
-    borderRadius: radius.pill,
+    borderRadius: 0,
   },
   progressThumb: {
     position: 'absolute',
@@ -1202,7 +1224,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 2,
     marginLeft: -1,
-    borderRadius: radius.pill,
+    borderRadius: 0,
     backgroundColor: colors.accent,
   },
   commentMarker: {
@@ -1215,9 +1237,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.88)',
+    borderColor: colors.background,
     borderRadius: radius.pill,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.panelSoft,
     zIndex: 5,
     elevation: 5,
   },
@@ -1230,37 +1252,38 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   commentInitial: {
-    color: '#111111',
+    color: colors.text,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '400',
   },
   commentTip: {
-    position: 'absolute',
-    bottom: 32,
-    alignSelf: 'flex-start',
-    maxWidth: 270,
+    width: '100%',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(24,24,24,0.96)',
+    borderRadius: 0,
+    backgroundColor: colors.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   commentTipText: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '400',
   },
   commentTipName: {
     color: colors.muted,
-    fontWeight: '800',
+    fontWeight: '400',
   },
+  commentTipAnchor: { position: 'absolute', bottom: '100%', paddingBottom: 8, zIndex: 20 },
+  commentCount: { position: 'absolute', top: 0, left: 0, right: 0, textAlign: 'center', color: colors.muted, fontSize: 10, lineHeight: 12, fontVariant: ['tabular-nums'], includeFontPadding: false },
   times: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   time: {
-    color: '#dedee2',
+    color: colors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '400',
   },
   commentComposer: {
     minHeight: 44,
@@ -1273,11 +1296,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 42,
     paddingHorizontal: 14,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(24,24,24,0.74)',
+    borderRadius: 0,
+    backgroundColor: colors.background,
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '400',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   commentSaveButton: {
     minWidth: 44,
@@ -1285,13 +1310,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
+    borderRadius: 0,
+    backgroundColor: colors.panelSoft,
   },
   commentSaveText: {
-    color: '#111111',
+    color: colors.accent,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '400',
   },
   activeCommentRow: {
     minHeight: 38,
@@ -1301,27 +1326,27 @@ const styles = StyleSheet.create({
     marginTop: -14,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 18,
-    backgroundColor: 'rgba(24,24,24,0.64)',
+    borderRadius: 0,
+    backgroundColor: colors.background,
   },
   activeCommentText: {
     flex: 1,
     color: colors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '400',
   },
   commentIconButton: {
     width: 34,
     height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
+    borderRadius: 0,
     backgroundColor: 'transparent',
   },
   commentCancelText: {
     color: colors.muted,
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: '400',
     lineHeight: 25,
   },
   controls: {
@@ -1330,27 +1355,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   playButton: {
-    width: 76,
-    height: 76,
+    width: 52,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
   },
   iconButton: {
     width: 52,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
+    borderRadius: 0,
     backgroundColor: 'transparent',
   },
   iconButtonPressed: {
-    backgroundColor: 'rgba(181,120,255,0.14)',
+    backgroundColor: colors.panelSoft,
     opacity: 0.8,
   },
   iconButtonHeld: {
-    backgroundColor: 'rgba(181,120,255,0.14)',
+    backgroundColor: colors.panelSoft,
   },
   secondaryControls: {
     flexDirection: 'row',
@@ -1362,7 +1387,7 @@ const styles = StyleSheet.create({
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
+    borderRadius: 0,
     backgroundColor: 'transparent',
   },
   queueLayer: {
@@ -1391,16 +1416,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: 10,
     paddingBottom: 26,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    backgroundColor: 'rgba(24,24,24,0.98)',
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    backgroundColor: colors.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   queueHandle: {
     alignSelf: 'center',
     width: 42,
     height: 4,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.24)',
+    borderRadius: 0,
+    backgroundColor: colors.border,
   },
   sheetDragZone: {
     minHeight: 52,
@@ -1414,7 +1441,7 @@ const styles = StyleSheet.create({
   queueHeading: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '400',
   },
   playlistCreateRow: {
     flexDirection: 'row',
@@ -1425,27 +1452,29 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 42,
     paddingHorizontal: 14,
-    borderRadius: radius.pill,
+    borderRadius: 0,
     backgroundColor: colors.panelSoft,
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '400',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   playlistCreateButton: {
     width: 42,
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
+    borderRadius: 0,
+    backgroundColor: colors.panelSoft,
   },
   disabledButton: {
     opacity: 0.45,
   },
   playlistCreateButtonText: {
-    color: '#111111',
+    color: colors.accent,
     fontSize: 23,
-    fontWeight: '900',
+    fontWeight: '400',
     lineHeight: 25,
   },
   queue: {
@@ -1458,16 +1487,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
     paddingHorizontal: 12,
-    borderRadius: 16,
+    borderRadius: 0,
   },
   playlistMenuItemActive: {
-    backgroundColor: 'rgba(181,120,255,0.12)',
+    backgroundColor: colors.panelSoft,
   },
   playlistMenuText: {
     flex: 1,
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '400',
   },
   playlistMenuTextActive: {
     color: colors.accent,
@@ -1475,13 +1504,13 @@ const styles = StyleSheet.create({
   playlistMenuCount: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '400',
   },
   playlistMenuEmpty: {
     paddingVertical: 14,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '400',
     textAlign: 'center',
   },
   commentSheetRow: {
@@ -1491,8 +1520,9 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 9,
     paddingHorizontal: 10,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.035)',
+    borderRadius: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
   commentSheetAvatar: {
     width: 34,
@@ -1506,12 +1536,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.panelSoft,
   },
   commentSheetInitial: {
-    color: '#111111',
+    color: colors.text,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '400',
   },
   commentSheetBody: {
     flex: 1,
@@ -1526,17 +1556,17 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '400',
   },
   commentSheetTime: {
     color: colors.accent,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '400',
   },
   commentSheetText: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '400',
     lineHeight: 17,
   },
   commentSheetActions: {
@@ -1551,18 +1581,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   queueRowActive: {
-    backgroundColor: 'rgba(181,120,255,0.12)',
+    backgroundColor: colors.panelSoft,
   },
   queueNumber: {
     width: 22,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '400',
   },
   queueCover: {
     width: 38,
     height: 38,
-    borderRadius: 10,
+    borderRadius: 0,
     backgroundColor: colors.panel,
   },
   queueText: {
@@ -1571,12 +1601,12 @@ const styles = StyleSheet.create({
   queueTitle: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '400',
   },
   queueArtist: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   queueActiveText: {
     color: colors.accent,
@@ -1584,6 +1614,6 @@ const styles = StyleSheet.create({
   queueTime: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
   },
-});
+}));

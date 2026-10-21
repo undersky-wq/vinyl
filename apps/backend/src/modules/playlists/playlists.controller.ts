@@ -28,7 +28,7 @@ export class PlaylistsController {
   async findOne(@Param('id') id: string, @Req() request: any) {
     const user = await this.authService.getUserFromRequest(request);
     const settings = await this.authService.getAuthSettings();
-    return this.playlistsService.findOne(id, Boolean(user) || !settings.playbackRequiresRegistration);
+    return this.playlistsService.findOne(id, Boolean(user) || !settings.playbackRequiresRegistration, Boolean(user) || settings.allowGuestMixPlayback);
   }
 
   @Put('reorder')

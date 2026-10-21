@@ -17,7 +17,9 @@ import { HomeRelease, TimelineComment } from '../types';
 import { TimelineCommentMarkers } from './timeline-comment-markers';
 import { CopyMusicLink } from './copy-music-link';
 import { TimelineCommentComposer } from './timeline-comment-composer';
+import { TimelineCommentRow } from './timeline-comment-row';
 import { musicPageQueue } from '../lib/music-page-queue';
+import './music-mobile-layout.css';
 
 function clock(seconds: number) {
   const value = Math.max(0, Math.floor(seconds));
@@ -139,7 +141,7 @@ export function ShelfMixTrack({
       <button className="paper-mix-play" type="button" disabled={queueIndex < 0} aria-label={release.isOriginal ? (lang==='ru' ? isCurrent && isPlaying ? 'Пауза трека' : 'Воспроизвести трек' : isCurrent && isPlaying ? 'Pause track' : 'Play track') : (lang==='ru' ? isCurrent && isPlaying ? 'Пауза микса' : 'Воспроизвести микс' : isCurrent && isPlaying ? 'Pause mix' : 'Play mix')} onClick={()=>{if(isCurrent)togglePlayback();else playQueue(queue,queueIndex,queue);}}>
         {isCurrent && isPlaying ? <Pause size={24}/> : <Play size={24}/>}
       </button>
-      <h2><span>{release.artist} : <span className="paper-release-title-regular">{release.title}</span></span>{release.year ? <time dateTime={String(release.year)}>{release.year}</time> : null}</h2>
+      <h2><span className="paper-mix-name"><span className="paper-mix-artist" title={release.artist}>{release.artist}</span><span className="paper-mix-title-separator"> : </span><span className="paper-release-title-regular paper-mix-title" title={release.title}>{release.title}</span></span>{release.year ? <time dateTime={String(release.year)}>{release.year}</time> : null}</h2>
     </div> : null}
     <div className={`paper-mix-timeline${timelineControls ? ' has-transport' : ''}`}>
       <div className="paper-mix-wave">
@@ -158,7 +160,7 @@ export function ShelfMixTrack({
     </button></div> : null}
     <div className="paper-mix-comments" data-open={visibleComments} inert={!visibleComments}>
       <TimelineCommentComposer lang={lang} second={selectedCommentSecond} text={commentText} onTextChange={setCommentText} onSubmit={addComment} pending={savingComment} disabled={Boolean(deletingComment)} />
-      <div>{comments.map(comment=><article key={comment.id}><span className="paper-mix-comment-avatar">{comment.user.avatarStorageUrl?<img src={comment.user.avatarStorageUrl} alt=""/>:avatarInitial(comment.user.displayName)}</span><strong>{comment.user.displayName}</strong><time>{clock(comment.second)}</time>{user && (user.id===comment.userId || user.role==='ADMIN') ? <button type="button" className="paper-mix-comment-delete" aria-label={lang==='ru'?'Удалить комментарий':'Delete comment'} title={lang==='ru'?'Удалить комментарий':'Delete comment'} aria-busy={deletingComment===comment.id} disabled={Boolean(deletingComment) || savingComment} onClick={()=>void removeComment(comment)}>{deletingComment===comment.id?<LoaderCircle size={16} aria-hidden="true"/>:<Trash2 size={16} aria-hidden="true"/>}</button> : null}<p>{comment.text}</p></article>)}</div>
+      <div>{comments.map(comment=><TimelineCommentRow key={comment.id} comment={comment} timestamp={clock(comment.second)} actions={user && (user.id===comment.userId || user.role==='ADMIN') ? <button type="button" className="paper-mix-comment-delete" aria-label={lang==='ru'?'Удалить комментарий':'Delete comment'} title={lang==='ru'?'Удалить комментарий':'Delete comment'} aria-busy={deletingComment===comment.id} disabled={Boolean(deletingComment) || savingComment} onClick={()=>void removeComment(comment)}>{deletingComment===comment.id?<LoaderCircle size={16} aria-hidden="true"/>:<Trash2 size={16} aria-hidden="true"/>}</button> : null} />)}</div>
     </div>
     {status?<p className="paper-mix-status" role="status">{status}</p>:null}
   </>;

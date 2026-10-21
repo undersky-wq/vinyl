@@ -1,8 +1,8 @@
 FROM node:24-alpine AS deps
 WORKDIR /app/apps/backend
 
-COPY apps/backend/package.json ./
-RUN npm install
+COPY apps/backend/package.json apps/backend/package-lock.json ./
+RUN npm ci
 
 FROM node:24-alpine AS builder
 WORKDIR /app/apps/backend
@@ -25,4 +25,5 @@ COPY --from=builder /app/apps/backend/prisma ./prisma
 COPY --from=builder /app/apps/backend/scripts ./scripts
 COPY --from=builder /app/apps/backend/package.json ./package.json
 
-CMD ["sh", "-c", "npm run prisma:push && node dist/main.js"]
+# Schema changes are a separate deployment step, never a side effect of restart.
+CMD ["node", "dist/main.js"]

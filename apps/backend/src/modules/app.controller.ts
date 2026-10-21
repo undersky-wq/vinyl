@@ -189,6 +189,8 @@ export class AppController {
       title: track.title,
       artist: track.artists.length ? track.artists.join(', ') : track.release.artist,
       releaseId: track.releaseId,
+      isPublic: track.release.isMix,
+      isOriginal: track.release.isOriginal,
       audioUrl: audioFile
         ? (await this.storageService.getSignedObjectUrl(
             audioBucket,

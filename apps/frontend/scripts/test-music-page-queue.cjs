@@ -30,6 +30,20 @@ assert(timeline.includes('playQueue(queue,queueIndex,queue)'));
 assert(timeline.includes('playQueueAtPercent(queue,queueIndex,percent)'));
 assert(!timeline.includes('replaceQueuePreservingCurrent'));
 const archive = read('components/paper-archive.tsx');
-assert(archive.includes('isTrackCollection || mixesMode ? releases : [source]'));
+const collectionExports = {};
+vm.runInNewContext(ts.transpileModule(read('lib/collection-playback-queue.ts'), {
+  compilerOptions: {module:ts.ModuleKind.CommonJS},
+}).outputText, {exports:collectionExports});
+const ordered = collectionExports.orderCollectionQueue([
+  {id:'b2',releaseId:'b',position:'B2',audioUrl:'/b2'},
+  {id:'a10',releaseId:'a',position:'A10',audioUrl:'/a10'},
+  {id:'a2',releaseId:'a',position:'A2',audioUrl:'/a2'},
+  {id:'locked',releaseId:'b',audioUrl:''},
+  {id:'excluded',releaseId:'excluded',audioUrl:'/other'},
+], ['a','b']);
+assert.equal(ordered.map(track=>track.id).join(','),'a2,a10,b2');
+assert(archive.includes('const queue = releases.flatMap'));
+assert(archive.includes('getCollectionPlaybackQueue()'));
+assert(archive.includes('replaceQueuePreservingCurrent(fullQueue'));
 assert(archive.includes('queueReleases={releases}'));
 console.log('PASS: page order, selected start index, next/previous, locked audio excluded, originals metadata and independent favorites queue');

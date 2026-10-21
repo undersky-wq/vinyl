@@ -18,7 +18,7 @@ import {
   startAudioWaveformBackfill,
   updateAuthSettings,
 } from '../lib/api';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, spacing, shelfStyles } from '../theme';
 import { LanguageProps } from '../types';
 import { AuthUser, ProfileStats, UserProfile } from '../types';
 
@@ -63,6 +63,8 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -177,13 +179,25 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
             displayName: displayName.trim(),
             inviteCode: inviteCode.trim() || undefined,
           })
-        : await login(email.trim(), password);
+        : await login(email.trim(), password, twoFactorCode.trim() || undefined);
 
       applyUser(nextUser);
       await loadProfile(nextUser);
       setPassword('');
+      setTwoFactorCode('');
+      setNeedsTwoFactor(false);
       setInviteCode('');
-    } catch {
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      if (code === 'TWO_FACTOR_REQUIRED') {
+        setNeedsTwoFactor(true);
+        setMessage(isRu ? 'Введи код аутентификатора или одноразовый резервный код.' : 'Enter an authenticator or recovery code.');
+        return;
+      }
+      if (code === 'TWO_FACTOR_INVALID' || code === 'TWO_FACTOR_LOCKED') {
+        setMessage(code === 'TWO_FACTOR_LOCKED' ? isRu ? 'Слишком много попыток. Подожди 15 минут.' : 'Too many attempts. Wait 15 minutes.' : isRu ? 'Неверный или уже использованный код.' : 'Invalid or already used code.');
+        return;
+      }
       setMessage(
         isRegister
           ? isRu
@@ -547,6 +561,12 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
                 autoCapitalize="none"
               />
             ) : null}
+            {!isRegister && needsTwoFactor ? <TextInput
+              value={twoFactorCode} onChangeText={setTwoFactorCode}
+              placeholder={isRu ? 'Код аутентификатора или резервный код' : 'Authenticator or recovery code'}
+              placeholderTextColor={colors.muted} style={styles.input} autoCapitalize="characters"
+              autoComplete="one-time-code" textContentType="oneTimeCode" maxLength={64}
+            /> : null}
             <Pressable style={styles.button} onPress={handleSubmit} disabled={isLoading}>
               <Text style={styles.buttonText}>
                 {isLoading ? '...' : isRegister ? labels.submitRegister : labels.submitLogin}
@@ -556,6 +576,8 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
               style={styles.modeButton}
               onPress={() => {
                 setMessage('');
+                setNeedsTwoFactor(false);
+                setTwoFactorCode('');
                 setMode((current) => (current === 'login' ? 'register' : 'login'));
               }}
             >
@@ -610,7 +632,7 @@ function ActionRow({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = shelfStyles(StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -675,14 +697,14 @@ const styles = StyleSheet.create({
   content: {
     gap: 14,
     paddingHorizontal: spacing.md,
-    paddingTop: (StatusBar.currentHeight || 0) + 118,
-    paddingBottom: 170,
+    paddingTop: 76,
+    paddingBottom: 84,
   },
   usersContent: {
     gap: 10,
     paddingHorizontal: spacing.md,
-    paddingTop: (StatusBar.currentHeight || 0) + 118,
-    paddingBottom: 170,
+    paddingTop: 76,
+    paddingBottom: 84,
   },
   heroCard: {
     flexDirection: 'row',
@@ -945,4 +967,4 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     backgroundColor: colors.panelSoft,
   },
-});
+}));

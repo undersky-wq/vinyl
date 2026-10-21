@@ -31,6 +31,9 @@ export class ReleasesService {
     files: Array<Express.Multer.File>,
   ) {
     const tracks = this.parseManualTracks(body.tracks);
+    if (body.isOriginal === 'true' && (tracks.length !== 1 || !files.some(file => file.fieldname === 'audio-0'))) {
+      throw new BadRequestException('Tracks requires one composition with an MP3 file');
+    }
     const styles = this.splitList(body.styles);
     const year: number | null = body.year ? Number(body.year) : null;
 
@@ -69,7 +72,9 @@ export class ReleasesService {
         country: body.country?.trim() || null,
         genres: [],
         styles,
-        isMix: body.isMix === 'true',
+        // Originals share the mix playback/comment pipeline, but have their own section.
+        isMix: body.isMix === 'true' || body.isOriginal === 'true',
+        isOriginal: body.isOriginal === 'true',
         collectionItems: {
           create: collectionUserIds.map((userId) => ({ userId })),
         },
@@ -115,7 +120,7 @@ export class ReleasesService {
     return this.findOne(createdRelease.id, true);
   }
 
-  async findAll(query: QueryReleasesDto, includeAudioUrls = false) {
+  async findAll(query: QueryReleasesDto, includeAudioUrls = false, includeMixAudioUrls = includeAudioUrls) {
     const userId = query.userId || 'default-user';
     const summaryOnly = query.summary === 'true';
     const take = query.limit ? Math.min(Math.max(Number(query.limit), 1), 48) : undefined;
@@ -140,7 +145,7 @@ export class ReleasesService {
           userId,
         },
       },
-      ...(query.allTypes === 'true' ? {} : { isMix: query.isMix === 'true' }),
+      ...(query.allTypes === 'true' ? {} : { isMix: query.isOriginal === 'true' || query.isMix === 'true', isOriginal: query.isOriginal === 'true' }),
       ...(genres.length ? { genres: { hasSome: genres } } : {}),
       ...(styles.length ? { styles: { hasSome: styles } } : {}),
       ...(search
@@ -177,7 +182,7 @@ export class ReleasesService {
         ...(typeof skip === 'number' ? { skip } : {}),
         ...(typeof take === 'number' ? { take } : {}),
         select: {
-          id: true, artist: true, title: true, year: true, styles: true, isMix: true,
+          id: true, artist: true, title: true, year: true, styles: true, isMix: true, isOriginal: true,
           coverImageUrl: true, coverStorageKey: true, coverStorageUrl: true,
           coverThumbStorageKey: true, coverThumbStorageUrl: true,
           coverMediumStorageKey: true, coverMediumStorageUrl: true,
@@ -208,6 +213,7 @@ export class ReleasesService {
             genres: true,
             styles: true,
             isMix: true,
+            isOriginal: true,
             coverImageUrl: true,
             coverStorageKey: true,
             coverStorageUrl: true,
@@ -278,7 +284,7 @@ export class ReleasesService {
                 },
         });
 
-    return Promise.all(releases.map((release) => this.signReleaseUrls(release, includeAudioUrls)));
+    return Promise.all(releases.map((release) => this.signReleaseUrls(release, includeAudioUrls, includeMixAudioUrls)));
   }
 
   async findStyles(query: QueryReleasesDto) {
@@ -290,7 +296,8 @@ export class ReleasesService {
             userId,
           },
         },
-        isMix: query.isMix === 'true',
+        isMix: query.isOriginal === 'true' || query.isMix === 'true',
+        isOriginal: query.isOriginal === 'true',
       },
       select: {
         styles: true,
@@ -419,7 +426,7 @@ export class ReleasesService {
     return rows.map((row) => row.id);
   }
 
-  async findLibraryFeed(query: QueryReleasesDto, includeAudioUrls = false) {
+  async findLibraryFeed(query: QueryReleasesDto, includeAudioUrls = false, includeMixAudioUrls = includeAudioUrls) {
     const userId = query.userId || 'default-user';
     const take = query.limit ? Math.min(Math.max(Number(query.limit), 1), 60) : 40;
     const skip = query.offset ? Math.max(Number(query.offset), 0) : 0;
@@ -457,7 +464,8 @@ export class ReleasesService {
           userId,
         },
       },
-      isMix: query.isMix === 'true',
+      isMix: query.isOriginal === 'true' || query.isMix === 'true',
+      isOriginal: query.isOriginal === 'true',
       ...(styles.length ? { styles: { hasSome: styles } } : {}),
       ...(search
         ? {
@@ -475,7 +483,8 @@ export class ReleasesService {
       this.prisma.release.count({
         where: {
           collectionItems: { some: { userId } },
-          isMix: query.isMix === 'true',
+          isMix: query.isOriginal === 'true' || query.isMix === 'true',
+          isOriginal: query.isOriginal === 'true',
         },
       }),
       this.prisma.track.count({
@@ -531,7 +540,8 @@ export class ReleasesService {
               userId,
             },
           },
-          isMix: query.isMix === 'true',
+          isMix: query.isOriginal === 'true' || query.isMix === 'true',
+          isOriginal: query.isOriginal === 'true',
           tracks: {
             some: {
               audioFiles: {
@@ -563,7 +573,7 @@ export class ReleasesService {
         this.signReleaseUrls({
           ...release,
           audioComplete: release.tracks.length > 0 && _count.tracks === 0,
-        }, includeAudioUrls),
+        }, includeAudioUrls, includeMixAudioUrls),
       ),
     );
 
@@ -577,7 +587,7 @@ export class ReleasesService {
     };
   }
 
-  async findLibraryQueue(query: QueryReleasesDto, includeAudioUrls = false) {
+  async findLibraryQueue(query: QueryReleasesDto, includeAudioUrls = false, includeMixAudioUrls = includeAudioUrls) {
     const userId = query.userId || 'default-user';
     const styles = this.splitList(query.style);
     const keys = this.splitList(query.key);
@@ -598,7 +608,8 @@ export class ReleasesService {
               userId,
             },
           },
-          isMix: query.isMix === 'true',
+          isMix: query.isOriginal === 'true' || query.isMix === 'true',
+          isOriginal: query.isOriginal === 'true',
           ...(styles.length ? { styles: { hasSome: styles } } : {}),
           ...(search
             ? {
@@ -633,7 +644,7 @@ export class ReleasesService {
     return Promise.all(
       tracks.map(async (track) => {
         const audioFile = track.audioFiles[0];
-        const audioUrl = audioFile && includeAudioUrls
+        const audioUrl = audioFile && (track.release.isOriginal || (track.release.isMix ? includeMixAudioUrls : includeAudioUrls))
           ? (await this.storageService.getSignedObjectUrl(
               audioBucket,
               audioFile.normalizedStorageKey || audioFile.storageKey,
@@ -654,6 +665,8 @@ export class ReleasesService {
           title: track.title,
           artist: track.artists.length ? track.artists.join(', ') : track.release.artist,
           audioUrl,
+          isPublic: track.release.isMix,
+          isOriginal: track.release.isOriginal,
           coverUrl,
           releaseId: track.releaseId,
           durationRaw: track.durationRaw,
@@ -664,7 +677,7 @@ export class ReleasesService {
     );
   }
 
-  async findOne(id: string, includeAudioUrls = false) {
+  async findOne(id: string, includeAudioUrls = false, includeMixAudioUrls = includeAudioUrls) {
     const release = await this.prisma.release.findUnique({
       where: { id },
       include: {
@@ -685,10 +698,10 @@ export class ReleasesService {
       return null;
     }
 
-    return this.signReleaseUrls(release, includeAudioUrls);
+    return this.signReleaseUrls(release, includeAudioUrls, includeMixAudioUrls);
   }
 
-  async findTimelineComments(releaseId: string) {
+  async findTimelineComments(releaseId: string, viewerId?: string) {
     const release = await this.prisma.release.findUnique({
       where: { id: releaseId },
       select: { id: true },
@@ -701,6 +714,8 @@ export class ReleasesService {
     const comments = await this.prisma.timelineComment.findMany({
       where: { releaseId },
       include: {
+        _count: { select: { likes: true } },
+        likes: { where: { userId: viewerId || '' }, select: { userId: true } },
         user: {
           select: {
             id: true,
@@ -720,7 +735,22 @@ export class ReleasesService {
       ],
     });
 
-    return Promise.all(comments.map((comment) => this.signTimelineComment(comment)));
+    return Promise.all(comments.map(async ({ likes, _count, ...comment }) => ({
+      ...await this.signTimelineComment(comment), likeCount: _count.likes, likedByMe: likes.length > 0,
+    })));
+  }
+
+  async setTimelineCommentLike(releaseId: string, commentId: string, userId: string, liked: boolean) {
+    return this.prisma.$transaction(async tx => {
+      const comment = await tx.timelineComment.findFirst({where: {id: commentId, releaseId}, select: {id: true}});
+      if (!comment) throw new NotFoundException('Comment not found');
+      if (liked) {
+        await tx.timelineCommentLike.upsert({where: {commentId_userId: {commentId, userId}}, create: {commentId, userId}, update: {}});
+      } else {
+        await tx.timelineCommentLike.deleteMany({where: {commentId, userId}});
+      }
+      return {likeCount: await tx.timelineCommentLike.count({where: {commentId}}), likedByMe: liked};
+    });
   }
 
   async createTimelineComment(releaseId: string, user: User, dto: CreateTimelineCommentDto) {
@@ -1377,6 +1407,8 @@ export class ReleasesService {
   private async signReleaseUrls<
     T extends {
       id?: string;
+      isMix?: boolean;
+      isOriginal?: boolean;
       coverStorageKey?: string | null;
       coverStorageUrl?: string | null;
       coverThumbStorageKey?: string | null;
@@ -1401,6 +1433,7 @@ export class ReleasesService {
   >(
     release: T,
     includeAudioUrls = false,
+    includeMixAudioUrls = includeAudioUrls,
   ) {
     const audioBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
     const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
@@ -1447,7 +1480,7 @@ export class ReleasesService {
       tracks: await Promise.all(
         release.tracks.map(async (track) => ({
           ...track,
-          audioFiles: includeAudioUrls
+          audioFiles: (release.isOriginal === true || (release.isMix === true ? includeMixAudioUrls : includeAudioUrls))
             ? await Promise.all(
                 track.audioFiles.map(async (audioFile) => ({
                   ...audioFile,

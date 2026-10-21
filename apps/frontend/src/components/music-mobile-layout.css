@@ -1,0 +1,20 @@
+@media(max-width:700px){
+  /* Permalinks share the listing's paper chrome, not the old mobile dock. */
+  body:has(.shelf-mix-detail) .mobile-nav{display:none!important}
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-comments[data-open=true]{
+    box-sizing:border-box;scrollbar-gutter:stable;padding-right:16px;
+  }
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-heading{min-height:72px;align-items:center}
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-heading h2{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;
+    align-self:center;min-height:0;height:auto;margin:0;padding:0;
+    font-size:16px;line-height:1.2;min-width:0;
+  }
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-heading h2>.paper-mix-name{
+    display:block;min-width:0;white-space:normal;overflow:visible;text-overflow:clip;
+  }
+  .paper-mix-heading .paper-mix-title-separator{display:none}
+  .paper-mix-heading .paper-mix-artist{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:16px;line-height:20px;font-weight:600}
+  .paper-mix-heading .paper-mix-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;font-size:14px;line-height:18px;font-weight:400}
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-heading h2>time{margin-top:3px;font-size:11px}
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { TimelineComment } from '../types';
+import { useState } from 'react';
 import './timeline-comment-markers.css';
 
 function getAvatarInitial(name?: string | null) {
@@ -42,6 +43,7 @@ export function TimelineCommentMarkers({
   durationSec: number;
   activeCommentId?: string | null;
 }) {
+  const [tappedCommentId, setTappedCommentId] = useState<string | null>(null);
   if (!durationSec || !comments.length) {
     return null;
   }
@@ -53,9 +55,18 @@ export function TimelineCommentMarkers({
 
         return (
           <span
-            className={`mix-comment-marker${activeCommentId === comment.id ? ' is-visible' : ''}`}
+            className={`mix-comment-marker${activeCommentId === comment.id || tappedCommentId === comment.id ? ' is-visible' : ''}`}
             key={comment.id}
             style={{ left: `${markerPercent}%` }}
+            data-edge={markerPercent < 25 ? 'start' : markerPercent > 75 ? 'end' : 'center'}
+            role="button"
+            tabIndex={0}
+            aria-label={`${comment.user.displayName}: ${comment.text}`}
+            aria-expanded={activeCommentId === comment.id || tappedCommentId === comment.id}
+            onPointerDown={event => event.stopPropagation()}
+            onClick={event => {event.preventDefault();event.stopPropagation();setTappedCommentId(current => current === comment.id ? null : comment.id);}}
+            onKeyDown={event => {if (event.key === 'Enter' || event.key === ' ') {event.preventDefault();event.stopPropagation();setTappedCommentId(current => current === comment.id ? null : comment.id);} else if(event.key === 'Escape') {event.stopPropagation();setTappedCommentId(null);}}}
+            onBlur={() => setTappedCommentId(null)}
           >
             {comment.user.avatarStorageUrl ? (
               <img src={comment.user.avatarStorageUrl} alt={comment.user.displayName} />

@@ -19,6 +19,7 @@ export function AuthScreen({
   const [status, setStatus] = useState('');
   const [isPending, setIsPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
   const isRu = lang === 'ru';
   const isLogin = currentMode === 'login';
 
@@ -77,18 +78,31 @@ export function AuthScreen({
 
             try {
               const user = isLogin
-                ? await loginUser({ email: payload.email, password: payload.password })
+                ? await loginUser({ email: payload.email, password: payload.password, code: String(form.get('code') || '').trim() || undefined })
                 : await registerUser(payload);
               setUser(user);
               router.push('/profile');
               router.refresh();
-            } catch {
-              setStatus(copy.failed);
+            } catch (error) {
+              const message = error instanceof Error ? error.message : '';
+              if (message === 'TWO_FACTOR_REQUIRED') {
+                setNeedsTwoFactor(true);
+                setStatus(isRu ? 'Введи код из аутентификатора или одноразовый резервный код.' : 'Enter an authenticator code or a one-time recovery code.');
+              } else if (message === 'TWO_FACTOR_INVALID') {
+                setStatus(isRu ? 'Неверный или уже использованный код. Дождись нового кода или используй резервный.' : 'Invalid or already used code. Wait for a new code or use a recovery code.');
+              } else if (message === 'TWO_FACTOR_LOCKED') {
+                setStatus(isRu ? 'Слишком много попыток. Попробуй через 15 минут.' : 'Too many attempts. Try again in 15 minutes.');
+              } else setStatus(copy.failed);
             } finally {
               setIsPending(false);
             }
           }}
         >
+          {isLogin && needsTwoFactor ? <div className="field">
+            <label htmlFor="code">{isRu ? 'Код аутентификатора или резервный код' : 'Authenticator or recovery code'}</label>
+            <input id="code" name="code" autoComplete="one-time-code" autoFocus required maxLength={64} spellCheck={false} autoCapitalize="characters" />
+          </div> : null}
+
           {currentMode === 'register' ? (
             <div className="field">
               <label htmlFor="displayName">{copy.displayName}</label>
@@ -155,6 +169,8 @@ export function AuthScreen({
           onClick={() => {
             setCurrentMode((current) => (current === 'login' ? 'register' : 'login'));
             setShowPassword(false);
+            setNeedsTwoFactor(false);
+            setStatus('');
           }}
         >
           {copy.switchMode}

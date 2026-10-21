@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { AudioLines, Heart, House, Library, ListMusic } from 'lucide-react-native';
+import { Alert, BackHandler, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AudioLines, Download, Heart, House, Library, ListMusic } from 'lucide-react-native';
 import type { Track as TrackPlayerTrack } from 'react-native-track-player';
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { FullPlayer } from './src/components/FullPlayer';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
 import { PlaylistsScreen } from './src/screens/PlaylistsScreen';
-import { MixesScreen } from './src/screens/MixesScreen';
-import { FavoritesScreen } from './src/screens/FavoritesScreen';
+import { DownloadsScreen } from './src/screens/DownloadsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReleaseDetailScreen } from './src/screens/ReleaseDetailScreen';
 import {
@@ -27,7 +27,7 @@ import { syncNotificationArtwork } from './src/lib/notification-artwork';
 import { resolveOfflineTrack, warmOfflineAudioIndex, withCachedOfflineAudio } from './src/lib/offline-audio';
 import { createPlaybackRequests, replaceQueueAroundActiveTrack } from './src/lib/playback-queue';
 import { createRetriableResource, type RetriableResource } from './src/lib/retriable-resource';
-import { colors, radius, spacing } from './src/theme';
+import { adaptiveStyles, colors, getActiveThemeMode, loadThemeMode, saveThemeMode, setActiveThemeMode, type ThemeMode } from './src/theme';
 import { AppLanguage, AuthUser, PlayerTrack, Playlist, Release, TabKey, Track } from './src/types';
 
 type FavoriteTrack = Track & { release: Release };
@@ -40,6 +40,7 @@ const tabs: Array<{ key: TabKey; label: Record<AppLanguage, string>; Icon: typeo
   { key: 'playlists', label: { en: 'Playlists', ru: 'Плейлисты' }, Icon: ListMusic },
   { key: 'mixes', label: { en: 'Mixes', ru: 'Миксы' }, Icon: AudioLines },
   { key: 'favorites', label: { en: 'Likes', ru: 'Избранное' }, Icon: Heart },
+  { key: 'downloads', label: { en: 'Downloads', ru: 'Загрузки' }, Icon: Download },
 ];
 
 function loadTrackPlayerModule() {
@@ -100,8 +101,16 @@ function mergeFavoriteTrackIds(ids: Iterable<string>, tracks: FavoriteTrack[]) {
 }
 
 export default function App() {
+  const [theme, setTheme] = useState<ThemeMode>(getActiveThemeMode);
+  useEffect(() => { void loadThemeMode().then(next => { setActiveThemeMode(next); setTheme(next); }); }, []);
+  function toggleTheme() {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setActiveThemeMode(next); setTheme(next); void saveThemeMode(next);
+  }
   const [lang, setLang] = useState<AppLanguage>('en');
   const [activeTab, setActiveTab] = useState<TabKey>('home');
+  const [playlistManagement, setPlaylistManagement] = useState(false);
+  useEffect(() => { if (activeTab !== 'playlists') setPlaylistManagement(false); }, [activeTab]);
   const [currentTrack, setCurrentTrack] = useState<PlayerTrack | null>(null);
   const [queue, setQueue] = useState<PlayerTrack[]>([]);
   const [queuePreview, setQueuePreview] = useState<PlayerTrack[]>([]);
@@ -112,12 +121,23 @@ export default function App() {
   const [favoriteTracks, setFavoriteTracks] = useState<FavoriteTrack[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const accountId = useRef<string | null>(null);
+  function applyAuth(next: AuthUser | null) {
+    if (accountId.current !== (next?.id || null)) {
+      accountId.current = next?.id || null;
+      favoriteIdsResourceRef.current?.reset();
+      favoriteTracksResourceRef.current?.reset();
+      playlistsResourceRef.current?.reset();
+      setFavoriteIds(new Set()); setFavoriteTracks([]); setPlaylists([]);
+    }
+    setCurrentUser(next);
+  }
   const [showTrackMeta, setShowTrackMeta] = useState(true);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
   const [activeRelease, setActiveRelease] = useState<Release | null>(null);
-  const isHomeVisible = activeTab === 'home' && !activeRelease;
+  const isHomeVisible = (activeTab === 'home' || activeTab === 'mixes' || activeTab === 'favorites' || (activeTab === 'playlists' && !playlistManagement)) && !activeRelease;
   const currentTrackRef = useRef<PlayerTrack | null>(null);
   const queueRef = useRef<PlayerTrack[]>([]);
   const queueSignatureRef = useRef('');
@@ -150,7 +170,7 @@ export default function App() {
     });
   }
   if (!currentUserResourceRef.current) {
-    currentUserResourceRef.current = createRetriableResource(getCurrentUser, setCurrentUser);
+    currentUserResourceRef.current = createRetriableResource(getCurrentUser, applyAuth);
   }
   if (!playlistsResourceRef.current) {
     playlistsResourceRef.current = createRetriableResource(getPlaylists, setPlaylists);
@@ -717,13 +737,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void favoriteIdsResourceRef.current?.load();
     void currentUserResourceRef.current?.load();
-    void playlistsResourceRef.current?.load();
-    void favoriteTracksResourceRef.current?.load();
   }, []);
 
+  useEffect(() => { if (currentUser) void refreshPersonalLibrary().catch(() => undefined); }, [currentUser?.id]);
+
   useEffect(() => {
+    if (!currentUser) return;
     if (activeTab === 'playlists' && !playlistsResourceRef.current?.hasLoaded()) {
       void playlistsResourceRef.current?.load();
     }
@@ -731,17 +751,23 @@ export default function App() {
       if (!favoriteIdsResourceRef.current?.hasLoaded()) void favoriteIdsResourceRef.current?.load();
       if (!favoriteTracksResourceRef.current?.hasLoaded()) void favoriteTracksResourceRef.current?.load();
     }
-  }, [activeTab]);
+  }, [activeTab, currentUser?.id]);
 
   async function refreshPersonalLibrary() {
-    await Promise.allSettled([
+    const result = await Promise.all([
       favoriteIdsResourceRef.current?.load(true),
       playlistsResourceRef.current?.load(true),
       favoriteTracksResourceRef.current?.load(true),
     ]);
+    if (result.some(value => value === false)) throw new Error('Personal library refresh failed');
   }
 
   async function handleFavorite(trackId: string) {
+    if (!accountId.current) {
+      setIsFullPlayerOpen(false); setActiveRelease(null); setActiveTab('profile'); return;
+    }
+    const account = accountId.current;
+    const wasFavorite = favoriteIds.has(trackId);
     setFavoriteIds((current) => {
       const next = new Set(current);
       if (next.has(trackId)) {
@@ -754,6 +780,7 @@ export default function App() {
 
     try {
       const result = await toggleFavoriteTrack(trackId);
+      if (account !== accountId.current) return;
       setFavoriteIds((current) => {
         const next = new Set(current);
         if (result.active) {
@@ -763,31 +790,34 @@ export default function App() {
         }
         return next;
       });
-      setFavoriteTracks(await getFavoriteTracks());
+      await getFavoriteTracks().then(next => { if (account === accountId.current) setFavoriteTracks(next); }).catch(() => undefined);
     } catch {
-      try {
-        await refreshPersonalLibrary();
-      } catch {
-        // Keep the optimistic UI if the refresh also fails.
-      }
+      if (account !== accountId.current) return;
+      setFavoriteIds(current => { const next = new Set(current); if (wasFavorite) next.add(trackId); else next.delete(trackId); return next; });
+      Alert.alert(lang === 'ru' ? 'Не удалось изменить избранное' : 'Unable to update favorites', lang === 'ru' ? 'Проверьте соединение и повторите.' : 'Check your connection and retry.');
     }
   }
 
   async function handlePlaylistToggle(playlist: Playlist, trackId: string) {
+    const account = accountId.current;
+    if (!account) { setIsFullPlayerOpen(false); setActiveRelease(null); setActiveTab('profile'); return; }
     const alreadyAdded = playlist.items.some((item) => item.track.id === trackId);
 
     try {
       const updatedPlaylist = alreadyAdded
         ? await removeTrackFromPlaylist(playlist.id, trackId)
         : await addTrackToPlaylist(playlist.id, trackId);
-      setPlaylists((current) => current.map((item) => (item.id === updatedPlaylist.id ? updatedPlaylist : item)));
+      if (account === accountId.current) setPlaylists((current) => current.map((item) => (item.id === updatedPlaylist.id ? updatedPlaylist : item)));
     } catch {
       await refreshPersonalLibrary().catch(() => undefined);
     }
   }
 
   async function handleCreatePlaylist(name: string, trackId: string) {
+    const account = accountId.current;
+    if (!account) throw new Error('Sign in to create a playlist');
     const createdPlaylist = await createPlaylist({ name, trackIds: [trackId] });
+    if (account !== accountId.current) throw new Error('Account changed');
     setPlaylists((current) => [createdPlaylist, ...current]);
     return createdPlaylist;
   }
@@ -817,16 +847,16 @@ export default function App() {
   }, [positionMs, durationMs, isRepeatEnabled]);
 
   useEffect(() => {
-    if (!activeRelease || isFullPlayerOpen) {
+    if ((!activeRelease && !playlistManagement) || isFullPlayerOpen) {
       return;
     }
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      setActiveRelease(null);
+      if (activeRelease) setActiveRelease(null); else setPlaylistManagement(false);
       return true;
     });
     return () => subscription.remove();
-  }, [activeRelease, isFullPlayerOpen]);
+  }, [activeRelease, isFullPlayerOpen, playlistManagement]);
 
   function renderScreen() {
     if (activeRelease) {
@@ -841,6 +871,10 @@ export default function App() {
           onTogglePlayback={togglePlayback}
         />
       );
+    }
+
+    if (activeTab === 'downloads') {
+      return <DownloadsScreen lang={lang} activeTrackId={currentTrack?.id || null} onPlayTrack={playTrack} />;
     }
 
     if (activeTab === 'home') {
@@ -870,12 +904,17 @@ export default function App() {
     if (activeTab === 'playlists') {
       return (
         <PlaylistsScreen
+          onBackToArchive={() => setPlaylistManagement(false)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onHome={() => setActiveTab('home')}
+          requiresSignIn={!currentUser}
           lang={lang}
           onLanguageChange={setLang}
           activeTrackId={currentTrack?.id || null}
           avatarUrl={currentUser?.avatarStorageUrl}
           playlists={playlists}
-          onPlaylistsChange={setPlaylists}
+          onPlaylistsChange={next => { if (accountId.current === currentUser?.id) setPlaylists(next); }}
           onPlayTrack={playTrack}
           onOpenProfile={() => setActiveTab('profile')}
           onRefreshPlaylists={async () => {
@@ -886,43 +925,13 @@ export default function App() {
       );
     }
 
-    if (activeTab === 'mixes') {
-      return (
-        <MixesScreen
-          lang={lang}
-          onLanguageChange={setLang}
-          isAdmin={currentUser?.role === 'ADMIN'}
-          avatarUrl={currentUser?.avatarStorageUrl}
-          activeTrackId={currentTrack?.id || null}
-          onOpenProfile={() => setActiveTab('profile')}
-          onPlayTrack={playTrack}
-        />
-      );
-    }
-
-    if (activeTab === 'favorites') {
-      return (
-        <FavoritesScreen
-          lang={lang}
-          onLanguageChange={setLang}
-          activeTrackId={currentTrack?.id || null}
-          avatarUrl={currentUser?.avatarStorageUrl}
-          tracks={favoriteTracks}
-          onPlayTrack={playTrack}
-          onOpenProfile={() => setActiveTab('profile')}
-          onRefresh={async () => {
-            await refreshPersonalLibrary();
-          }}
-          showTrackMeta={showTrackMeta}
-        />
-      );
-    }
+    if (activeTab === 'mixes' || activeTab === 'favorites') return null;
 
     return (
       <ProfileScreen
         lang={lang}
         onLanguageChange={setLang}
-        onAuthChange={setCurrentUser}
+        onAuthChange={applyAuth}
         showTrackMeta={showTrackMeta}
         onShowTrackMetaChange={setShowTrackMeta}
       />
@@ -941,9 +950,25 @@ export default function App() {
         avatarUrl={currentUser?.avatarStorageUrl}
         onOpenProfile={() => setActiveTab('profile')}
         onOpenRelease={setActiveRelease}
+        activeTrackId={currentTrack?.id || null}
+        isPlaying={isPlaying}
+        onPlayTrack={playTrack}
+        onTogglePlayback={togglePlayback}
+        playlistLibrary={activeTab === 'playlists' ? { playlists, requiresSignIn: !currentUser, onManage: () => setPlaylistManagement(true) } : undefined}
+        section={activeTab === 'mixes' ? 'mixes' : activeTab === 'favorites' ? 'favorites' : 'collection'}
+        favorites={favoriteTracks}
+        requiresSignIn={!currentUser}
+        favoriteIds={favoriteIds}
+        onFavoriteTrack={id => { void handleFavorite(id); }}
+        playlists={playlists}
+        onPlaylistToggle={handlePlaylistToggle}
+        showTrackMeta={showTrackMeta}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onNavigate={(tab) => { setActiveRelease(null); setActiveTab(tab); }}
       />
     ),
-    [currentUser?.avatarStorageUrl, currentUser?.role, isFullPlayerOpen, isHomeVisible, lang],
+    [currentUser?.id, currentUser?.avatarStorageUrl, currentUser?.role, isFullPlayerOpen, isHomeVisible, lang, theme, currentTrack?.id, isPlaying, activeTab, playlists, favoriteIds, favoriteTracks, showTrackMeta],
   );
   const activeScreen = useMemo(
     () => renderScreen(),
@@ -960,12 +985,13 @@ export default function App() {
       queue,
       queuePreview,
       showTrackMeta,
+      theme,
     ],
   );
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       <View style={styles.root}>
         {/* Keep the same list and layout mounted so paginated data and scroll survive navigation. */}
         <View
@@ -976,7 +1002,14 @@ export default function App() {
         >
           {homeScreen}
         </View>
-        {activeScreen}
+        {!isHomeVisible && <View style={styles.secondary}>
+          {(activeTab !== 'playlists' || activeRelease) && <View style={styles.backbar}>
+            <Pressable onPress={() => { setActiveRelease(null); setActiveTab('home'); }} style={styles.backButton} accessibilityLabel={lang === 'ru' ? 'Назад к коллекции' : 'Back to collection'}><Text style={styles.backText}>{lang === 'ru' ? '‹ Коллекция' : '‹ Collection'}</Text></Pressable>
+            <Pressable onPress={() => { setActiveRelease(null); setActiveTab('downloads'); }}><Text style={styles.backText}>{lang === 'ru' ? 'Загрузки' : 'Downloads'}</Text></Pressable>
+            <Pressable onPress={toggleTheme} accessibilityLabel={lang === 'ru' ? 'Сменить тему' : 'Change theme'}><Text style={styles.backText}>{theme === 'light' ? 'Dark' : 'Light'}</Text></Pressable>
+          </View>}
+          {activeScreen}
+        </View>}
 
         <MiniPlayer
           track={currentTrack}
@@ -991,6 +1024,7 @@ export default function App() {
           }}
           onToggle={togglePlayback}
           onOpen={() => setIsFullPlayerOpen(true)}
+          onSeek={seekToRatio}
         />
 
         <FullPlayer
@@ -1024,47 +1058,12 @@ export default function App() {
           onOpenRelease={openCurrentTrackRelease}
         />
 
-        <View style={styles.tabbar}>
-          {tabs.map((tab) => {
-            const active = tab.key === activeTab;
-            const Icon = tab.Icon;
-
-            return (
-              <Pressable
-                key={tab.key}
-                style={[styles.tab, active && styles.tabActiveBackground]}
-                onPress={() => {
-                  setActiveRelease(null);
-                  setActiveTab(tab.key);
-                }}
-                accessibilityRole="tab"
-                accessibilityLabel={tab.label[lang]}
-                accessibilityState={{ selected: active }}
-              >
-                <Icon
-                  size={23}
-                  strokeWidth={2.2}
-                  color={active ? colors.accent : colors.muted}
-                />
-                <Text
-                  style={[styles.tabLabel, active && styles.tabActive]}
-                  numberOfLines={1}
-                  maxFontSizeMultiplier={1.2}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                >
-                  {tab.label[lang]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = adaptiveStyles(StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1079,41 +1078,8 @@ const styles = StyleSheet.create({
   homeLayerHidden: {
     opacity: 0,
   },
-  tabbar: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: spacing.sm,
-    zIndex: 30,
-    height: 70,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 9,
-    borderRadius: 20,
-    backgroundColor: colors.panel,
-  },
-  tab: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    borderRadius: 16,
-  },
-  tabLabel: {
-    alignSelf: 'stretch',
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  tabActiveBackground: {
-    backgroundColor: 'rgba(181, 120, 255, 0.13)',
-  },
-  tabActive: {
-    color: colors.accent,
-  },
-});
+  secondary: { flex: 1, backgroundColor: colors.background },
+  backbar: { height: 38, marginHorizontal: '3%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  backButton: { minHeight: 36, justifyContent: 'center' },
+  backText: { color: colors.text, fontSize: 12 },
+}));

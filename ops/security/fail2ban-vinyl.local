@@ -1,0 +1,23 @@
+[vinyl-probes]
+enabled = true
+filter = vinyl-probes
+port = http,https
+logpath = /var/log/nginx/access.log
+backend = polling
+usedns = no
+findtime = 10m
+maxretry = 8
+bantime = 1h
+banaction = iptables-multiport
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled = true
+backend = systemd
+mode = normal
+port = ssh
+findtime = 10m
+maxretry = 6
+bantime = 1h
+banaction = iptables-multiport
+ignoreip = 127.0.0.1/8 ::1

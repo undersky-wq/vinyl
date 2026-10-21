@@ -26,6 +26,12 @@ assert(timeline.indexOf('<CopyMusicLink') < timeline.indexOf('paper-mix-heading'
 assert(timeline.includes('!commentsAlwaysOpen ?'));
 const metadata = read('lib/music-metadata.ts');
 assert(metadata.includes('/share-image') && metadata.includes('openGraph:') && metadata.includes('twitter:'));
+const metadataExports = {};
+vm.runInNewContext(ts.transpileModule(metadata, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, {exports:metadataExports,process:{env:{}},URL});
+const preview = metadataExports.musicMetadata({id:'test',artist:'Artist',title:'Track title',year:2025,isOriginal:true,styles:['House']}, '/tracks/test');
+assert.equal(preview.openGraph.title, 'Artist - Track title');
+assert.equal(preview.description, 'Трек · 2025 · House');
+assert(!preview.description.includes('Artist') && !preview.description.includes('Track title') && !preview.description.includes('MityaDima'));
 
 async function routeTest(cover, status, contentType = 'image/jpeg') {
   const exports = {};

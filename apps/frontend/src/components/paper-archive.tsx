@@ -15,7 +15,8 @@ import { MobileCollectionPicker, type MobileCollectionSection } from './mobile-c
 import { useCollectionCounts } from './use-collection-counts';
 import { ShelfMixTrack } from './shelf-mix-track';
 import { ArchivePageHeader } from './archive-page-header';
-import { getHomeReleaseDetails, getHomeReleases } from '../lib/api';
+import { getHomeReleaseDetails, getHomeReleases, getCollectionPlaybackQueue } from '../lib/api';
+import { orderCollectionQueue } from '../lib/collection-playback-queue';
 import { ShelfReleaseEditor } from './shelf-release-editor';
 import { shelfMobileLayout } from '../lib/shelf-mobile-layout';
 import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress, mergeVisibleReleaseIndices, extrapolateStackCoverFrame } from '../lib/collection-layout-motion';
@@ -146,7 +147,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const [activePlaylist, setActivePlaylist] = useState<string | null>(null);
   const isTrackCollection = Boolean(activePlaylist) || favoritesMode;
   const [showPlaylists, setShowPlaylists] = useState(false);
-  const [mobilePicker, setMobilePicker] = useState<'sections' | 'genres' | 'playlists' | null>(null);
+  const [mobilePicker, setMobilePicker] = useState<'sections' | 'genres' | 'playlists' | 'music' | null>(null);
   const [pendingSection, setPendingSection] = useState<'collection'|'playlists'|'mixes'|'originals'|'favorites'|null>(null);
   const [playlistTransition, setPlaylistTransition] = useState(false);
   const [search, setSearch] = useState(initialSearch);
@@ -398,8 +399,12 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     coverTransitionIsLayout.current = layout;
     root.classList.add('is-cover-rebasing');
   }
-  const { playQueue, togglePlayback } = usePlayerActions();
+  const { playQueue, togglePlayback, replaceQueuePreservingCurrent } = usePlayerActions();
   const { currentTrack, isPlaying } = usePlayerTransport();
+  const latestPlaybackTrack = useRef(currentTrack);
+  const queueRequest = useRef(0);
+  useEffect(() => {latestPlaybackTrack.current = currentTrack;}, [currentTrack]);
+  useEffect(() => () => {queueRequest.current++;}, []);
   useLayoutEffect(() => {
     const element = stage.current;
     if (!element) return;
@@ -656,6 +661,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const headingRelease = (hovered === null ? null : releases[hovered]) || release || playingListRelease || releases[0];
   const activePlaylistName = playlists.find(playlist=>playlist.id===activePlaylist)?.name || '';
   const mobileContextHeading = viewport.width<=700 && (stackMode || stretch>=.5);
+  const mobileContextPicker = mixesMode ? 'music' : activePlaylist || showPlaylists ? 'playlists' : 'genres';
+  const mobileContextPickerLabel = mobileContextPicker === 'music' ? (originalsMode ? (ru ? 'Выбрать трек' : 'Choose track') : (ru ? 'Выбрать микс' : 'Choose mix')) : mobileContextPicker === 'playlists' ? (ru ? 'Выбрать плейлист' : 'Choose playlist') : (ru ? 'Выбрать жанры' : 'Choose genres');
   useEffect(() => { if (!mobileContextHeading) setMobilePicker(null); }, [mobileContextHeading]);
   const mobileSectionKey = favoritesMode ? 'favorites' : originalsMode ? 'originals' : mixesMode ? 'mixes' : activePlaylist || showPlaylists ? 'playlists' : 'collection';
   const mobileSectionName = favoritesMode ? (ru?'Избранное':'Favorites') : originalsMode ? 'Tracks' : mixesMode ? (ru?'Миксы':'Mixes') : activePlaylist || showPlaylists ? (ru?'Плейлисты':'Playlists') : (ru?'Коллекция':'Collection');
@@ -863,7 +870,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   function play(id: string, source = release) {
     if (performance.now() < suppressTrackClick.current) return;
     if (!source) return;
-    const queue = (isTrackCollection || mixesMode ? releases : [source]).flatMap(r => {
+    const queue = releases.flatMap(r => {
       const frontCoverUrl = cover(r);
       const frontCoverFullUrl = r.coverStorageUrl || r.coverImageUrl || frontCoverUrl;
       const backCoverUrl = getBackCoverUrl(r);
@@ -874,11 +881,27 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
           coverFullUrl: backSide ? backCoverUrl : frontCoverFullUrl,
           frontCoverUrl, frontCoverFullUrl, frontCoverMobileUrl:coverMobile(r), backCoverUrl,
           coverSide: backSide ? 'back' as const : 'front' as const,
-          releaseId: r.id, isPublic: Boolean(r.isMix), isOriginal: r.isOriginal };
+          releaseId: r.id, isPublic: Boolean(r.isMix), isOriginal: r.isOriginal,
+          playbackSource: { section: favoritesMode ? 'favorites' as const : activePlaylist ? 'playlists' as const : originalsMode ? 'originals' as const : mixesMode ? 'mixes' as const : 'collection' as const, name: activePlaylistName || undefined } };
       });
     });
     if (currentTrack?.id === id) {togglePlayback(); return;}
-    const index = queue.findIndex(t => t.id === id); if (index >= 0) playQueue(queue, index);
+    const index = queue.findIndex(t => t.id === id);
+    if (index >= 0) {
+      const display = isTrackCollection || mixesMode ? queue : queue.filter(track => track.releaseId === source.id);
+      playQueue(queue, index, display);
+      const request = ++queueRequest.current;
+      if (!isTrackCollection && !mixesMode && releases.some(item => item.tracksLoaded === false)) {
+        const releaseIds = releases.map(item => item.id);
+        void getCollectionPlaybackQueue().then(tracks => {
+          if (queueRequest.current !== request || latestPlaybackTrack.current?.id !== id) return;
+          const fullQueue = orderCollectionQueue(tracks, releaseIds);
+          if (fullQueue.some(track => track.id === id)) {
+            replaceQueuePreservingCurrent(fullQueue, fullQueue.filter(track => track.releaseId === source.id));
+          }
+        }).catch(error => console.warn('Unable to extend collection playback queue', error));
+      }
+    }
   }
   async function movePlaylistTrack(from: string, to: string, side: 'before' | 'after' = 'before') {
     if (!activePlaylist || savingOrder || from === to) return;
@@ -1115,11 +1138,23 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       <ArchivePageHeader lang={uiLang} search={search} searchStatus={searchStatus} onSearchChange={value => {setSearch(value);filterByStyle(null,value);}} activeLayout={activeLayout} onLayoutChange={changeCollectionLayout} onHome={() => {if (mixesMode || favoritesMode) navigateSection('/','collection');else {setPendingSection(null);selectPlaylist(null);}}} />
       <h1 className="paper-heading" aria-label={mobileContextHeading ? `${mobileSectionName}: ${mobileContextName}` : headingRelease ? `${headingRelease.artist} : ${headingRelease.title}` : 'Vinyl collection'}>
         <span className="paper-heading-window paper-heading-artist">{mobileContextHeading ? <button type="button" className="paper-heading-picker" aria-haspopup="dialog" aria-expanded={mobilePicker === 'sections'} aria-label={ru ? 'Выбрать раздел' : 'Choose section'} onClick={() => setMobilePicker('sections')}><span className={`paper-heading-section paper-heading-section-${mobileSectionKey}`}>{mobileSectionKey==='originals'?<AudioLines size={14}/>:mobileSectionKey==='favorites'?<Heart size={14}/>:mobileSectionKey==='mixes'?<Disc3 size={14}/>:mobileSectionKey==='playlists'?<ListMusic size={14}/>:<Library size={14}/>}<b>{mobileSectionName}</b><sup>{mobileSectionCount}</sup></span><ChevronDown aria-hidden="true" /></button> : <span key={headingRelease?.artist}>{headingRelease?.artist || (ru ? 'Коллекция винила' : 'Vinyl collection')}</span>}</span>
-        <span className="paper-heading-colon" aria-hidden={!mobileContextName && mobileContextHeading}>:</span>
-        <span className="paper-heading-window paper-heading-title">{mobileContextHeading ? <button type="button" className="paper-heading-picker" aria-haspopup="dialog" aria-expanded={mobilePicker === (mobileSectionKey === 'playlists' ? 'playlists' : 'genres')} aria-label={mobileSectionKey === 'playlists' ? (ru ? 'Выбрать плейлист' : 'Choose playlist') : (ru ? 'Выбрать жанры' : 'Choose genres')} onClick={() => setMobilePicker(mobileSectionKey === 'playlists' ? 'playlists' : 'genres')}><span className="paper-heading-context" data-context-section={mobileSectionKey}>{mobileContextName || (ru ? 'Все треки' : 'All tracks')}{mobileSectionKey === 'collection' ? <sup><CollectionPosition count={releases.length} read={readCollectionPosition} /></sup> : mobileContextCount!==null?<sup>{mobileContextCount}</sup>:null}</span><ChevronDown aria-hidden="true" /></button> : <span key={headingRelease?.id} className="paper-release-title-regular">{headingRelease?.title || ''}</span>}</span>
+        {!(mobileContextHeading && favoritesMode) && <>
+          <span className="paper-heading-colon" aria-hidden={!mobileContextName && mobileContextHeading}>:</span>
+          <span className="paper-heading-window paper-heading-title">{mobileContextHeading ? <button type="button" className="paper-heading-picker" aria-haspopup="dialog" aria-expanded={mobilePicker === mobileContextPicker} aria-label={mobileContextPickerLabel} onClick={() => setMobilePicker(mobileContextPicker)}><span className="paper-heading-context" data-context-section={mobileSectionKey}>{mobileContextName || (ru ? 'Все треки' : 'All tracks')}{mobileSectionKey === 'collection' ? <sup><CollectionPosition count={releases.length} read={readCollectionPosition} /></sup> : mobileContextCount!==null?<sup>{mobileContextCount}</sup>:null}</span><ChevronDown aria-hidden="true" /></button> : <span key={headingRelease?.id} className="paper-release-title-regular">{headingRelease?.title || ''}</span>}</span>
+        </>}
       </h1>
     </header>
     <MobileCollectionPicker kind={mobilePicker} ru={ru} section={mobileSectionKey}
+      music={releases.map(item => ({id:item.id,artist:item.artist,title:item.title}))}
+      onMusic={id => {
+        const index = releases.findIndex(item => item.id === id);
+        if (index < 0) return;
+        setHovered(index);
+        if (stackMode) {setExpanded(false);setSelected(index);return;}
+        const row = stage.current?.querySelector<HTMLElement>('.paper-row');
+        const top = listMix > .5 ? (listLayout.positions[index] || 0) : gridBounds.top + 12 + Math.floor(index / columns) * cell;
+        row?.scrollTo({top:Math.max(0,top-gridBounds.top),behavior:'smooth'});
+      }}
       sections={[
         { key: 'collection', label: ru ? 'Коллекция' : 'Collection', count: collectionCount ?? counts.releases },
         { key: 'playlists', label: ru ? 'Плейлисты' : 'Playlists', count: counts.playlists },

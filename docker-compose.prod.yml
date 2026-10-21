@@ -65,10 +65,12 @@ services:
       LOCAL_STORAGE_PATH: ${LOCAL_STORAGE_PATH:-/data/storage}
       APP_URL: https://mityadima.ru
       BACKEND_PUBLIC_URL: https://mityadima.ru
+      SECURITY_AUDIT_FILE: /data/security/audit.jsonl
     ports:
       - "127.0.0.1:${BACKEND_PORT:-3001}:3001"
     volumes:
       - ./data/storage:/data/storage
+      - ./data/security:/data/security
     depends_on:
       postgres:
         condition: service_healthy

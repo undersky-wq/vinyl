@@ -61,7 +61,7 @@ export class PlaylistsService {
     });
   }
 
-  async findOne(id: string, includeAudioUrls = true) {
+  async findOne(id: string, includeAudioUrls = true, includeMixAudioUrls = includeAudioUrls) {
     const playlist = await this.prisma.playlist.findUnique({
       where: { id },
       include: {
@@ -85,7 +85,7 @@ export class PlaylistsService {
       return null;
     }
 
-    return this.signPlaylistAudioUrls(playlist, includeAudioUrls);
+    return this.signPlaylistAudioUrls(playlist, includeAudioUrls, includeMixAudioUrls);
   }
 
   async create(userId: string, dto: CreatePlaylistDto) {
@@ -297,6 +297,8 @@ export class PlaylistsService {
       items: Array<{
         track: {
           release: {
+            isMix?: boolean;
+            isOriginal?: boolean;
             coverStorageKey?: string | null;
             coverStorageUrl?: string | null;
             coverThumbStorageKey?: string | null;
@@ -313,7 +315,7 @@ export class PlaylistsService {
         };
       }>;
     },
-  >(playlist: T, includeAudioUrls = true) {
+  >(playlist: T, includeAudioUrls = true, includeMixAudioUrls = includeAudioUrls) {
     const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
 
     return {
@@ -347,7 +349,7 @@ export class PlaylistsService {
                     )) || item.track.release.coverMediumStorageUrl
                   : item.track.release.coverMediumStorageUrl,
             },
-            audioFiles: includeAudioUrls ? await Promise.all(
+            audioFiles: (item.track.release.isOriginal === true || (item.track.release.isMix === true ? includeMixAudioUrls : includeAudioUrls)) ? await Promise.all(
               item.track.audioFiles.map(async (audioFile) => ({
                 ...audioFile,
                 storageUrl:

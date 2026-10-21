@@ -16,8 +16,8 @@ export function FeedbackPressable({ style, ...props }: PressableProps) {
 
 const styles = StyleSheet.create({
   pressed: {
-    backgroundColor: 'rgba(181,120,255,0.14)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(128,128,128,0.08)',
+    borderRadius: 0,
     opacity: 0.8,
   },
 });

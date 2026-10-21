@@ -9,9 +9,10 @@ type ReleaseCoverProps = {
   release: Release;
   isAdmin?: boolean;
   style: StyleProp<ImageStyle>;
+  highQuality?: boolean;
 };
 
-export function ReleaseCover({ release, isAdmin = false, style }: ReleaseCoverProps) {
+export function ReleaseCover({ release, isAdmin = false, style, highQuality = false }: ReleaseCoverProps) {
   const source = { uri: getCoverUrl(release) };
 
   // SVG filters also work in this app's legacy architecture; RN's style.filter does not.
@@ -33,7 +34,8 @@ export function ReleaseCover({ release, isAdmin = false, style }: ReleaseCoverPr
       contentFit="cover"
       cachePolicy="memory-disk"
       recyclingKey={release.id}
-      transition={90}
+      transition={highQuality ? 0 : 90}
+      allowDownscaling={!highQuality}
     />
   );
 }

@@ -1,0 +1,11 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const source = fs.readFileSync('src/components/mini-player-track.tsx','utf8');
+const css = fs.readFileSync('src/components/mini-player-track.css','utf8');
+assert(source.includes('key={track.id} className="mini-track-transition__labels"'));
+assert(!source.includes('setTimeout') && !source.includes('onLoad='));
+assert(!source.includes('playQueue') && !source.includes('audio.play'));
+assert(css.includes('prefers-reduced-motion:reduce'));
+assert(css.includes('mini-track-label-enter .8s cubic-bezier(.16,1,.3,1)'));
+assert(css.includes('translateX(-14px);clip-path:inset(0 100% 0 0)'));
+console.log('PASS: instant artwork, horizontal text reveal matching release timing, reduced motion and no playback mutations');

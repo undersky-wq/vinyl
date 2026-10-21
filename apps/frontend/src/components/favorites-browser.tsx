@@ -141,6 +141,7 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
   const playableTracks: FavoritePlayerTrack[] = tracks
     .map((track) => ({
       id: track.id,
+      playbackSource: {section:'favorites' as const},
       title: track.title,
       artist: track.artists?.length ? track.artists.join(', ') : track.release.artist,
       audioUrl: track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '',

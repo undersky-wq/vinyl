@@ -2,6 +2,7 @@ import 'react-native-gesture-handler';
 import React from 'react';
 import { registerRootComponent } from 'expo';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import App from './App';
 
 try {
@@ -19,7 +20,7 @@ function Root() {
   return React.createElement(
     GestureHandlerRootView,
     { style: { flex: 1 } },
-    React.createElement(App),
+    React.createElement(SafeAreaProvider, null, React.createElement(App)),
   );
 }
 

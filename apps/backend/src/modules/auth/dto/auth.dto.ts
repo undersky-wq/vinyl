@@ -1,4 +1,4 @@
-import { Equals, IsBoolean, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { Equals, IsBoolean, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength, MaxLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -27,9 +27,42 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  code?: string;
+}
+
+export class TwoFactorSetupDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1024)
+  password!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  code?: string;
+}
+
+export class TwoFactorVerifyDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1024)
+  password!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  code!: string;
 }
 
 export class UpdateAuthSettingsDto {
+  @IsOptional()
+  @IsBoolean()
+  allowGuestMixPlayback?: boolean;
+
   @IsOptional()
   @IsBoolean()
   playbackRequiresRegistration?: boolean;

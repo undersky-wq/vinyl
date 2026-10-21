@@ -12,9 +12,11 @@ import { useAuth } from './auth-provider';
 import { hasNativePlayer } from '../lib/native-player';
 import { useNativePlayer } from './use-native-player';
 import { isIOSWebKit, watchPersistentAudioStall } from '../lib/audio-stall-guard';
+import { configureMusicAudioSession } from '../lib/music-audio-session';
 import { getMediaArtwork, getMediaMetadataKey, startMediaArtworkUpdate } from '../lib/media-artwork-update';
 
 export type PlayerTrack = {
+  playbackSource?: { section: 'collection' | 'playlists' | 'mixes' | 'originals' | 'favorites'; name?: string };
   id: string;
   title: string;
   artist: string;
@@ -184,6 +186,15 @@ function getNextDisplayQueue(
   return getReleaseScopedDisplayQueue(queue, track) || currentDisplayQueue;
 }
 
+function syncMediaPlaybackState(playing: boolean, hasTrack = true) {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.playbackState = playing ? 'playing' : hasTrack ? 'paused' : 'none';
+  } catch {
+    // Media Session is optional; audio playback must continue without it.
+  }
+}
+
 function updateMediaSessionPosition(audio: HTMLAudioElement | null) {
   if (
     typeof navigator === 'undefined' ||
@@ -245,6 +256,7 @@ function waitForArtwork(coverUrl: string, timeoutMs = 5000) {
 }
 
 async function safelyPlay(audio: HTMLAudioElement) {
+  configureMusicAudioSession();
   try {
     await audio.play();
     return true;
@@ -282,6 +294,8 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   const repeatEnabledRef = useRef(sharedIsRepeatEnabled);
   const pendingSeekPercentRef = useRef<number | null>(null);
   const recoveryInFlightRef = useRef(false);
+  const playbackRequestedRef = useRef(false);
+  const automaticStartRef = useRef<{ id: string; retries: number } | null>(null);
   const loadedTrackIdRef = useRef(sharedCurrentTrack?.id || '');
   const mediaMetadataKeyRef = useRef('');
   const mediaMetadataTimerRef = useRef<number | null>(null);
@@ -304,6 +318,33 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(sharedIsShuffleEnabled);
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(sharedIsRepeatEnabled);
   const persistedSecond = Math.floor(currentTime);
+
+  function startQueuedTrack(index: number) {
+    const track = queueRef.current[index];
+    const audio = audioRef.current;
+    if (!track || !audio) return;
+    sharedCurrentIndex = index;
+    sharedCurrentTrack = track;
+    currentIndexRef.current = index;
+    currentTrackRef.current = track;
+    sharedDisplayQueue = getNextDisplayQueue(queueRef.current, displayQueueRef.current, track);
+    displayQueueRef.current = sharedDisplayQueue;
+    playbackRequestedRef.current = true;
+    automaticStartRef.current = { id: track.id, retries: 0 };
+    pendingSeekPercentRef.current = null;
+    syncMediaPlaybackState(true);
+    // Both system controls and ended events start audio without waiting for React.
+    audio.src = track.audioUrl;
+    loadedTrackIdRef.current = track.id;
+    audio.currentTime = 0;
+    void safelyPlay(audio);
+    setCurrentTime(0);
+    setProgress(0);
+    setDuration(0);
+    setCurrentIndex(index);
+    setCurrentTrack(track);
+    setDisplayQueue(sharedDisplayQueue);
+  }
 
   useEffect(() => {
     const audio = getSharedAudio();
@@ -394,16 +435,31 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     };
 
     const onPlay = () => {
+      playbackRequestedRef.current = true;
+      syncMediaPlaybackState(true);
       setIsPlaying(true);
     };
 
     const onPause = () => {
+      // A media/network error can pause the element without a user pause.
+      if (!audio.error && !audio.ended && !automaticStartRef.current) playbackRequestedRef.current = false;
+      syncMediaPlaybackState(playbackRequestedRef.current && Boolean(automaticStartRef.current));
       setIsPlaying(false);
+    };
+
+    const onPlaying = () => { automaticStartRef.current = null; };
+    const onCanPlay = () => {
+      const pending = automaticStartRef.current;
+      if (!pending || pending.id !== currentTrackRef.current?.id
+        || !playbackRequestedRef.current || !audio.paused || pending.retries >= 2) return;
+      pending.retries += 1;
+      void safelyPlay(audio);
     };
 
     const onEnded = () => {
       const queueSize = queueRef.current.length;
       if (!queueSize) {
+        playbackRequestedRef.current = false;
         setIsPlaying(false);
         setProgress(100);
         return;
@@ -411,34 +467,26 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
 
       let nextIndex = currentIndexRef.current + 1;
 
-      if (shuffleEnabledRef.current) {
+      if (repeatEnabledRef.current) {
+        nextIndex = currentIndexRef.current;
+      } else if (shuffleEnabledRef.current) {
         nextIndex = getRandomNextIndex(currentIndexRef.current, queueSize);
       } else if (nextIndex >= queueSize) {
-        if (!repeatEnabledRef.current) {
-          setIsPlaying(false);
-          setProgress(100);
-          return;
-        }
-
-        nextIndex = 0;
-      }
-
-      const nextTrack = queueRef.current[nextIndex];
-      if (!nextTrack) {
+        playbackRequestedRef.current = false;
         setIsPlaying(false);
         setProgress(100);
         return;
       }
 
-      sharedCurrentIndex = nextIndex;
-      sharedCurrentTrack = nextTrack;
-      sharedDisplayQueue = getNextDisplayQueue(queueRef.current, displayQueueRef.current, nextTrack);
-      currentIndexRef.current = nextIndex;
-      currentTrackRef.current = nextTrack;
-      displayQueueRef.current = sharedDisplayQueue;
-      setCurrentIndex(nextIndex);
-      setCurrentTrack(nextTrack);
-      setDisplayQueue(sharedDisplayQueue);
+      const nextTrack = queueRef.current[nextIndex];
+      if (!nextTrack) {
+        playbackRequestedRef.current = false;
+        setIsPlaying(false);
+        setProgress(100);
+        return;
+      }
+
+      startQueuedTrack(nextIndex);
     };
 
     let disposed = false;
@@ -467,7 +515,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
 
         // Preserve the latest position, not the position before the API request.
         const resumeTime = audioElement.currentTime || 0;
-        const shouldResume = !audioElement.paused && !audioElement.ended;
+        const shouldResume = playbackRequestedRef.current || (!audioElement.paused && !audioElement.ended);
 
         const nextTrack = { ...trackToRecover, ...refreshedTrack };
         const nextQueue = mergeTrackById(queueRef.current, nextTrack);
@@ -555,6 +603,8 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('timeupdate', syncPlaybackState);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('play', onPlay);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
@@ -572,6 +622,8 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('timeupdate', syncPlaybackState);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
@@ -715,6 +767,8 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     sharedQueue = playableTracks;
+    automaticStartRef.current = null;
+    playbackRequestedRef.current = true;
     sharedDisplayQueue = (displayTracks || playableTracks).filter((track) => Boolean(track.audioUrl));
     sharedCurrentIndex = safeIndex;
     sharedCurrentTrack = nextTrack;
@@ -736,6 +790,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const prepareQueue = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
+    playbackRequestedRef.current = false;
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
@@ -759,7 +814,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const playableTracks = tracks.filter((track) => Boolean(track.audioUrl));
+    const playableTracks = tracks.filter((track) => Boolean(track.audioUrl)).map(track => ({...track, playbackSource:track.playbackSource || activeTrack.playbackSource}));
     const nextIndex = playableTracks.findIndex((track) => track.id === activeTrack.id);
     if (nextIndex < 0) {
       return;
@@ -804,15 +859,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    sharedCurrentIndex = nextIndex;
-    sharedCurrentTrack = nextTrack;
-    sharedDisplayQueue = getNextDisplayQueue(queueRef.current, displayQueueRef.current, nextTrack);
-    currentIndexRef.current = nextIndex;
-    currentTrackRef.current = nextTrack;
-    displayQueueRef.current = sharedDisplayQueue;
-    setCurrentIndex(nextIndex);
-    setCurrentTrack(nextTrack);
-    setDisplayQueue(sharedDisplayQueue);
+    startQueuedTrack(nextIndex);
   };
 
   const playPrevious = () => {
@@ -866,7 +913,9 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!audio.paused && !audio.ended) {
+    if (automaticStartRef.current || (!audio.paused && !audio.ended)) {
+      automaticStartRef.current = null;
+      playbackRequestedRef.current = false;
       audio.pause();
       return;
     }
@@ -933,6 +982,9 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     }
   };
   mediaPauseRef.current = () => {
+    automaticStartRef.current = null;
+    playbackRequestedRef.current = false;
+    syncMediaPlaybackState(false);
     audioRef.current?.pause();
   };
   mediaPreviousRef.current = playPrevious;
@@ -1021,7 +1073,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    navigator.mediaSession.playbackState = isPlaying ? 'playing' : currentTrack ? 'paused' : 'none';
+    syncMediaPlaybackState(isPlaying || (playbackRequestedRef.current && Boolean(automaticStartRef.current)), Boolean(currentTrack));
   }, [currentTrack, isPlaying]);
 
   useEffect(() => {

@@ -1,7 +1,6 @@
-import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ReleaseCover } from './ReleaseCover';
-import { colors, radius, spacing } from '../theme';
+import { adaptiveStyles, colors } from '../theme';
 import { Release } from '../types';
 
 type ReleaseTileProps = {
@@ -10,9 +9,9 @@ type ReleaseTileProps = {
   onPress?: (release: Release) => void;
 };
 
-export const ReleaseTile = memo(function ReleaseTile({ release, isAdmin = false, onPress }: ReleaseTileProps) {
+export function ReleaseTile({ release, isAdmin = false, onPress }: ReleaseTileProps) {
   return (
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={() => onPress?.(release)}>
+    <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={() => onPress?.(release)} accessibilityRole="button" accessibilityLabel={`${release.artist}, ${release.title}`}>
       <ReleaseCover release={release} isAdmin={isAdmin} style={styles.cover} />
       <View style={styles.meta}>
         <Text numberOfLines={1} style={styles.title}>
@@ -25,21 +24,20 @@ export const ReleaseTile = memo(function ReleaseTile({ release, isAdmin = false,
       </View>
     </Pressable>
   );
-});
+}
 
-const styles = StyleSheet.create({
+const styles = adaptiveStyles(StyleSheet.create({
   card: {
     width: '23.5%',
     gap: 6,
   },
   pressed: {
     opacity: 0.86,
-    transform: [{ scale: 0.96 }],
   },
   cover: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: radius.sm,
+    borderRadius: 0,
     backgroundColor: colors.panelSoft,
   },
   meta: {
@@ -48,13 +46,13 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: 11.5,
-    fontWeight: '800',
+    fontWeight: '400',
     lineHeight: 14,
   },
   subtitle: {
     color: colors.muted,
     fontSize: 11.5,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 14,
   },
-});
+}));

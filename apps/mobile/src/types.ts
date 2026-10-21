@@ -127,4 +127,4 @@ export type TimelineComment = {
   };
 };
 
-export type TabKey = 'home' | 'library' | 'playlists' | 'mixes' | 'favorites' | 'profile';
+export type TabKey = 'home' | 'library' | 'playlists' | 'mixes' | 'favorites' | 'profile' | 'downloads';

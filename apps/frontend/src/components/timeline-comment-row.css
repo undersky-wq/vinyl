@@ -1,0 +1,15 @@
+html body :is(.paper-mix-comments,.player-page__comments) article.timeline-comment-row{
+  display:grid;grid-template-columns:28px max-content minmax(0,1fr) auto;align-items:start;gap:10px;
+  padding:12px 0;margin:0;border-bottom:1px solid var(--shelf-web-line,#8883);
+  font:400 12px/1.5 Arial,Helvetica,sans-serif;color:var(--shelf-web-ink,inherit);
+}
+.timeline-comment-row__avatar{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;overflow:hidden;background:#ddd;color:#111;font-size:10px}
+.timeline-comment-row__avatar img{width:100%;height:100%;object-fit:cover}
+html body .timeline-comment-row .timeline-comment-row__time{width:auto;min-height:26px;padding:4px 0;margin:0;border:0;background:none;color:var(--shelf-web-muted,#888);font:400 12px/1.5 Arial,Helvetica,sans-serif;white-space:nowrap;font-variant-numeric:tabular-nums}
+html body :is(.paper-mix-comments,.player-page__comments) .timeline-comment-row p.timeline-comment-row__text{grid-column:3;margin:0;padding:4px 0;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+.timeline-comment-row__text strong{font-weight:600}
+.timeline-comment-row__actions{display:flex;align-items:center;gap:8px}
+html body :is(.paper-mix-comments,.player-page__comments) .timeline-comment-row button.timeline-comment-row__like{display:inline-flex;align-items:center;justify-content:center;gap:3px;width:auto;min-height:28px;padding:2px;border:0;background:none;color:var(--shelf-web-muted,#888);font:400 11px/1 Arial,Helvetica,sans-serif;cursor:pointer}
+html body :is(.paper-mix-comments,.player-page__comments) .timeline-comment-row button.timeline-comment-row__like[aria-pressed=true]{color:#db3045!important}
+.timeline-comment-row__like:disabled{opacity:.5;cursor:wait}
+.timeline-comment-row__error{grid-column:3/-1;color:#db3045;font-size:11px}

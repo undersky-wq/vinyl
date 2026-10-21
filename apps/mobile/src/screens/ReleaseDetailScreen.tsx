@@ -6,7 +6,7 @@ import { TrackDownloadButton } from '../components/TrackDownloadButton';
 import { ReleaseCover } from '../components/ReleaseCover';
 import { getCoverUrl, getRelease } from '../lib/api';
 import { normalizeDurationLabel } from '../lib/time';
-import { colors, radius, spacing } from '../theme';
+import { adaptiveStyles, colors, spacing } from '../theme';
 import { PlayerTrack, Release } from '../types';
 
 type ReleaseDetailScreenProps = {
@@ -83,7 +83,7 @@ export function ReleaseDetailScreen({
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={onBack}>
+        <Pressable style={styles.backButton} onPress={onBack} accessibilityRole="button" accessibilityLabel="Back to collection">
           <ChevronLeft size={23} color={colors.text} strokeWidth={2.6} />
         </Pressable>
         <View style={styles.headerText}>
@@ -169,31 +169,31 @@ export function ReleaseDetailScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = adaptiveStyles(StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
   },
   header: {
     position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
-    top: Math.max((StatusBar.currentHeight || 0) - 3, 0),
+    left: 0,
+    right: 0,
+    top: 8,
     zIndex: 10,
     minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 11,
     paddingHorizontal: 10,
-    borderRadius: 24,
-    backgroundColor: 'rgba(24,24,24,0.96)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
     backgroundColor: 'transparent',
   },
   headerText: {
@@ -202,23 +202,23 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   headerSubtitle: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   content: {
     gap: 17,
     paddingHorizontal: spacing.md,
-    paddingTop: (StatusBar.currentHeight || 0) + 86,
-    paddingBottom: 172,
+    paddingTop: 76,
+    paddingBottom: 84,
   },
   cover: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 26,
+    borderRadius: 0,
     backgroundColor: colors.panelSoft,
   },
   releaseMeta: {
@@ -227,18 +227,18 @@ const styles = StyleSheet.create({
   artist: {
     color: colors.muted,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   title: {
     color: colors.text,
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: 20,
+    fontWeight: '600',
     letterSpacing: -0.4,
   },
   subtitle: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   stylesRow: {
     flexDirection: 'row',
@@ -246,47 +246,47 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   styleChip: {
-    minHeight: 32,
+    minHeight: 24,
     justifyContent: 'center',
-    paddingHorizontal: 13,
-    borderRadius: radius.pill,
+    paddingRight: 8,
     backgroundColor: 'transparent',
   },
   styleText: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '400',
   },
   trackList: {
-    gap: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   trackRow: {
     minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    paddingHorizontal: 8,
-    borderRadius: 16,
+    gap: 5,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
   trackRowDisabled: {
     opacity: 0.48,
   },
   playButton: {
-    width: 38,
-    height: 38,
+    width: 32,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
     backgroundColor: 'transparent',
   },
   playButtonActive: {
     backgroundColor: 'transparent',
   },
   position: {
-    minWidth: 28,
+    minWidth: 22,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '400',
     textAlign: 'center',
   },
   trackText: {
@@ -296,12 +296,12 @@ const styles = StyleSheet.create({
   trackArtist: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   trackTitle: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '400',
   },
   trackActiveText: {
     color: colors.accent,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     minWidth: 42,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '400',
     textAlign: 'right',
   },
-});
+}));

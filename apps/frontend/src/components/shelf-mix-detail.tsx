@@ -42,16 +42,16 @@ export function ShelfMixDetail({ release, lang }: { release: Release; lang: Site
     playQueue([{ ...track, artist:release.artist, coverUrl:cover, coverFullUrl:cover,
       waveformData:track.waveformData || [], releaseId:release.id, isPublic:true, isOriginal:release.isOriginal }],0);
   }
-  return <main className="shelf-mix-detail paper-section-page">
+  return <main className="shelf-mix-detail paper-section-page" data-music-section={release.isOriginal ? 'originals' : 'mixes'}>
     <header className="paper-header shelf-mix-detail__header">
       <ArchivePageHeader lang={uiLang} search={search} onSearchChange={setSearch} onSearchSubmit={() => router.push(`/?search=${encodeURIComponent(search)}`)} onHome={() => router.push('/')} activeLayout={null} onLayoutChange={layout => router.push(`${sectionPath}?layout=${layout}`)} />
     </header>
     <nav className="paper-sections shelf-mix-detail__sections" aria-label="Collection sections">
-      <Link href="/" className="paper-section-collection"><Library size={17}/><span>{ru ? 'Коллекция' : 'Collection'} <sup>{counts.releases}</sup></span></Link>
-      <Link href="/?view=playlists"><ListMusic size={17}/><span>{ru ? 'Плейлисты' : 'Playlists'} <sup>{counts.playlists}</sup></span></Link>
-      <Link href="/mixes" className="paper-section-mixes" aria-current={!release.isOriginal ? 'page' : undefined}><Disc3 size={17}/><span>{ru ? 'Миксы' : 'Mixes'} <sup>{counts.mixes}</sup></span></Link>
-      <Link href="/tracks" className="paper-section-originals" aria-current={release.isOriginal ? 'page' : undefined}><AudioLines size={17}/><span>Tracks <sup>{counts.originals}</sup></span></Link>
-      <Link href="/favorites" className="paper-section-favorites"><Heart size={17}/><span>{ru ? 'Избранное' : 'Favorites'} <sup>{counts.favorites}</sup></span></Link>
+      <Link href="/" className="paper-section-collection" aria-label={ru ? 'Коллекция' : 'Collection'}><Library size={17}/><span><span className="shelf-mix-detail__section-label">{ru ? 'Коллекция' : 'Collection'}</span> <sup>{counts.releases}</sup></span></Link>
+      <Link href="/?view=playlists" aria-label={ru ? 'Плейлисты' : 'Playlists'}><ListMusic size={17}/><span><span className="shelf-mix-detail__section-label">{ru ? 'Плейлисты' : 'Playlists'}</span> <sup>{counts.playlists}</sup></span></Link>
+      <Link href="/mixes" className="paper-section-mixes" aria-label={ru ? 'Миксы' : 'Mixes'} aria-current={!release.isOriginal ? 'page' : undefined}><Disc3 size={17}/><span><span className="shelf-mix-detail__section-label">{ru ? 'Миксы' : 'Mixes'}</span> <sup>{counts.mixes}</sup></span></Link>
+      <Link href="/tracks" className="paper-section-originals" aria-label="Tracks" aria-current={release.isOriginal ? 'page' : undefined}><AudioLines size={17}/><span><span className="shelf-mix-detail__section-label">Tracks</span> <sup>{counts.originals}</sup></span></Link>
+      <Link href="/favorites" className="paper-section-favorites" aria-label={ru ? 'Избранное' : 'Favorites'}><Heart size={17}/><span><span className="shelf-mix-detail__section-label">{ru ? 'Избранное' : 'Favorites'}</span> <sup>{counts.favorites}</sup></span></Link>
     </nav>
     <article className="shelf-mix-detail__content">
       <button className="shelf-mix-detail__cover" onClick={play} disabled={!track?.audioUrl} aria-label={playing ? (ru?'Пауза':'Pause') : release.isOriginal ? (ru?'Воспроизвести трек':'Play track') : (ru?'Воспроизвести микс':'Play mix')}><img src={cover} alt={release.title}/></button>

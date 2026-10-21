@@ -6,6 +6,7 @@ import type { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { ShelfThemeToggle } from './shelf-theme-toggle';
 import { LanguageSwitcher } from './language-switcher';
+import { ArchiveLayoutIcon } from './archive-layout-icon';
 import './archive-page-header.css';
 
 export type ArchiveLayout = 'shelf' | 'stack' | 'grid' | 'tracks';
@@ -38,7 +39,10 @@ export function ArchivePageHeader({ lang, search, onSearchChange, onSearchSubmit
         <input className="paper-search" type="search" value={search} placeholder={ru ? 'Поиск' : 'Search'} aria-label={ru ? 'Поиск релизов и миксов' : 'Search releases and mixes'} onChange={event => onSearchChange(event.target.value)} onKeyDown={event => {if (event.key === 'Enter') onSearchSubmit?.();}} />
         {searchStatus && <span className="paper-search-status" role="status">{searchStatus}</span>}
         <nav className="paper-layout-controls" aria-label="Collection view">
-          {(['shelf','stack','grid','tracks'] as const).map((layout,index) => <button key={layout} type="button" aria-pressed={activeLayout === layout} onClick={() => onLayoutChange(layout)}>{(ru ? ['Полка','Стопка','Сетка','Треки'] : ['Shelf','Stack','Grid','Tracks'])[index]}</button>)}
+          {(['shelf','stack','grid','tracks'] as const).map((layout,index) => {
+            const label = (ru ? ['Полка','Стопка','Сетка','Треки'] : ['Shelf','Stack','Grid','Tracks'])[index];
+            return <button key={layout} type="button" aria-label={label} aria-pressed={activeLayout === layout} onClick={() => onLayoutChange(layout)}><ArchiveLayoutIcon layout={layout}/><span className="archive-layout-tooltip" role="tooltip">{label}</span></button>;
+          })}
         </nav>
       </div>
     </div>

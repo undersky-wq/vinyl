@@ -1,5 +1,29 @@
 # Vinyl Collection Mobile
 
+## Local Offline Preview
+
+The native Shelf Offline preview uses package `ru.mityadima.shelf.offline`, so it
+does not replace an older Shelf installation. The release variant currently uses
+the generated debug signing key and is for local testing, not store publication.
+
+Downloaded tracks and mixes appear in Downloads after a restart without network.
+Previously viewed public catalog requests can fall back to a bounded disk cache.
+Unvisited catalog pages and server search still require a connection. Login,
+administration and personal-account API responses are not cached.
+
+```powershell
+cd apps/mobile
+npm.cmd run typecheck
+node scripts/test-offline.cjs
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-local.ps1 -ToolsPath 'C:/path/to/.tools'
+```
+
+`ToolsPath` must contain `jdk-*` and `sdk` directories. The build script uses the
+project wrapper, verifies Gradle 9.1.0 against its published SHA-256, and applies
+the Gradle 9 compatibility patch to the cookies dependency. Android SDK licenses
+must already be accepted. Missing SDK components may be downloaded during build.
+The output, when the build succeeds, is `reports/shelf-offline.apk` at repo root.
+
 Expo/React Native MVP for the Vinyl Collection mobile app.
 
 ## Why this lives inside the same repo
@@ -43,6 +67,19 @@ For testing against a local backend from a real phone, replace it with your comp
 ```
 
 ## MVP screens
+
+### Native Shelf Preview 0.6.0
+
+The offline APK now uses a flat Shelf-inspired archive: diagonal covers,
+Shelf/Stack/Grid/Tracks selectors, a compact bottom player, blue style filters,
+and persisted light/dark themes. This is still a native React Native interface,
+not the website's HTML/CSS. Do not describe it as pixel-identical until compared
+on a real phone. Native gestures, cover projection, and layout transitions can
+differ from the website.
+
+Checks: `npm run typecheck`, `node scripts/test-offline.cjs`, and
+`node scripts/test-archive.cjs`. Tests do not establish phone rendering or audio
+playback with the screen locked.
 
 - Home: release grid from `/api/releases?summary=true`.
 - Library: playable track feed from `/api/releases/library-feed`.

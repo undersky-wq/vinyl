@@ -10,9 +10,10 @@ export function shelfMobileLayout(width: number, height: number, searchBottom: n
   const minimumPanelHeight = Math.min(96, available * .45);
   const fittedCoverSize = (available - minimumPanelHeight - 28 - gap * 2 - width * .42 * .28) / 1.43;
   const coverSize = Math.max(64, Math.min(compact ? 180 : 160, width * .48, compact ? available * .58 : fittedCoverSize));
-  const shelfFloor = compact ? contentTop + available * .62 : Math.min(contentBottom - gap, contentTop + gap + 28 + coverSize * .715 + (width + coverSize * .38) * .28);
+  const shelfLift = compact ? 0 : Math.min(40, Math.max(0, (available - 240) * .16));
+  const shelfFloor = compact ? contentTop + available * .62 : Math.min(contentBottom - gap, contentTop + gap + 28 + coverSize * .715 + (width + coverSize * .38) * .28) - shelfLift;
   const rightCoverBottom = shelfFloor + coverSize * .715 - (width * .58 + coverSize * .38) * .28;
-  const panelHeight = compact ? Math.min(192, available * .64) : Math.max(minimumPanelHeight, Math.min(192, contentBottom - rightCoverBottom - gap));
+  const panelHeight = compact ? Math.min(192, available * .64) : Math.min(available, Math.max(minimumPanelHeight, Math.min(192 + shelfLift, contentBottom - rightCoverBottom - gap)));
   return {
     navigationTop, headingTop, contentTop,
     bottom: Math.max(0, height - contentBottom),

@@ -1,0 +1,11 @@
+/root/vinyl/data/security/audit.jsonl {
+    daily
+    maxsize 10M
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0600 root root
+    su root root
+}

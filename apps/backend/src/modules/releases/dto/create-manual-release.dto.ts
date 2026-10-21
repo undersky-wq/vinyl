@@ -31,6 +31,10 @@ export class CreateManualReleaseDto {
   @IsBooleanString()
   isMix?: string;
 
+  @IsOptional()
+  @IsBooleanString()
+  isOriginal?: string;
+
   @IsString()
   tracks!: string;
 }

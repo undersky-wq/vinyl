@@ -22,6 +22,7 @@ type CoverImageProps = {
   className?: string;
   loading?: 'eager' | 'lazy';
   decoding?: 'async' | 'auto' | 'sync';
+  onLoad?: () => void;
 };
 
 export function CoverImage({
@@ -33,6 +34,7 @@ export function CoverImage({
   className,
   loading = 'lazy',
   decoding = 'async',
+  onLoad,
 }: CoverImageProps) {
   const mobile = useSyncExternalStore(subscribeMobile, isMobile, serverMobile);
   const safeSrc = (mobile && mobileSrc ? mobileSrc : src) || FALLBACK_COVER;
@@ -48,6 +50,7 @@ export function CoverImage({
       className={className}
       loading={loading}
       decoding={decoding}
+      onLoad={onLoad}
       onError={(event) => {
         if (retryCoverImage(event.currentTarget)) return;
         if (currentSrc !== FALLBACK_COVER) {

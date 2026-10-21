@@ -11,3 +11,11 @@ backups/
 tmp_*.json
 *.tsbuildinfo
 data/
+.local/
+.g/
+reports/
+.codex-remote-attachments/
+*.apk
+*.aab
+*.keystore
+*.jks

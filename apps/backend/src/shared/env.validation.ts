@@ -7,6 +7,7 @@ const envSchema = z.object({
   BACKEND_PUBLIC_URL: z.string().url().default('http://localhost:3001'),
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(1),
+  AUTH_2FA_ENCRYPTION_KEY: z.string().regex(/^[a-fA-F0-9]{64}$/).optional(),
   DISCOGS_CONSUMER_KEY: z.string().optional(),
   DISCOGS_CONSUMER_SECRET: z.string().optional(),
   DISCOGS_USER_TOKEN: z.string().optional(),

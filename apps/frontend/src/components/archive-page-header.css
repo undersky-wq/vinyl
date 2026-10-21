@@ -2,5 +2,15 @@ html body .archive-page-header{--type:clamp(14px,1.15vw,19px);font:600 var(--typ
 html body .archive-page-header .paper-avatar{width:calc(var(--type)*2.6 + 10px);height:calc(var(--type)*2.6 + 10px);flex-basis:calc(var(--type)*2.6 + 10px)}
 html body .archive-page-header .paper-brand{padding:0;border:0;background:none;color:var(--shelf-web-ink,#111);font:inherit;letter-spacing:inherit;cursor:pointer}
 html body .archive-page-header .paper-search{display:block;flex:0 1 300px;width:min(300px,24vw);min-width:130px;margin:0;padding:2px 0;border:0;border-bottom:1px solid var(--shelf-web-line,#1113);border-radius:0;background:transparent;box-shadow:none;color:var(--shelf-web-ink,#111);font:600 var(--type)/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.6px;outline-offset:3px}
+@media(min-width:701px){html body .archive-page-header .paper-search{font-weight:400}html body .archive-page-header .paper-search::placeholder{font-weight:400}}
 html[data-shelf-theme='dark'] .archive-page-header .paper-layout-controls>button[aria-pressed=true]{color:var(--shelf-web-ink,#f3f3f1);border-bottom-color:currentColor}
+html body .archive-page-header .paper-layout-controls>button{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;min-height:32px;gap:0}
+.archive-layout-icon{display:block;flex:none;width:26.4px;height:26.4px}
+.archive-layout-tooltip{position:absolute;z-index:100010;top:calc(100% + 8px);left:50%;translate:-50% -3px;padding:5px 8px;border:1px solid var(--shelf-web-line,#8885);background:var(--shelf-web-bg,#fff);color:var(--shelf-web-ink,#111);font:400 12px/1.3 Arial,Helvetica,sans-serif;letter-spacing:0;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .15s,translate .15s}
+.paper-layout-controls>button:focus-visible .archive-layout-tooltip{opacity:1;visibility:visible;translate:-50% 0}
+@media(hover:hover){.paper-layout-controls>button:hover .archive-layout-tooltip{opacity:1;visibility:visible;translate:-50% 0}}
+@media(max-width:700px){
+  html body .archive-page-header .paper-layout-controls>button{width:32px;min-height:32px}
+  .archive-layout-icon{width:22px;height:22px}
+}
 @media(max-width:700px){html body .archive-page-header{--type:14px}html body .archive-page-header .paper-search{flex:1 1 auto;width:auto;min-width:0}}

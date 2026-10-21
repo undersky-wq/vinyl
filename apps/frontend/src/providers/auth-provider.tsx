@@ -8,7 +8,7 @@ import { AuthUser } from '../types';
 type AuthContextValue = {
   user: AuthUser | null;
   setUser: (user: AuthUser | null) => void;
-  requireAuth: () => boolean;
+  requireAuth: (forcePrompt?: boolean) => boolean;
   requirePlayback: (isPublicMix?: boolean, isOriginal?: boolean) => boolean;
 };
 
@@ -38,8 +38,8 @@ export function AuthProvider({
         setIsPromptOpen(true);
         return false;
       },
-      requireAuth: () => {
-        if (user) {
+      requireAuth: (forcePrompt = false) => {
+        if (user && !forcePrompt) {
           return true;
         }
 
@@ -58,8 +58,8 @@ export function AuthProvider({
           <div className="auth-prompt release-panel" onClick={(event) => event.stopPropagation()}>
             <p className="muted">
               {lang === 'ru'
-                ? 'Для прослушивания этой записи нужно войти.'
-                : 'Sign in to listen to this recording.'}
+                ? 'Для этого действия нужно войти в аккаунт.'
+                : 'Sign in to continue.'}
             </p>
             <h2>{lang === 'ru' ? 'Войти или создать аккаунт' : 'Sign in or create an account'}</h2>
             <p className="muted">

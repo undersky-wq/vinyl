@@ -1,0 +1,13 @@
+.expo
+dist
+node_modules
+.env
+.env.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+eas-build*.log
+eas-build*.txt
+.expo-export-check

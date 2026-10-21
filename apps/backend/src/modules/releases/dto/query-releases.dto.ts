@@ -36,6 +36,10 @@ export class QueryReleasesDto {
 
   @IsOptional()
   @IsBooleanString()
+  isOriginal?: string;
+
+  @IsOptional()
+  @IsBooleanString()
   summary?: string;
 
   @IsOptional()

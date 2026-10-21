@@ -1,6 +1,6 @@
 /* Shared by the Tracks timeline and both full-player surfaces. */
 html body :is(.paper-mix-comments,.mobile-player-overlay .player-page__comments,.player-page__comments) form.timeline-comment-composer {
-  display:grid;grid-template-columns:28px 48px minmax(0,1fr) auto;
+  display:grid;grid-template-columns:28px max-content minmax(0,1fr) auto;
   align-items:center;gap:10px;padding:0 0 10px;margin:0;
   border:0;border-radius:0;background:transparent;
   color:var(--shelf-comment-ink,var(--shelf-web-ink,inherit));

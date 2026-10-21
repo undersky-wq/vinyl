@@ -1,0 +1,1 @@
+export const MINI_PLAYER_MASK_HEIGHT = 65;

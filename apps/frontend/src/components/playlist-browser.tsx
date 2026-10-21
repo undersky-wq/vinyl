@@ -275,6 +275,7 @@ export function PlaylistBrowser({
 
         return {
           id: item.track.id,
+          playbackSource: {section:'playlists' as const, name:activePlaylist.name},
           title: item.track.title,
           artist: item.track.artists?.length ? item.track.artists.join(', ') : release.artist,
           audioUrl,

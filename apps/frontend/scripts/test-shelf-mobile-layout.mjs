@@ -19,3 +19,10 @@ for (const height of [600,667,744,844]) {
   assert.ok(layout.coverSize<=160, 'Shelf reduction remains bounded on normal screens');
 }
 console.log('PASS: reserved zones on 6 screen sizes and iPhone toolbar heights');
+const raised = shelfMobileLayout(390,844,84,88,38,764,false);
+const gap = 11.7;
+const previousFloor = Math.min(844-raised.bottom-gap, raised.contentTop+gap+28+raised.coverSize*.715+(390+raised.coverSize*.38)*.28);
+assert.ok(previousFloor-raised.shelfFloor>=30 && previousFloor-raised.shelfFloor<=40, 'normal phone Shelf moves up without resizing covers');
+assert.ok(raised.panelHeight>192, 'genres extend upward while retaining their lower boundary');
+const compact = shelfMobileLayout(390,844,84,88,38,764,true);
+assert.equal(compact.shelfFloor, compact.contentTop+(844-compact.bottom-compact.contentTop)*.62, 'other layouts keep their existing geometry');

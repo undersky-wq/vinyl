@@ -20,6 +20,7 @@ import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayer } from '../providers/player-provider';
 import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
+import { MiniPlayerTrack } from './mini-player-track';
 import { PlayerVolumeControl } from './player-volume-control';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { PlayerMixActions } from './player-mix-actions';
@@ -295,18 +296,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         }
       }}
     >
-      <div className="mini-player__track">
-        <button type="button" aria-label={lang === 'ru' ? 'Открыть большой плеер' : 'Open full player'} style={{ padding: 0, border: 0, background: 'none', flexShrink: 0, cursor: 'pointer' }} onClick={event => {
-          event.stopPropagation();
-          openFullPlayer();
-        }}>
-          <CoverImage src={currentTrack.coverUrl} mobileSrc={currentTrack.coverSide === 'back' ? undefined : currentTrack.frontCoverMobileUrl} alt={currentTrack.title} width={58} height={58} loading="eager" />
-        </button>
-        <div className="mini-player__meta">
-          <div className="mini-player__artist">{currentTrack.artist}</div>
-          <div className="mini-player__title">{currentTrack.title}</div>
-        </div>
-      </div>
+      <MiniPlayerTrack track={currentTrack} lang={lang} onOpen={openFullPlayer} />
 
       <div className="mini-player__controls">
         <button

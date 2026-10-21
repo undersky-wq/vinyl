@@ -41,7 +41,7 @@ export class ReleasesController {
   async findAll(@Req() request: any, @Query() query: QueryReleasesDto) {
     const user = await this.authService.getUserFromRequest(request);
     const settings = await this.authService.getAuthSettings();
-    return this.releasesService.findAll(query, Boolean(user) || !settings.playbackRequiresRegistration);
+    return this.releasesService.findAll(query, Boolean(user) || !settings.playbackRequiresRegistration, Boolean(user) || settings.allowGuestMixPlayback);
   }
 
   @Get('styles')
@@ -53,14 +53,14 @@ export class ReleasesController {
   async findLibraryFeed(@Req() request: any, @Query() query: QueryReleasesDto) {
     const user = await this.authService.getUserFromRequest(request);
     const settings = await this.authService.getAuthSettings();
-    return this.releasesService.findLibraryFeed(query, Boolean(user) || !settings.playbackRequiresRegistration);
+    return this.releasesService.findLibraryFeed(query, Boolean(user) || !settings.playbackRequiresRegistration, Boolean(user) || settings.allowGuestMixPlayback);
   }
 
   @Get('library-queue')
   async findLibraryQueue(@Req() request: any, @Query() query: QueryReleasesDto) {
     const user = await this.authService.getUserFromRequest(request);
     const settings = await this.authService.getAuthSettings();
-    return this.releasesService.findLibraryQueue(query, Boolean(user) || !settings.playbackRequiresRegistration);
+    return this.releasesService.findLibraryQueue(query, Boolean(user) || !settings.playbackRequiresRegistration, Boolean(user) || settings.allowGuestMixPlayback);
   }
 
   @Get('suggestions')
@@ -95,12 +95,25 @@ export class ReleasesController {
   async findOne(@Req() request: any, @Param('id') id: string) {
     const user = await this.authService.getUserFromRequest(request);
     const settings = await this.authService.getAuthSettings();
-    return this.releasesService.findOne(id, Boolean(user) || !settings.playbackRequiresRegistration);
+    return this.releasesService.findOne(id, Boolean(user) || !settings.playbackRequiresRegistration, Boolean(user) || settings.allowGuestMixPlayback);
   }
 
   @Get(':id/comments')
-  async findTimelineComments(@Param('id') id: string) {
-    return this.releasesService.findTimelineComments(id);
+  async findTimelineComments(@Param('id') id: string, @Req() request: any) {
+    const user = await this.authService.getUserFromRequest(request);
+    return this.releasesService.findTimelineComments(id, user?.id);
+  }
+
+  @Post(':id/comments/:commentId/like')
+  @UseGuards(AuthGuard)
+  async likeTimelineComment(@Param('id') id: string, @Param('commentId') commentId: string, @Req() request: any) {
+    return this.releasesService.setTimelineCommentLike(id, commentId, request.user.id, true);
+  }
+
+  @Delete(':id/comments/:commentId/like')
+  @UseGuards(AuthGuard)
+  async unlikeTimelineComment(@Param('id') id: string, @Param('commentId') commentId: string, @Req() request: any) {
+    return this.releasesService.setTimelineCommentLike(id, commentId, request.user.id, false);
   }
 
   @Post(':id/comments')

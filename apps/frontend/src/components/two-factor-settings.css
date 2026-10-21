@@ -1,0 +1,10 @@
+.two-factor-settings{width:100%;min-width:0}
+.two-factor-settings__body{padding:16px 0 24px;font-size:14px;line-height:1.5}
+.two-factor-settings__body h2{font-size:16px}
+.two-factor-settings__body .auth-form{max-width:520px}
+.two-factor-settings__qr{display:block;max-width:100%;height:auto;background:#fff}
+.two-factor-settings__secret{display:block;overflow-wrap:anywhere;user-select:all;letter-spacing:1px}
+.two-factor-settings__codes{max-width:100%;overflow:auto;font-size:13px;line-height:1.8;user-select:all}
+.two-factor-settings__buttons{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}
+.two-factor-settings__buttons button{width:auto!important;min-height:36px;padding:6px 0;border:0;border-bottom:1px solid currentColor;border-radius:0;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.two-factor-settings__buttons button:disabled{opacity:.45;cursor:default}

@@ -34,8 +34,10 @@ model User {
   audioFiles      AudioFile[]
   playlists       Playlist[]
   sessions        Session[]
+  twoFactorCredential TwoFactorCredential?
   favoriteTracks  FavoriteTrack[]
   timelineComments TimelineComment[]
+  timelineCommentLikes TimelineCommentLike[]
 }
 
 model Session {
@@ -45,6 +47,19 @@ model Session {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TwoFactorCredential {
+  userId             String   @id
+  secretCiphertext   String?
+  pendingCiphertext  String?
+  pendingExpiresAt   DateTime?
+  enabledAt          DateTime?
+  lastUsedStep       Int?
+  recoveryHashes     String[] @default([])
+  failedAttempts     Int      @default(0)
+  lockedUntil        DateTime?
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model FavoriteTrack {
@@ -68,6 +83,7 @@ model Release {
   genres            String[]
   styles            String[]
   isMix             Boolean          @default(false)
+  isOriginal        Boolean          @default(false)
   notes             String?
   coverImageUrl     String?
   coverStorageKey   String?
@@ -82,6 +98,8 @@ model Release {
   collectionItems   CollectionItem[]
   images            Image[]
   timelineComments  TimelineComment[]
+
+  @@index([isMix, isOriginal])
 }
 
 model TimelineComment {
@@ -94,8 +112,20 @@ model TimelineComment {
   updatedAt DateTime @updatedAt
   release   Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes     TimelineCommentLike[]
 
   @@index([releaseId, second])
+}
+
+model TimelineCommentLike {
+  commentId String
+  userId String
+  createdAt DateTime @default(now())
+  comment TimelineComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@index([userId])
 }
 
 model Track {

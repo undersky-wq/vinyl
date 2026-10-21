@@ -195,6 +195,10 @@ export async function getReleaseTimelineComments(releaseId: string, cookieHeader
   });
 }
 
+export async function getCollectionPlaybackQueue() {
+  return fetchJson<PlayerTrack[]>('/releases/library-queue');
+}
+
 export async function createReleaseTimelineComment(
   releaseId: string,
   input: { second: number; text: string },
@@ -249,6 +253,14 @@ export async function deleteReleaseTimelineComment(releaseId: string, commentId:
   return parseJsonResponse<{ deleted: boolean }>(response);
 }
 
+export async function setTimelineCommentLike(releaseId: string, commentId: string, liked: boolean) {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/comments/${commentId}/like`, {
+    method: liked ? 'POST' : 'DELETE', credentials: 'include',
+  });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Unable to update comment like'));
+  return parseJsonResponse<{likeCount: number; likedByMe: boolean}>(response);
+}
+
 export async function getSearchSuggestions(search: string) {
   const params = new URLSearchParams();
   params.set('search', search);
@@ -257,7 +269,24 @@ export async function getSearchSuggestions(search: string) {
 }
 
 export async function refreshPlayerTrack(trackId: string) {
+  if (trackId === 'about-amokk') {
+    const { audioUrl } = await getAboutAudio();
+    if (!audioUrl) throw new Error('About audio is not available');
+    return { id: trackId, title: 'Amokk', artist: '666', audioUrl, coverUrl: '/about/amokk.jpg' } satisfies PlayerTrack;
+  }
   return fetchJson<PlayerTrack>(`/tracks/${trackId}/player`);
+}
+
+export function getAboutAudio() {
+  return fetchJson<{ audioUrl: string | null }>('/auth/about-audio');
+}
+
+export async function uploadAboutAudio(file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await fetch(`${API_URL}/auth/about-audio`, { method: 'POST', credentials: 'include', body: form });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Upload failed'));
+  return parseJsonResponse<{ audioUrl: string | null }>(response);
 }
 
 export async function getPlaylists(cookieHeader?: string) {
@@ -756,7 +785,7 @@ export async function registerUser(input: {
   return parseJsonResponse<AuthUser>(response);
 }
 
-export async function loginUser(input: { email: string; password: string }) {
+export async function loginUser(input: { email: string; password: string; code?: string }) {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     credentials: 'include',
@@ -767,10 +796,24 @@ export async function loginUser(input: { email: string; password: string }) {
   });
 
   if (!response.ok) {
-    throw new Error('Login failed');
+    const error = await response.json().catch(() => null);
+    throw new Error(typeof error?.code === 'string' ? error.code : 'Login failed');
   }
 
   return parseJsonResponse<AuthUser>(response);
+}
+
+export async function twoFactorRequest<T>(action: 'status' | 'setup' | 'confirm' | 'disable' | 'recovery', input?: { password: string; code?: string }) {
+  const response = await fetch(`${API_URL}/auth/2fa/${action}`, {
+    method: input ? 'POST' : 'GET', credentials: 'include', cache: 'no-store',
+    headers: input ? { 'Content-Type': 'application/json' } : undefined,
+    body: input ? JSON.stringify(input) : undefined,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(typeof error?.code === 'string' ? error.code : response.status === 429 ? 'TWO_FACTOR_LOCKED' : 'TWO_FACTOR_FAILED');
+  }
+  return parseJsonResponse<T>(response);
 }
 
 export async function logoutUser() {
@@ -803,6 +846,13 @@ export async function uploadAvatar(file: File) {
   return parseJsonResponse<AuthUser>(response);
 }
 
+export class FavoriteUpdateError extends Error {
+  constructor(public readonly status: number) {
+    super('Favorite update failed');
+    this.name = 'FavoriteUpdateError';
+  }
+}
+
 export async function toggleFavoriteTrack(trackId: string) {
   const response = await fetch(`${API_URL}/favorites`, {
     method: 'POST',
@@ -814,7 +864,7 @@ export async function toggleFavoriteTrack(trackId: string) {
   });
 
   if (!response.ok) {
-    throw new Error('Favorite update failed');
+    throw new FavoriteUpdateError(response.status);
   }
 
   return parseJsonResponse<{ active: boolean }>(response);

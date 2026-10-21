@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { isCatalogRequest, readCatalog, saveCatalog } from './offline-catalog';
 import {
   AuthUser,
   AuthSettings,
@@ -25,20 +26,42 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      ...(init?.headers || {}),
-    },
-    ...init,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+  const cacheable = (!init?.method || init.method === 'GET') && isCatalogRequest(path);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  init?.signal?.addEventListener('abort', abort);
+  if (init?.signal?.aborted) abort();
+  const timer = setTimeout(abort, cacheable ? 6000 : 60000);
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      credentials: 'include', ...init,
+      headers: { Accept: 'application/json', ...(init?.headers || {}) },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (cacheable && !init?.signal?.aborted) {
+      const cached = await readCatalog<T>(path);
+      if (cached) return cached.value;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    init?.signal?.removeEventListener('abort', abort);
   }
 
-  return readJson<T>(response);
+  if (!response.ok) {
+    if (cacheable && response.status >= 500 && !init?.signal?.aborted) {
+      const cached = await readCatalog<T>(path);
+      if (cached) return cached.value;
+    }
+    const error = path === '/auth/login' ? await response.json().catch(() => null) : null;
+    throw new Error(typeof error?.code === 'string' ? error.code : `Request failed: ${response.status}`);
+  }
+
+  const result = await readJson<T>(response);
+  if (cacheable) void saveCatalog(path, result);
+  return result;
 }
 
 export function getCoverUrl(release: Release) {
@@ -385,13 +408,13 @@ export async function getCurrentUser() {
   return fetchJson<AuthUser | null>('/auth/me');
 }
 
-export async function login(email: string, password: string) {
+export async function login(email: string, password: string, code?: string) {
   return fetchJson<AuthUser>('/auth/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, code }),
   });
 }
 
