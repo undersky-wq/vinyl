@@ -1,4 +1,5 @@
 'use client';
+import './player-waveform.css';
 
 import { ChevronDown, ListOrdered, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -73,9 +74,10 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     ? currentTrack.waveformData
     : buildFallbackWaveform(currentTrackId || 'fallback', 160);
   const { ref: waveformRef, peaks } = useResponsiveWaveform(sourcePeaks, {
-    minBars: 72,
-    maxBars: 160,
-    pixelsPerBar: 5,
+    minBars: 48,
+    maxBars: 400,
+    pixelsPerBar: 4,
+    adaptiveBelowPx: 10000,
   });
 
   useEffect(() => {
@@ -198,6 +200,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   return (
     <section
       className={`player-page${!isPlaying ? ' is-paused' : ''}${pageTransition ? ` ${pageTransition}` : ''}`}
+      data-playback-source={currentTrack.playbackSource?.section || (currentTrack.isOriginal ? 'originals' : currentTrack.isPublic ? 'mixes' : 'collection')}
       style={{ '--player-cover-bg': `url("${currentTrack.coverUrl}")` } as CSSProperties}
     >
       <button
@@ -351,7 +354,6 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
       </div>
 
         <PlayerMixActions track={currentTrack} lang={lang} currentTime={currentTime} duration={duration} comments={comments} onComment={(comment) => setComments((items) => [...items, comment].sort((a, b) => a.second - b.second))} seek={seekToPercent}>
-        <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
         <TrackPlaylistMenu trackId={currentTrack.id} lang={lang} className="player-page__playlist-add" align="up" keepOpenAfterAction />
         <div className="player-queue-menu player-page__queue">
           <button

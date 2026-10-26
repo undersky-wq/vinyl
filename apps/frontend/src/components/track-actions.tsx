@@ -18,6 +18,7 @@ type FavoriteButtonProps = {
   lang: SiteLang;
   className?: string;
   alwaysVisible?: boolean;
+  count?: number;
 };
 
 export function FavoriteButton({
@@ -25,6 +26,7 @@ export function FavoriteButton({
   lang,
   className = '',
   alwaysVisible = false,
+  count,
 }: FavoriteButtonProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const active = isFavorite(trackId);
@@ -41,6 +43,7 @@ export function FavoriteButton({
       onClick={() => void toggleFavorite(trackId)}
     >
       <Heart size={17} fill="currentColor" />
+      {count !== undefined && count > 0 ? <sup>{count}</sup> : null}
     </button>
   );
 }

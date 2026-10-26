@@ -14,9 +14,38 @@ import { QueryReleasesDto } from './dto/query-releases.dto';
 import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
 import { UpdateTimelineCommentDto } from './dto/update-timeline-comment.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
+import { musicLinkCopyKey } from './music-link-copy-key';
 
 @Injectable()
 export class ReleasesService {
+  async getMusicEngagement(id: string) {
+    await this.requireMusicRelease(id);
+    const [favorites, plays, copies] = await Promise.all([
+      this.prisma.favoriteTrack.count({ where: { track: { releaseId: id } } }),
+      this.prisma.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM "MusicPlay" WHERE "releaseId" = ${id}`,
+      this.prisma.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM "MusicLinkCopy" WHERE "releaseId" = ${id}`,
+    ]);
+    return { favorites, plays: Number(plays[0].count), copies: Number(copies[0].count) };
+  }
+
+  async recordMusicLinkCopy(id: string, requestId: string, userId?: string) {
+    await this.requireMusicRelease(id);
+    const key = musicLinkCopyKey(requestId, userId);
+    await this.prisma.$executeRaw`INSERT INTO "MusicLinkCopy" ("releaseId", "requestId") VALUES (${id}, ${key}) ON CONFLICT DO NOTHING`;
+    return this.getMusicEngagement(id);
+  }
+
+  private async requireMusicRelease(id: string) {
+    const release = await this.prisma.release.findFirst({ where: { id, OR: [{ isMix: true }, { isOriginal: true }] }, select: { id: true } });
+    if (!release) throw new NotFoundException('Music release not found');
+  }
+
+  async recordMusicPlay(id: string, sessionId: string) {
+    await this.requireMusicRelease(id);
+    await this.prisma.$executeRaw`INSERT INTO "MusicPlay" ("releaseId", "sessionId") VALUES (${id}, ${sessionId}) ON CONFLICT DO NOTHING`;
+    return this.getMusicEngagement(id);
+  }
+
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,

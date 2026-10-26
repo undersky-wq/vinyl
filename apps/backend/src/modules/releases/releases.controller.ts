@@ -98,6 +98,28 @@ export class ReleasesController {
     return this.releasesService.findOne(id, Boolean(user) || !settings.playbackRequiresRegistration, Boolean(user) || settings.allowGuestMixPlayback);
   }
 
+  @Get(':id/engagement')
+  engagement(@Param('id') id: string) {
+    return this.releasesService.getMusicEngagement(id);
+  }
+
+  @Post(':id/plays')
+  recordPlay(@Param('id') id: string, @Body() body: { sessionId?: string }) {
+    if (!body.sessionId || !/^[a-f0-9-]{36}$/.test(body.sessionId)) {
+      throw new BadRequestException('Invalid playback session');
+    }
+    return this.releasesService.recordMusicPlay(id, body.sessionId);
+  }
+
+  @Post(':id/copies')
+  async recordLinkCopy(@Param('id') id: string, @Body() body: { requestId?: string }, @Req() request: any) {
+    if (typeof body.requestId !== 'string' || !/^[a-f0-9-]{36}$/.test(body.requestId)) {
+      throw new BadRequestException('Invalid copy request');
+    }
+    const user = await this.authService.getUserFromRequest(request);
+    return this.releasesService.recordMusicLinkCopy(id, body.requestId, user?.id);
+  }
+
   @Get(':id/comments')
   async findTimelineComments(@Param('id') id: string, @Req() request: any) {
     const user = await this.authService.getUserFromRequest(request);

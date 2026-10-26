@@ -37,6 +37,11 @@ export function configureHttpSecurity(app: INestApplication, env = process.env) 
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
   const message = { statusCode: 429, message: 'Too many attempts. Please try again later.' };
+  app.use('/api/releases', rateLimit({
+    windowMs: 60 * 60 * 1000, limit: 120,
+    skip: request => request.method !== 'POST' || !/^\/[^/]+\/(plays|copies)\/?$/.test(request.path),
+    standardHeaders: 'draft-8', legacyHeaders: false, message,
+  }));
   app.use('/api/auth/2fa', rateLimit({
     windowMs: 15 * 60 * 1000, limit: 20,
     skip: request => request.method !== 'POST',

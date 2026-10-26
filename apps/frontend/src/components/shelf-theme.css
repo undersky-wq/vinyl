@@ -209,6 +209,12 @@ html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive .paper-headin
 html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive .paper-heading-context[data-context-section='mixes'] {
   color:var(--shelf-mixes-accent)!important;
 }
+html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive .paper-heading-context[data-context-section='originals'] {
+  color:#b77713!important;
+}
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-archive .paper-heading-context[data-context-section='originals'] {
+  color:#e5ab4c!important;
+}
 html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive .paper-heading-context[data-context-section] sup {
   color:inherit!important;
 }

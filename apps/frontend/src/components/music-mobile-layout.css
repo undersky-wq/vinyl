@@ -1,4 +1,50 @@
 @media(max-width:700px){
+  html body .paper-archive.is-mixes.is-listing:not(.is-stretching) .paper-list-tracks{transition:none}
+  html body .paper-archive.is-mixes.is-listing .paper-mix-comments{
+    display:grid;grid-template-rows:0fr;max-height:none;overflow:hidden;
+    padding:0!important;margin-top:0;scrollbar-gutter:auto;
+    transition:grid-template-rows .45s cubic-bezier(.22,1,.36,1),opacity .3s,translate .45s cubic-bezier(.22,1,.36,1);
+  }
+  html body .paper-archive.is-mixes.is-listing .paper-mix-comments[data-open=true]{grid-template-rows:1fr}
+  html body .paper-archive.is-mixes.is-listing .paper-mix-comments-content{
+    min-height:0;max-height:250px;overflow:auto;scrollbar-gutter:stable;box-sizing:border-box;
+  }
+  html body .paper-archive.is-mixes.is-listing .paper-mix-comments-content>form{margin-top:10px}
+  html body .paper-archive.is-mixes.is-listing .paper-mix-comments-content{padding-right:16px}
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-wave>button{touch-action:pan-y}
+  html[data-visual-variant='shelf'] body .paper-archive .paper-heading-section{--heading-section-color:#3478db}
+  html[data-visual-variant='shelf'] body .paper-archive .paper-heading-section-playlists{--heading-section-color:#27874d}
+  html[data-visual-variant='shelf'] body .paper-archive .paper-heading-section-mixes{--heading-section-color:#8950c8}
+  html[data-visual-variant='shelf'] body .paper-archive .paper-heading-section-favorites{--heading-section-color:#db3045}
+  html[data-visual-variant='shelf'] body .paper-archive .paper-heading-section-originals{--heading-section-color:#b77713}
+  html[data-visual-variant='shelf'][data-shelf-theme='dark'] body .paper-archive .paper-heading-section-originals{--heading-section-color:#e5ab4c}
+  html[data-visual-variant='shelf'] body .paper-archive .paper-heading-section,
+  html[data-visual-variant='shelf'] body .paper-archive .paper-heading-section :is(b,sup,svg){color:var(--heading-section-color)!important}
+  html body .paper-archive.is-mixes.is-listing .paper-mix-comments{top:auto;right:0}
+  html body .paper-archive.is-mixes.is-listing .paper-mix-comments[data-open=false]{margin-top:0}
+  html body .paper-archive.is-mixes.is-listing .paper-mix-meta{
+    position:relative;top:auto;left:auto;right:auto;margin:12px 0 0;gap:8px;min-height:26px;
+  }
+  html body .shelf-mix-detail .paper-mix-timeline{grid-row:2}
+  html body .shelf-mix-detail .paper-mix-meta{grid-row:3}
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-meta{
+    align-items:center;white-space:normal;
+  }
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-meta>span{
+    flex:1;overflow:visible;overflow-wrap:anywhere;font-size:12px;
+  }
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-engagement{gap:2px}
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-engagement>:is(button,span){
+    position:relative;box-sizing:border-box;flex:0 0 34px;width:34px;min-width:34px;
+    height:36px;min-height:36px;padding:0;display:flex;align-items:center;justify-content:flex-start;gap:0;margin:0;
+  }
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-engagement>:is(button,span)>svg{
+    flex:0 0 18px;width:18px;height:18px;
+  }
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-engagement>:is(button,span)>sup{
+    position:absolute;left:19px;top:9px;width:15px;margin:0;text-align:left;
+    font-size:9px;line-height:12px;font-variant-numeric:tabular-nums;
+  }
   /* Permalinks share the listing's paper chrome, not the old mobile dock. */
   body:has(.shelf-mix-detail) .mobile-nav{display:none!important}
   html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-comments[data-open=true]{
@@ -16,5 +62,8 @@
   .paper-mix-heading .paper-mix-title-separator{display:none}
   .paper-mix-heading .paper-mix-artist{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:16px;line-height:20px;font-weight:600}
   .paper-mix-heading .paper-mix-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;font-size:14px;line-height:18px;font-weight:400}
-  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-heading h2>time{margin-top:3px;font-size:11px}
+  html body :is(.paper-archive.is-mixes.is-listing,.shelf-mix-detail) .paper-mix-heading h2>time{margin-top:3px;font-size:12px}
+}
+@media(max-width:700px) and (prefers-reduced-motion:reduce){
+  html body .paper-archive.is-mixes.is-listing .paper-mix-comments{transition:none;translate:none}
 }

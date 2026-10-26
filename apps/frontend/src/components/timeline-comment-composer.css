@@ -20,6 +20,9 @@ form.timeline-comment-composer .timeline-comment-composer__avatar img { width:10
 :is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer input::placeholder { color:var(--shelf-comment-muted,var(--shelf-web-muted,#888));opacity:1; }
 :is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer>button { width:auto;min-height:0;padding:3px 0;border:0;border-radius:0;background:transparent;color:inherit;cursor:pointer; }
 :is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer>button:disabled { opacity:.4;cursor:default; }
+html body :is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer>button{
+  box-sizing:border-box;width:28px;min-width:28px;height:28px;min-height:28px;margin:0;padding:2px;
+}
 :is(.paper-mix-comments,.player-page__comments) form.timeline-comment-composer>button,
 .paper-mix-comments .paper-mix-comment-delete { display:inline-flex;align-items:center;justify-content:center; }
 :is(.timeline-comment-composer,.paper-mix-comments) button[aria-busy=true] svg { animation:comment-action-spin 1s linear infinite; }

@@ -38,9 +38,9 @@ export function MobileNav({ lang }: { lang: SiteLang }) {
         <Disc3 size={23} />
         <span className="mobile-nav__label">{lang === 'ru' ? 'Миксы' : 'Mixes'}</span>
       </Link>
-      <Link href="/tracks" className={pathname === '/tracks' ? 'active mobile-nav--originals' : ''} aria-label="Tracks">
+      <Link href="/tracks" className={pathname === '/tracks' ? 'active mobile-nav--originals' : ''} aria-label={lang === 'ru' ? 'Треки' : 'Tracks'}>
         <AudioLines size={23} />
-        <span className="mobile-nav__label">Tracks</span>
+        <span className="mobile-nav__label">{lang === 'ru' ? 'Треки' : 'Tracks'}</span>
       </Link>
       <Link
         href="/favorites"

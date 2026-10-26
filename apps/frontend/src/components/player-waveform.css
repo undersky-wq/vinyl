@@ -1,0 +1,38 @@
+.player-page[data-playback-source='collection']{--waveform-source-color:#3478db}
+@media(min-width:701px){
+  html body .player-page[data-playback-source] .player-page__timeline{
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 0;
+  }
+  html body .player-page[data-playback-source] .player-page__timeline>.player-page__waveform{
+    grid-column:1 / -1;grid-row:1;width:100%;
+  }
+  html body .player-page[data-playback-source] .player-page__timeline>span:first-child{
+    grid-column:1;grid-row:2;justify-self:start;
+  }
+  html body .player-page[data-playback-source] .player-page__timeline>span:last-child{
+    grid-column:2;grid-row:2;justify-self:end;
+  }
+}
+@media(max-width:700px){
+  html body .player-page[data-playback-source] .player-page__cover-frame,
+  html body .player-page[data-playback-source] .player-page__cover-frame>img{
+    border:0!important;box-shadow:none!important;
+  }
+  html body .player-page[data-playback-source] .player-page__cover-frame::before,
+  html body .player-page[data-playback-source] .player-page__cover-frame::after{display:none!important}
+}
+.player-page[data-playback-source='playlists']{--waveform-source-color:#27874d}
+.player-page[data-playback-source='mixes']{--waveform-source-color:#8950c8}
+.player-page[data-playback-source='originals']{--waveform-source-color:#b77713}
+.player-page[data-playback-source='favorites']{--waveform-source-color:#db3045}
+html[data-shelf-theme='dark'] .player-page[data-playback-source='originals']{--waveform-source-color:#e5ab4c}
+html body .player-page[data-playback-source] .player-page__waveform{
+  gap:2px!important;min-width:0;
+}
+html body .player-page[data-playback-source] .player-page__waveform>span:not(.mix-comment-marker){
+  flex:1 1 0;min-width:0;max-width:2px;
+}
+html body .player-page[data-playback-source] .player-page__waveform>span.active:not(.mix-comment-marker),
+html[data-visual-variant] body .player-page[data-playback-source] .player-page__waveform>span.active:not(.mix-comment-marker){
+  background:var(--waveform-source-color)!important;
+}

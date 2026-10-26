@@ -25,4 +25,7 @@ const previousFloor = Math.min(844-raised.bottom-gap, raised.contentTop+gap+28+r
 assert.ok(previousFloor-raised.shelfFloor>=30 && previousFloor-raised.shelfFloor<=40, 'normal phone Shelf moves up without resizing covers');
 assert.ok(raised.panelHeight>192, 'genres extend upward while retaining their lower boundary');
 const compact = shelfMobileLayout(390,844,84,88,38,764,true);
+const spaced = shelfMobileLayout(390,844,84,120,38,764,false,48);
+assert.ok(Math.abs(spaced.headingTop - spaced.navigationTop - 120 - 24)<1e-8, 'Shelf title keeps half the measured Mixes-to-Favorites spacing below navigation');
+assert.equal(shelfMobileLayout(390,844,84,88,38,764,true,48).headingTop,compact.headingTop,'Other layouts ignore Shelf title spacing');
 assert.equal(compact.shelfFloor, compact.contentTop+(844-compact.bottom-compact.contentTop)*.62, 'other layouts keep their existing geometry');

@@ -1,0 +1,12 @@
+html[data-visual-variant] body .player-page .player-page__secondary-actions .player-page__comments-icon{
+  display:inline-flex;align-items:center;justify-content:center;position:relative;
+  width:auto;min-width:32px;min-height:32px;margin:0;padding:6px;gap:3px;
+  border:0;background:transparent;color:inherit;
+}
+html[data-visual-variant] body .player-page .player-page__secondary-actions :is(.music-copy-link,.track-favorite-button){width:auto;min-width:32px;gap:3px}
+html[data-visual-variant] body .player-page .player-page__secondary-actions :is(.music-copy-link,.track-favorite-button,.player-page__comments-icon) sup{
+  position:static;margin:0;align-self:flex-start;font:10px/1 Arial,Helvetica,sans-serif;
+}
+html[data-visual-variant='shelf'] body .player-page .player-page__secondary-actions .track-favorite-button.active,
+html[data-visual-variant='shelf'] body .player-page .player-page__secondary-actions .track-favorite-button.active svg{color:#db3045!important}
+html[data-visual-variant='shelf'] body .player-page .player-page__secondary-actions .track-favorite-button.active svg{fill:#db3045!important;stroke:#db3045!important}

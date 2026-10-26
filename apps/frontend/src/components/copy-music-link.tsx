@@ -4,6 +4,8 @@ import { Share2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SiteLang } from '../lib/language';
+import { recordMusicLinkCopy } from '../lib/music-engagement';
+import { useAuth } from '../providers/auth-provider';
 import './copy-music-link.css';
 
 const paths = new Map<string, Promise<string>>();
@@ -16,7 +18,8 @@ function sharePath(id: string) {
   return paths.get(id)!;
 }
 
-export function CopyMusicLink({ releaseId, lang, className = '' }: { releaseId: string; lang: SiteLang; className?: string }) {
+export function CopyMusicLink({ releaseId, lang, className = '', copyCount }: { releaseId: string; lang: SiteLang; className?: string; copyCount?: number }) {
+  const { user } = useAuth();
   const [notice, setNotice] = useState<{ url: string; copied: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [path, setPath] = useState('');
@@ -32,6 +35,7 @@ export function CopyMusicLink({ releaseId, lang, className = '' }: { releaseId: 
     const url = new URL(path || `/releases/${encodeURIComponent(releaseId)}`, window.location.origin).href;
     let copied = false;
     try { await navigator.clipboard.writeText(url); copied = true; } catch { /* Keep a selectable link when clipboard access is denied. */ }
+    if (copied) void recordMusicLinkCopy(releaseId, user?.id).catch(() => undefined);
     setNotice({ url, copied });
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setNotice(null), copied ? 3500 : 7000);
@@ -40,6 +44,7 @@ export function CopyMusicLink({ releaseId, lang, className = '' }: { releaseId: 
   return <>
     <button type="button" disabled={!path} className={`music-copy-link ${className}`} aria-label={lang === 'ru' ? 'Поделиться — скопировать ссылку' : 'Share — copy link'} title={lang === 'ru' ? 'Скопировать ссылку' : 'Copy link'} onClick={event => { event.stopPropagation(); void copy(); }}>
       <Share2 size={18} />
+      {copyCount !== undefined && copyCount > 0 ? <sup>{copyCount}</sup> : null}
     </button>
     {notice ? createPortal(<div className="music-link-notice" role="status" aria-live="polite">
       <strong>{notice.copied ? (lang === 'ru' ? 'Ссылка скопирована' : 'Link copied') : (lang === 'ru' ? 'Скопируйте ссылку вручную' : 'Copy the link manually')}</strong>

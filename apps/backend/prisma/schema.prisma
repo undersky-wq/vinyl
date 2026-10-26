@@ -98,8 +98,28 @@ model Release {
   collectionItems   CollectionItem[]
   images            Image[]
   timelineComments  TimelineComment[]
+  musicPlays        MusicPlay[]
+  linkCopies        MusicLinkCopy[]
 
   @@index([isMix, isOriginal])
+}
+
+model MusicLinkCopy {
+  releaseId String
+  requestId String
+  createdAt DateTime @default(now())
+  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@id([releaseId, requestId])
+}
+
+model MusicPlay {
+  releaseId String
+  sessionId String
+  createdAt DateTime @default(now())
+  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@id([releaseId, sessionId])
 }
 
 model TimelineComment {

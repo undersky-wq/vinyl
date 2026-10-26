@@ -8,8 +8,21 @@ html body :is(.paper-mix-comments,.player-page__comments) article.timeline-comme
 html body .timeline-comment-row .timeline-comment-row__time{width:auto;min-height:26px;padding:4px 0;margin:0;border:0;background:none;color:var(--shelf-web-muted,#888);font:400 12px/1.5 Arial,Helvetica,sans-serif;white-space:nowrap;font-variant-numeric:tabular-nums}
 html body :is(.paper-mix-comments,.player-page__comments) .timeline-comment-row p.timeline-comment-row__text{grid-column:3;margin:0;padding:4px 0;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
 .timeline-comment-row__text strong{font-weight:600}
+.timeline-comment-row [role=button]{cursor:pointer}
 .timeline-comment-row__actions{display:flex;align-items:center;gap:8px}
+html body :is(.paper-mix-comments,.player-page__comments) .timeline-comment-row .timeline-comment-row__actions>button{
+  position:static;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;
+  flex:none;width:auto;min-width:28px;height:28px;min-height:28px;margin:0;padding:2px;line-height:1;
+}
 html body :is(.paper-mix-comments,.player-page__comments) .timeline-comment-row button.timeline-comment-row__like{display:inline-flex;align-items:center;justify-content:center;gap:3px;width:auto;min-height:28px;padding:2px;border:0;background:none;color:var(--shelf-web-muted,#888);font:400 11px/1 Arial,Helvetica,sans-serif;cursor:pointer}
+html body :is(.paper-mix-comments,.player-page__comments) .timeline-comment-row button.timeline-comment-row__like{
+  position:relative;flex:0 0 34px;width:34px;min-width:34px;justify-content:flex-start;gap:0;
+}
+html body .timeline-comment-row .timeline-comment-row__like>svg{flex:none;width:16px;height:16px}
+html body .timeline-comment-row .timeline-comment-row__like>span{
+  position:absolute;left:20px;top:50%;transform:translateY(-50%);width:14px;
+  margin:0;font-size:9px;line-height:12px;text-align:left;font-variant-numeric:tabular-nums;
+}
 html body :is(.paper-mix-comments,.player-page__comments) .timeline-comment-row button.timeline-comment-row__like[aria-pressed=true]{color:#db3045!important}
 .timeline-comment-row__like:disabled{opacity:.5;cursor:wait}
 .timeline-comment-row__error{grid-column:3/-1;color:#db3045;font-size:11px}

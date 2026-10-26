@@ -1,4 +1,5 @@
 'use client';
+import './player-waveform.css';
 
 import { useRouter } from 'next/navigation';
 import {
@@ -130,8 +131,9 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     : buildFallbackWaveform(currentTrackId || 'fallback', 90);
   const { ref: overlayWaveformRef, peaks: overlayPeaks } = useResponsiveWaveform(overlaySourcePeaks, {
     minBars: 48,
-    maxBars: 90,
-    pixelsPerBar: 5,
+    maxBars: 400,
+    pixelsPerBar: 4,
+    adaptiveBelowPx: 10000,
   });
 
   useEffect(() => {
@@ -479,7 +481,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
     </div>
     {isFullPlayerOpen ? (
       <div className="mobile-player-overlay" role="dialog" aria-modal="true">
-        <section className={`player-page mobile-player-overlay__panel opening${!isPlaying ? ' is-paused' : ''}`}>
+        <section data-playback-source={currentTrack.playbackSource?.section || (currentTrack.isOriginal ? 'originals' : currentTrack.isPublic ? 'mixes' : 'collection')} className={`player-page mobile-player-overlay__panel opening${!isPlaying ? ' is-paused' : ''}`}>
           <button
             type="button"
             className="player-page__collapse mobile-player-overlay__collapse"
@@ -615,7 +617,6 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
           </div>
 
             <PlayerMixActions track={currentTrack} lang={lang} currentTime={currentTime} duration={duration} comments={comments} onComment={(comment) => setComments((items) => [...items, comment].sort((a, b) => a.second - b.second))} seek={seekToPercent}>
-            <FavoriteButton trackId={currentTrack.id} lang={lang} alwaysVisible />
             <TrackPlaylistMenu
               trackId={currentTrack.id}
               lang={lang}

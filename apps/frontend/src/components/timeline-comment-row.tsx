@@ -39,12 +39,12 @@ export function TimelineCommentRow({ comment, timestamp, onSeek, actions }: {
     finally { setPending(false); }
   }
   return <article className="timeline-comment-row">
-    <span className="timeline-comment-row__avatar">{comment.user.avatarStorageUrl ? <img src={comment.user.avatarStorageUrl} alt="" /> : (comment.user.displayName || 'U').trim().charAt(0).toUpperCase()}</span>
+    <span className="timeline-comment-row__avatar" role={onSeek ? 'button' : undefined} tabIndex={onSeek ? 0 : undefined} onClick={onSeek} onKeyDown={event=>{if(onSeek && (event.key==='Enter'||event.key===' ')){event.preventDefault();onSeek();}}}>{comment.user.avatarStorageUrl ? <img src={comment.user.avatarStorageUrl} alt="" /> : (comment.user.displayName || 'U').trim().charAt(0).toUpperCase()}</span>
     {onSeek ? <button className="timeline-comment-row__time" type="button" onClick={onSeek}>{timestamp}</button> : <time className="timeline-comment-row__time">{timestamp}</time>}
-    <p className="timeline-comment-row__text"><strong>{comment.user.displayName}</strong>: {comment.text}</p>
+    <p className="timeline-comment-row__text" role={onSeek ? 'button' : undefined} tabIndex={onSeek ? 0 : undefined} onClick={onSeek} onKeyDown={event=>{if(onSeek && (event.key==='Enter'||event.key===' ')){event.preventDefault();onSeek();}}}><strong>{comment.user.displayName}</strong>: {comment.text}</p>
     <span className="timeline-comment-row__actions">
       <button type="button" className="timeline-comment-row__like" aria-label={likes.likedByMe ? 'Убрать лайк' : 'Нравится'} aria-pressed={likes.likedByMe} aria-busy={pending} disabled={pending} onClick={() => void toggleLike()}>
-        <Heart size={16} aria-hidden="true" fill={likes.likedByMe ? 'currentColor' : 'none'} /><span>{likes.likeCount}</span>
+        <Heart size={16} aria-hidden="true" fill={likes.likedByMe ? 'currentColor' : 'none'} />{likes.likeCount > 0 ? <span>{likes.likeCount}</span> : null}
       </button>
       {actions}
     </span>

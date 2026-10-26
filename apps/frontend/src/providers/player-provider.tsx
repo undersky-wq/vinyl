@@ -399,7 +399,33 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    let countedRelease = '';
+    let listeningSeconds = 0;
+    let lastPlaybackTime = audio.currentTime;
+    const newPlaySession = () => Array.from(crypto.getRandomValues(new Uint8Array(18)), byte => byte.toString(16).padStart(2, '0')).join('');
+    let playSession = newPlaySession();
+    let playRecorded = false;
+    let recordingPlay = false;
     const syncPlaybackState = () => {
+      const music = currentTrackRef.current;
+      if (music?.releaseId !== countedRelease) {
+        countedRelease = music?.releaseId || '';
+        listeningSeconds = 0;
+        lastPlaybackTime = audio.currentTime;
+        playSession = newPlaySession();
+        playRecorded = false;
+      }
+      const delta = audio.currentTime - lastPlaybackTime;
+      lastPlaybackTime = audio.currentTime;
+      if (!audio.paused && !audio.seeking && delta > 0 && delta < 2) listeningSeconds += delta;
+      if (music && (music.isPublic || music.isOriginal) && listeningSeconds >= 30 && !playRecorded && !recordingPlay) {
+        recordingPlay = true;
+        const id = countedRelease;
+        const session = playSession;
+        void import('../lib/music-engagement').then(module => module.recordMusicPlay(id, session))
+          .then(() => { if (session === playSession) playRecorded = true; })
+          .catch(() => undefined).finally(() => { recordingPlay = false; });
+      }
       setCurrentTime(audio.currentTime || 0);
 
       if (!audio.duration || Number.isNaN(audio.duration)) {

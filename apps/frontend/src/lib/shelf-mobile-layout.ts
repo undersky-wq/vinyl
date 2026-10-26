@@ -1,7 +1,7 @@
-export function shelfMobileLayout(width: number, height: number, searchBottom: number, navigationHeight: number, headingHeight: number, playerTop: number, compact: boolean) {
+export function shelfMobileLayout(width: number, height: number, searchBottom: number, navigationHeight: number, headingHeight: number, playerTop: number, compact: boolean, shelfHeadingGap?: number) {
   const gap = Math.max(10, Math.min(16, width * .03));
   const navigationTop = searchBottom + gap * 2;
-  const headingTop = compact ? searchBottom + gap : navigationTop + navigationHeight + gap;
+  const headingTop = compact ? searchBottom + gap : navigationTop + navigationHeight + Math.max(gap, shelfHeadingGap === undefined ? gap : shelfHeadingGap / 2);
   const contentTop = headingTop + headingHeight + (compact ? Math.max(36, gap * 3) : gap);
   const contentBottom = Math.max(contentTop + 24, playerTop - gap);
   const available = Math.max(24, contentBottom - contentTop);

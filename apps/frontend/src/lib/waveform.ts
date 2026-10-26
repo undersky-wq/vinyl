@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type ResponsiveWaveformOptions = {
   minBars?: number;
@@ -56,11 +56,10 @@ export function useResponsiveWaveform(
     adaptiveBelowPx = 641,
   }: ResponsiveWaveformOptions = {},
 ) {
-  const ref = useRef<HTMLButtonElement | null>(null);
+  const [element, ref] = useState<HTMLButtonElement | null>(null);
   const [barCount, setBarCount] = useState(maxBars);
 
   useEffect(() => {
-    const element = ref.current;
     if (!element) {
       return;
     }
@@ -84,7 +83,7 @@ export function useResponsiveWaveform(
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, [adaptiveBelowPx, maxBars, minBars, pixelsPerBar]);
+  }, [element, adaptiveBelowPx, maxBars, minBars, pixelsPerBar]);
 
   const peaks = useMemo(() => resampleWaveform(sourcePeaks, barCount), [barCount, sourcePeaks]);
 

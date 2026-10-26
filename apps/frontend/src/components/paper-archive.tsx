@@ -277,6 +277,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     })) : (appliedSearch ? searchCatalog || allReleases : mixesMode || favoritesMode ? allReleases : allReleases.filter(r=>!r.isMix)).map(r => releaseDetails[r.id] ? { ...r, ...releaseDetails[r.id] } : r);
     return source.filter(r => (!activeStyles.length || r.styles.some(style => activeStyles.includes(style))) && words.every(word => `${r.artist} ${r.title} ${r.trackSearchText || r.tracks.map(t => t.title).join(' ')}`.toLocaleLowerCase().includes(word)));
   }, [allReleases, searchCatalog, releaseDetails, activeStyles, appliedSearch, activePlaylist, playlists, mixesMode, favoritesMode]);
+  const [mobileCardHeights, setMobileCardHeights] = useState<Record<string, number>>({});
   const listLayout = useMemo(() => {
     // Full-width playlist rows begin below the persistent playlist selector.
     let y = gridBounds.top + 16;
@@ -284,13 +285,16 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     const positions = releases.map(r => {
       const top = y;
       const commentCount = openMixComments.get(r.id);
-      const commentsSpace = commentCount === undefined ? 0 : Math.min(250, 74 + commentCount * 46);
+      const commentsSpace = mobile || commentCount === undefined ? 0 : Math.min(250, 74 + commentCount * 46);
       const count = r.trackCount ?? r.tracks.length;
-      y += (mixesMode && mobile ? 260 : isTrackCollection ? 52 : mobile ? Math.max(listSize, 92 + count * 28) + 24 : Math.max(listSize, 114 + count * 36) + 56) + commentsSpace;
+      const estimatedHeight = (mixesMode && mobile ? 260 : isTrackCollection ? 52 : mobile ? Math.max(listSize, 92 + count * 28) + 24 : Math.max(listSize, 114 + count * 36) + 56) + commentsSpace;
+      y += mobile && !isTrackCollection
+        ? Math.max(estimatedHeight, (mobileCardHeights[r.id] ?? 0) + 48)
+        : estimatedHeight;
       return top;
     });
     return { positions, height: y + gridBounds.bottom };
-  }, [releases, listSize, gridBounds, isTrackCollection, playlists.length, viewport, mixesMode, originalsMode, openMixComments]);
+  }, [releases, listSize, gridBounds, isTrackCollection, playlists.length, viewport, mixesMode, originalsMode, openMixComments, mobileCardHeights]);
   const styleCounts = useMemo(() => {
     const counts = new Map<string, number>();
     allReleases.forEach(r => new Set(r.styles.filter(Boolean)).forEach(style => counts.set(style, (counts.get(style) || 0) + 1)));
@@ -329,6 +333,20 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const [flippedListCovers, setFlippedListCovers] = useState<Set<string>>(() => new Set());
   const [expanded, setExpanded] = useState(false);
   const stage = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (viewport.width > 700 || listMix < 1 || isTrackCollection) return;
+    const cards = stage.current?.querySelectorAll<HTMLElement>('.paper-list-tracks[data-release-id]');
+    if (!cards) return;
+    const measure = () => {
+      const heights: Record<string, number> = {};
+      cards.forEach(card => { heights[card.dataset.releaseId!] = Math.max(listSize, card.offsetHeight); });
+      setMobileCardHeights(previous => Object.keys(heights).every(id => previous[id] === heights[id]) ? previous : { ...previous, ...heights });
+    };
+    const observer = new ResizeObserver(measure);
+    cards.forEach(card => observer.observe(card));
+    measure();
+    return () => observer.disconnect();
+  });
   const transport = useRef<HTMLDivElement | null>(null);
   const transportOrigin = useRef(0);
   const hoverResumeAt = useRef(0);
@@ -416,10 +434,16 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       if (viewport.width <= 700) {
         const nav = element.querySelector('.paper-sections') as HTMLElement | null;
         const title = element.querySelector('.paper-heading') as HTMLElement | null;
+        const sectionButtons = nav?.querySelectorAll<HTMLButtonElement>(':scope > button');
+        const mixesButton = sectionButtons?.[2];
+        const favoritesButton = sectionButtons?.[4];
+        const headingGap = mixesButton && favoritesButton
+          ? favoritesButton.offsetTop + favoritesButton.offsetHeight / 2 - mixesButton.offsetTop - mixesButton.offsetHeight / 2
+          : undefined;
         const layout = shelfMobileLayout(viewport.width, viewport.height,
           (search?.bottom || 72) - origin, nav?.offsetHeight || 88,
           title?.offsetHeight || 36, player ? player.top - origin : viewport.height - 24,
-          stackMode || stretch >= .5);
+          stackMode || stretch >= .5, headingGap);
         element.style.setProperty('--mobile-nav-top', `${layout.navigationTop}px`);
         element.style.setProperty('--mobile-heading-top', `${layout.headingTop}px`);
         element.style.setProperty('--mobile-content-top', `${layout.contentTop}px`);
@@ -658,14 +682,16 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const playingListRelease = isTrackListInteractive
     ? releases.find(r => r.tracks.some(t => t.id === currentTrack?.id))
     : undefined;
-  const headingRelease = (hovered === null ? null : releases[hovered]) || release || playingListRelease || releases[0];
+  const headingRelease = viewport.width <= 700 && !stackMode && stretch < .5
+    ? release
+    : (hovered === null ? null : releases[hovered]) || release || playingListRelease || releases[0];
   const activePlaylistName = playlists.find(playlist=>playlist.id===activePlaylist)?.name || '';
   const mobileContextHeading = viewport.width<=700 && (stackMode || stretch>=.5);
   const mobileContextPicker = mixesMode ? 'music' : activePlaylist || showPlaylists ? 'playlists' : 'genres';
   const mobileContextPickerLabel = mobileContextPicker === 'music' ? (originalsMode ? (ru ? 'Выбрать трек' : 'Choose track') : (ru ? 'Выбрать микс' : 'Choose mix')) : mobileContextPicker === 'playlists' ? (ru ? 'Выбрать плейлист' : 'Choose playlist') : (ru ? 'Выбрать жанры' : 'Choose genres');
   useEffect(() => { if (!mobileContextHeading) setMobilePicker(null); }, [mobileContextHeading]);
   const mobileSectionKey = favoritesMode ? 'favorites' : originalsMode ? 'originals' : mixesMode ? 'mixes' : activePlaylist || showPlaylists ? 'playlists' : 'collection';
-  const mobileSectionName = favoritesMode ? (ru?'Избранное':'Favorites') : originalsMode ? 'Tracks' : mixesMode ? (ru?'Миксы':'Mixes') : activePlaylist || showPlaylists ? (ru?'Плейлисты':'Playlists') : (ru?'Коллекция':'Collection');
+  const mobileSectionName = favoritesMode ? (ru?'Избранное':'Favorites') : originalsMode ? (ru?'Треки':'Tracks') : mixesMode ? (ru?'Миксы':'Mixes') : activePlaylist || showPlaylists ? (ru?'Плейлисты':'Playlists') : (ru?'Коллекция':'Collection');
   const mobileContextName = activePlaylistName || activeStyles.join(' + ') || (originalsMode ? (ru?'Все треки':'All tracks') : mixesMode ? (ru?'Все миксы':'All mixes') : favoritesMode ? '' : (ru?'Вся коллекция':'All collection'));
   const mobileSectionCount = mobileSectionKey === 'favorites' ? counts.favorites : mobileSectionKey === 'originals' ? (originalCount ?? counts.originals) : mobileSectionKey === 'mixes' ? (mixCount ?? counts.mixes) : mobileSectionKey === 'playlists' ? counts.playlists : (collectionCount ?? counts.releases);
   const mobileContextCount = activeStyles.length ? releases.length : activePlaylist ? (playlists.find(playlist=>playlist.id===activePlaylist)?.items.length ?? 0) : originalsMode ? (originalCount ?? counts.originals) : mixesMode ? (mixCount ?? counts.mixes) : null;
@@ -1136,13 +1162,13 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   }}>
     <header className="paper-header">
       <ArchivePageHeader lang={uiLang} search={search} searchStatus={searchStatus} onSearchChange={value => {setSearch(value);filterByStyle(null,value);}} activeLayout={activeLayout} onLayoutChange={changeCollectionLayout} onHome={() => {if (mixesMode || favoritesMode) navigateSection('/','collection');else {setPendingSection(null);selectPlaylist(null);}}} />
-      <h1 className="paper-heading" aria-label={mobileContextHeading ? `${mobileSectionName}: ${mobileContextName}` : headingRelease ? `${headingRelease.artist} : ${headingRelease.title}` : 'Vinyl collection'}>
+      {(viewport.width > 700 || mobileContextHeading || release) && <h1 className="paper-heading" aria-label={mobileContextHeading ? `${mobileSectionName}: ${mobileContextName}` : headingRelease ? `${headingRelease.artist} : ${headingRelease.title}` : 'Vinyl collection'}>
         <span className="paper-heading-window paper-heading-artist">{mobileContextHeading ? <button type="button" className="paper-heading-picker" aria-haspopup="dialog" aria-expanded={mobilePicker === 'sections'} aria-label={ru ? 'Выбрать раздел' : 'Choose section'} onClick={() => setMobilePicker('sections')}><span className={`paper-heading-section paper-heading-section-${mobileSectionKey}`}>{mobileSectionKey==='originals'?<AudioLines size={14}/>:mobileSectionKey==='favorites'?<Heart size={14}/>:mobileSectionKey==='mixes'?<Disc3 size={14}/>:mobileSectionKey==='playlists'?<ListMusic size={14}/>:<Library size={14}/>}<b>{mobileSectionName}</b><sup>{mobileSectionCount}</sup></span><ChevronDown aria-hidden="true" /></button> : <span key={headingRelease?.artist}>{headingRelease?.artist || (ru ? 'Коллекция винила' : 'Vinyl collection')}</span>}</span>
         {!(mobileContextHeading && favoritesMode) && <>
           <span className="paper-heading-colon" aria-hidden={!mobileContextName && mobileContextHeading}>:</span>
           <span className="paper-heading-window paper-heading-title">{mobileContextHeading ? <button type="button" className="paper-heading-picker" aria-haspopup="dialog" aria-expanded={mobilePicker === mobileContextPicker} aria-label={mobileContextPickerLabel} onClick={() => setMobilePicker(mobileContextPicker)}><span className="paper-heading-context" data-context-section={mobileSectionKey}>{mobileContextName || (ru ? 'Все треки' : 'All tracks')}{mobileSectionKey === 'collection' ? <sup><CollectionPosition count={releases.length} read={readCollectionPosition} /></sup> : mobileContextCount!==null?<sup>{mobileContextCount}</sup>:null}</span><ChevronDown aria-hidden="true" /></button> : <span key={headingRelease?.id} className="paper-release-title-regular">{headingRelease?.title || ''}</span>}</span>
         </>}
-      </h1>
+      </h1>}
     </header>
     <MobileCollectionPicker kind={mobilePicker} ru={ru} section={mobileSectionKey}
       music={releases.map(item => ({id:item.id,artist:item.artist,title:item.title}))}
@@ -1159,7 +1185,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         { key: 'collection', label: ru ? 'Коллекция' : 'Collection', count: collectionCount ?? counts.releases },
         { key: 'playlists', label: ru ? 'Плейлисты' : 'Playlists', count: counts.playlists },
         { key: 'mixes', label: ru ? 'Миксы' : 'Mixes', count: mixCount ?? counts.mixes },
-        { key: 'originals', label: 'Tracks', count: originalCount ?? counts.originals },
+        { key: 'originals', label: ru ? 'Треки' : 'Tracks', count: originalCount ?? counts.originals },
         { key: 'favorites', label: ru ? 'Избранное' : 'Favorites', count: counts.favorites },
       ]}
       genres={styleCounts} selectedGenres={activeStyles} maxGenres={MAX_SELECTED_STYLES}
@@ -1368,7 +1394,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
       return <article data-index={i} onFocus={() => setHovered(i)} onBlur={e => {if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHovered(null);}} onClick={() => setHovered(i)}
         onDragOver={e => {const target=r.tracks[0];if(activePlaylist&&dragTrack&&target){e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:target.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}
         onDrop={e => {const target=r.tracks[0];if(!activePlaylist||!dragTrack||!target)return;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();void movePlaylistTrack(dragTrack,target.id,e.clientY<rect.top+rect.height/2?'before':'after');setDragTrack(null);setDropTarget(null);suppressTrackClick.current=performance.now()+250;}}
-        className={`paper-list-tracks${isTrackCollection ? ' is-compact-track' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`} key={`tracks-${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} style={{ top: (gridBounds.top + 12 + Math.floor(i / columns)*cell)*(1-listMix) + listLayout.positions[i]*listMix, opacity:listMix, pointerEvents:isTrackListInteractive ? 'auto':'none' }}>
+        className={`paper-list-tracks${isTrackCollection ? ' is-compact-track' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`} data-release-id={r.id} key={`tracks-${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} style={{ top: (gridBounds.top + 12 + Math.floor(i / columns)*cell)*(1-listMix) + listLayout.positions[i]*listMix, '--release-divider-y': `${((mobileCardHeights[r.id] ?? listSize) + (listLayout.positions[i + 1] ?? listLayout.height - gridBounds.bottom) - listLayout.positions[i]) / 2}px`, opacity:listMix, pointerEvents:isTrackListInteractive ? 'auto':'none' } as CSSProperties}>
         {!isTrackCollection && <>{!mixesMode && <h2><span>{r.artist} : <span className="paper-release-title-regular">{r.title}</span></span>{r.year ? <time dateTime={String(r.year)}>{r.year}</time> : null}</h2>}{getBackCoverUrl(r) ? <button type="button" className="paper-list-cover-flip" aria-pressed={flippedListCovers.has(r.id)} aria-label={ru?'Перевернуть обложку':'Flip cover'} title={ru?'Перевернуть обложку':'Flip cover'} onClick={event=>{event.stopPropagation();setFlippedListCovers(current=>{const next=new Set(current);if(next.has(r.id))next.delete(r.id);else next.add(r.id);return next;});}}><Rotate3D size={16}/></button> : null}</>}
         {mixesMode ? <ShelfMixTrack release={r} lang={uiLang} queueReleases={releases} yearInHeading timelineControls actions={null} onCommentsOpenChange={(open,count)=>setOpenMixComments(current=>{const next=new Map(current);if(open)next.set(r.id,count);else next.delete(r.id);return next;})} /> : r.tracks.map(t => <div key={t.id} className={`paper-track-line${dragTrack === t.id ? ' is-dragging' : ''}${dropTarget?.trackId === t.id ? ` is-drop-${dropTarget.side}` : ''}${currentTrack?.id === t.id ? ' is-playing' : ''}`}
           draggable={Boolean(activePlaylist) && !savingOrder && isTrackListInteractive}
@@ -1409,7 +1435,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
       <button type="button" className="paper-section-collection" aria-current={(pendingSection ? pendingSection==='collection' : !showPlaylists && !activePlaylist && !favoritesMode && !mixesMode) ? 'page' : undefined} onClick={() => {if (mixesMode || favoritesMode) navigateSection('/','collection');else {setPendingSection(null);selectPlaylist(null);}}}><Library size={17} /><span>{ru ? 'Коллекция' : 'Collection'} <sup>{collectionCount ?? counts.releases}</sup></span></button>
       <button aria-expanded={showPlaylists} aria-current={(pendingSection ? pendingSection==='playlists' : showPlaylists || Boolean(activePlaylist)) ? 'page' : undefined} aria-controls="paper-playlists-panel" onClick={() => {if (mixesMode || favoritesMode) {navigateSection('/?view=playlists','playlists');return;}setPendingSection(null);if (showPlaylists) {setShowPlaylists(false);return;}setShowPlaylists(true);const first=playlists[0];if(first)selectPlaylist(first.id);}}><ListMusic size={17} /><span>{ru ? 'Плейлисты' : 'Playlists'} <sup>{counts.playlists}</sup></span></button>
       <button type="button" aria-current={(pendingSection ? pendingSection==='mixes' : mixesMode && !originalsMode && !showPlaylists && !activePlaylist) ? 'page' : undefined} className="paper-section-mixes" onClick={()=>{if(!mixesMode || originalsMode)navigateSection('/mixes','mixes');else {setPendingSection(null);setShowPlaylists(false);}}}><Disc3 size={17} /><span>{ru ? 'Миксы' : 'Mixes'} <sup>{mixCount ?? counts.mixes}</sup></span></button>
-      <button type="button" aria-current={(pendingSection ? pendingSection==='originals' : originalsMode && !showPlaylists && !activePlaylist) ? 'page' : undefined} className="paper-section-originals" onClick={()=>{if(!originalsMode)navigateSection('/tracks','originals');else {setPendingSection(null);setShowPlaylists(false);}}}><AudioLines size={17} /><span>Tracks <sup>{originalCount ?? counts.originals}</sup></span></button>
+      <button type="button" aria-current={(pendingSection ? pendingSection==='originals' : originalsMode && !showPlaylists && !activePlaylist) ? 'page' : undefined} className="paper-section-originals" onClick={()=>{if(!originalsMode)navigateSection('/tracks','originals');else {setPendingSection(null);setShowPlaylists(false);}}}><AudioLines size={17} /><span>{ru ? 'Треки' : 'Tracks'} <sup>{originalCount ?? counts.originals}</sup></span></button>
       <button type="button" aria-current={(pendingSection ? pendingSection==='favorites' : favoritesMode && !showPlaylists && !activePlaylist) ? 'page' : undefined} className="paper-section-favorites" onClick={()=>{if(!favoritesMode)navigateSection('/favorites','favorites');else {setPendingSection(null);setShowPlaylists(false);}}}><Heart size={17} /><span>{ru ? 'Избранное' : 'Favorites'} <sup>{counts.favorites}</sup></span></button>
     </nav>
     <nav id="paper-playlists-panel" className="paper-playlists" aria-label="Playlists" data-open={showPlaylists} aria-hidden={!showPlaylists} inert={!showPlaylists}>
