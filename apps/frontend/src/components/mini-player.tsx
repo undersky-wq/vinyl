@@ -79,6 +79,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   } = usePlayer();
   useMiniPlayerLayoutMotion(miniPlayerRef, Boolean(currentTrack));
   const [dragProgress, setDragProgress] = useState<number | null>(null);
+  const seekPointerRef = useRef<number | null>(null);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const fullArtwork = usePlayerArtwork(currentTrack, isFullPlayerOpen);
@@ -384,9 +385,28 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             value={Number.isFinite(displayProgress) ? displayProgress : 0}
             className="progress-slider"
             aria-label={lang === 'ru' ? 'Перемотка трека' : 'Seek track'}
-            onInput={(event) => setDragProgress(Number(event.currentTarget.value))}
+            onPointerDown={(event) => {
+              if (!event.isPrimary || event.button !== 0) return;
+              seekPointerRef.current = event.pointerId;
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerUp={(event) => {
+              if (seekPointerRef.current !== event.pointerId) return;
+              seekPointerRef.current = null;
+              seekToPercent(Number(event.currentTarget.value));
+              setDragProgress(null);
+            }}
+            onLostPointerCapture={(event) => {
+              if (seekPointerRef.current !== event.pointerId) return;
+              seekPointerRef.current = null;
+              setDragProgress(null);
+            }}
             onChange={(event) => {
               const nextValue = Number(event.currentTarget.value);
+              if (seekPointerRef.current !== null) {
+                setDragProgress(nextValue);
+                return;
+              }
               seekToPercent(nextValue);
               setDragProgress(null);
             }}

@@ -16,7 +16,7 @@ import { createShuffleCycle } from '../lib/shuffle-cycle';
 import { useAuth } from './auth-provider';
 import { hasNativePlayer } from '../lib/native-player';
 import { useNativePlayer } from './use-native-player';
-import { isIOSWebKit, watchPersistentAudioStall } from '../lib/audio-stall-guard';
+import { watchPersistentAudioStall } from '../lib/audio-stall-guard';
 import { configureMusicAudioSession } from '../lib/music-audio-session';
 import { getMediaArtwork, getMediaMetadataKey, startMediaArtworkUpdate } from '../lib/media-artwork-update';
 import { preparePlayerState, readPlayerState, writePlayerState } from '../lib/player-storage';
@@ -463,19 +463,17 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
 
       if (
         pendingSeekPercentRef.current !== null &&
+        loadedTrackIdRef.current === currentTrackRef.current?.id &&
         Number.isFinite(audio.duration) &&
         audio.duration > 0
       ) {
         const normalizedPercent = Math.max(0, Math.min(pendingSeekPercentRef.current, 100));
         const nextTime = (audio.duration * normalizedPercent) / 100;
-        if (typeof audio.fastSeek === 'function') {
-          audio.fastSeek(nextTime);
-        } else {
-          audio.currentTime = nextTime;
-        }
+        pendingSeekPercentRef.current = null;
+        audio.currentTime = nextTime;
         setCurrentTime(nextTime);
         setProgress(normalizedPercent);
-        pendingSeekPercentRef.current = null;
+        if (playbackRequestedRef.current) void safelyPlay(audio);
       }
     };
 
@@ -625,16 +623,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       console.warn('Audio element error', audio.error);
     };
 
-    const onStalled = () => {
-      if (currentTrackRef.current && !audio.paused && !audio.ended) {
-        void recoverCurrentTrack();
-      }
-    };
-
-    const iosWebKit = isIOSWebKit(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
-    const stopStallGuard = iosWebKit
-      ? watchPersistentAudioStall(audio, () => void recoverCurrentTrack(true))
-      : null;
+    const stopStallGuard = watchPersistentAudioStall(audio, () => void recoverCurrentTrack(true));
 
     const syncAfterPageResume = () => {
       syncPlaybackState();
@@ -653,7 +642,6 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
-    if (!iosWebKit) audio.addEventListener('stalled', onStalled);
     window.addEventListener('pageshow', syncAfterPageResume);
     document.addEventListener('visibilitychange', syncAfterPageResume);
 
@@ -662,7 +650,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       disposed = true;
-      stopStallGuard?.();
+      stopStallGuard();
       if (pendingRestore) audio.removeEventListener('loadedmetadata', pendingRestore);
       audio.removeEventListener('timeupdate', syncPlaybackState);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
@@ -672,7 +660,6 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
-      audio.removeEventListener('stalled', onStalled);
       window.removeEventListener('pageshow', syncAfterPageResume);
       document.removeEventListener('visibilitychange', syncAfterPageResume);
     };
@@ -782,6 +769,15 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     const sameTrackLoaded = loadedTrackIdRef.current === currentTrack.id && Boolean(audio.src);
 
     if (sameTrackLoaded) {
+      const percent = pendingSeekPercentRef.current;
+      if (percent !== null && Number.isFinite(audio.duration) && audio.duration > 0) {
+        pendingSeekPercentRef.current = null;
+        const nextTime = audio.duration * percent / 100;
+        audio.currentTime = nextTime;
+        setCurrentTime(nextTime);
+        setProgress(percent);
+        if (audio.paused && playbackRequestedRef.current) void safelyPlay(audio);
+      }
       return;
     }
 
@@ -792,10 +788,10 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     setProgress(0);
     setDuration(0);
 
-    void safelyPlay(audio);
+    if (pendingSeekPercentRef.current === null) void safelyPlay(audio);
   }, [currentTrack]);
 
-  const setQueueState = useCallback((tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
+  const setQueueState = useCallback((tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[], seekPercent: number | null = null) => {
     const origin = new URL(window.location.href);
     const layout = document.querySelector('.paper-archive')?.getAttribute('data-layout');
     if (layout) origin.searchParams.set('layout', layout);
@@ -815,6 +811,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     sharedQueue = playableTracks;
+    pendingSeekPercentRef.current = seekPercent;
     automaticStartRef.current = null;
     playbackRequestedRef.current = true;
     sharedDisplayQueue = (displayTracks || playableTracks).filter((track) => Boolean(track.audioUrl)).map(track=>cachedTrackArtwork(track,releaseArtworkCache.current));
@@ -853,9 +850,9 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   }, [playQueue]);
 
   const playQueueAtPercent = useCallback((tracks: PlayerTrack[], startIndex: number, percent: number) => {
-    pendingSeekPercentRef.current = Math.max(0, Math.min(percent, 100));
-    playQueue(tracks, startIndex);
-  }, [playQueue]);
+    shuffleCycleRef.current.reset();
+    setQueueState(tracks, startIndex, undefined, Math.max(0, Math.min(percent, 100)));
+  }, [setQueueState]);
 
   const replaceQueuePreservingCurrent = useCallback((tracks: PlayerTrack[], displayTracks?: PlayerTrack[]) => {
     const activeTrack = currentTrackRef.current;
@@ -984,11 +981,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
 
     const normalizedPercent = Math.max(0, Math.min(percent, 100));
     const nextTime = (audio.duration * normalizedPercent) / 100;
-    if (typeof audio.fastSeek === 'function') {
-      audio.fastSeek(nextTime);
-    } else {
-      audio.currentTime = nextTime;
-    }
+    if (Math.abs(audio.currentTime - nextTime) > 0.001) audio.currentTime = nextTime;
     setCurrentTime(nextTime);
     setProgress(normalizedPercent);
     updateMediaSessionPosition(audio);

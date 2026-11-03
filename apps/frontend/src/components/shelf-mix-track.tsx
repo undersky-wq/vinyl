@@ -134,6 +134,7 @@ export function ShelfMixTrack({
     const audio=getAudioElement();
     if(!isCurrent || !audio){setProgress(0);setElapsed(0);setAudioDuration(0);return;}
     const sync=()=>{
+      if (audio.seeking) return;
       const total=Number.isFinite(audio.duration) && audio.duration>0 ? audio.duration : duration;
       setProgress(total ? Math.max(0,Math.min(100,audio.currentTime/total*100)) : 0);
       setElapsed(Math.max(0,audio.currentTime));
@@ -149,8 +150,12 @@ export function ShelfMixTrack({
     const second=Math.floor(totalDuration*percent/100);
     setCommentSecond(second);
     const audio=getAudioElement();
-    if(isCurrent && audio && Number.isFinite(audio.duration) && audio.duration>0){seekToPercent(percent);if(resume && !isPlaying)togglePlayback();}
-    else playQueueAtPercent(queue,queueIndex,percent);
+    if (isCurrent && audio && Number.isFinite(audio.duration) && audio.duration > 0) {
+      seekToPercent(percent);
+      setProgress(percent);
+      setElapsed(audio.duration * percent / 100);
+      if (resume && !isPlaying) togglePlayback();
+    } else playQueueAtPercent(queue,queueIndex,percent);
   }
 
   function pointerProgress(event: React.PointerEvent<HTMLButtonElement> | React.MouseEvent<HTMLButtonElement>) {
@@ -229,7 +234,7 @@ export function ShelfMixTrack({
           aria-label={release.isOriginal ? (lang==='ru'?'Перемотать трек':'Seek track') : (lang==='ru'?'Перемотать микс':'Seek mix')}>
           {peaks.map((peak,index)=><span key={index} className={(index/Math.max(1,peaks.length-1))*100<=(previewProgress ?? progress)?'is-active':''} style={{...barStyle(index),height:`${Math.max(2,Math.round(peak*100))}%`} as CSSProperties}/>)}
         </button>
-        <TimelineCommentMarkers comments={comments} durationSec={totalDuration} />
+        <TimelineCommentMarkers comments={comments} durationSec={duration > 0 ? duration : totalDuration} />
       </div>
       {timelineControls ? <div className="paper-mix-timecodes">
         <time aria-label={lang==='ru'?'Прошедшее время':'Elapsed time'}>{formatSecondsAsClock(previewProgress === null ? elapsed : totalDuration * previewProgress / 100)}</time>
