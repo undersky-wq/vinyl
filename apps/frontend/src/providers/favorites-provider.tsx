@@ -50,6 +50,7 @@ export function FavoritesProvider({
 
       try {
         const result = await toggleFavoriteTrack(trackId);
+        window.dispatchEvent(new CustomEvent('vinyl:favorite-saved', { detail: trackId }));
         setFavoriteTrackIds((current) =>
           result.active
             ? [...new Set([...current, trackId])]

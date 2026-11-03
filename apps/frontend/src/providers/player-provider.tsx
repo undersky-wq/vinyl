@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -336,7 +337,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     return () => {cancelled=true;};
   },[currentTrack?.releaseId]);
 
-  function startQueuedTrack(index: number) {
+  const startQueuedTrack = useCallback((index: number) => {
     const queuedTrack = queueRef.current[index];
     const track = queuedTrack ? cachedTrackArtwork(queuedTrack,releaseArtworkCache.current) : undefined;
     const audio = audioRef.current;
@@ -362,7 +363,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     setCurrentIndex(index);
     setCurrentTrack(track);
     setDisplayQueue(sharedDisplayQueue);
-  }
+  }, []);
 
   useEffect(() => {
     const audio = getSharedAudio();
@@ -794,7 +795,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     void safelyPlay(audio);
   }, [currentTrack]);
 
-  const setQueueState = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
+  const setQueueState = useCallback((tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
     const origin = new URL(window.location.href);
     const layout = document.querySelector('.paper-archive')?.getAttribute('data-layout');
     if (layout) origin.searchParams.set('layout', layout);
@@ -830,14 +831,14 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     setCurrentTrack(nextTrack);
 
     return nextTrack;
-  };
+  }, [requirePlayback]);
 
-  const playQueue = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
+  const playQueue = useCallback((tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
     shuffleCycleRef.current.reset();
     setQueueState(tracks, startIndex, displayTracks);
-  };
+  }, [setQueueState]);
 
-  const prepareQueue = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
+  const prepareQueue = useCallback((tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
     playbackRequestedRef.current = false;
     const audio = audioRef.current;
     if (audio) {
@@ -845,18 +846,18 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     }
     setIsPlaying(false);
     setQueueState(tracks, startIndex, displayTracks);
-  };
+  }, [setQueueState]);
 
-  const playTrack = (track: PlayerTrack) => {
+  const playTrack = useCallback((track: PlayerTrack) => {
     playQueue([track], 0);
-  };
+  }, [playQueue]);
 
-  const playQueueAtPercent = (tracks: PlayerTrack[], startIndex: number, percent: number) => {
+  const playQueueAtPercent = useCallback((tracks: PlayerTrack[], startIndex: number, percent: number) => {
     pendingSeekPercentRef.current = Math.max(0, Math.min(percent, 100));
     playQueue(tracks, startIndex);
-  };
+  }, [playQueue]);
 
-  const replaceQueuePreservingCurrent = (tracks: PlayerTrack[], displayTracks?: PlayerTrack[]) => {
+  const replaceQueuePreservingCurrent = useCallback((tracks: PlayerTrack[], displayTracks?: PlayerTrack[]) => {
     const activeTrack = currentTrackRef.current;
     if (!activeTrack) {
       return;
@@ -883,9 +884,9 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     setQueue(playableTracks);
     setDisplayQueue(nextDisplayQueue);
     setCurrentIndex(nextIndex);
-  };
+  }, []);
 
-  const playNext = () => {
+  const playNext = useCallback(() => {
     const queueSize = queueRef.current.length;
     if (!queueSize) {
       return;
@@ -908,9 +909,9 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     startQueuedTrack(nextIndex);
-  };
+  }, [startQueuedTrack]);
 
-  const playPrevious = () => {
+  const playPrevious = useCallback(() => {
     const audio = audioRef.current;
     if (audio && audio.currentTime > 3) {
       audio.currentTime = 0;
@@ -950,9 +951,10 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     setCurrentIndex(previousIndex);
     setCurrentTrack(previousTrack);
     setDisplayQueue(sharedDisplayQueue);
-  };
+  }, []);
 
-  const togglePlayback = () => {
+  const togglePlayback = useCallback(() => {
+    const currentTrack = currentTrackRef.current;
     if (!requirePlayback(currentTrack?.isPublic === true, currentTrack?.isOriginal === true)) {
       return;
     }
@@ -970,11 +972,11 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     void safelyPlay(audio);
-  };
+  }, [requirePlayback]);
 
-  const getAudioElement = () => audioRef.current;
+  const getAudioElement = useCallback(() => audioRef.current, []);
 
-  const seekToPercent = (percent: number) => {
+  const seekToPercent = useCallback((percent: number) => {
     const audio = audioRef.current;
     if (!audio || !Number.isFinite(audio.duration) || audio.duration <= 0) {
       return;
@@ -990,9 +992,9 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     setCurrentTime(nextTime);
     setProgress(normalizedPercent);
     updateMediaSessionPosition(audio);
-  };
+  }, []);
 
-  const setVolume = (value: number) => {
+  const setVolume = useCallback((value: number) => {
     const audio = audioRef.current;
     const nextVolume = Math.max(0, Math.min(value, 1));
     sharedVolume = nextVolume;
@@ -1001,22 +1003,22 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     if (audio) {
       audio.volume = nextVolume;
     }
-  };
+  }, []);
 
-  const toggleShuffle = () => {
+  const toggleShuffle = useCallback(() => {
     shuffleCycleRef.current.reset();
     const nextValue = !shuffleEnabledRef.current;
     shuffleEnabledRef.current = nextValue;
     sharedIsShuffleEnabled = nextValue;
     setIsShuffleEnabled(nextValue);
-  };
+  }, []);
 
-  const toggleRepeat = () => {
+  const toggleRepeat = useCallback(() => {
     const nextValue = !repeatEnabledRef.current;
     repeatEnabledRef.current = nextValue;
     sharedIsRepeatEnabled = nextValue;
     setIsRepeatEnabled(nextValue);
-  };
+  }, []);
 
   const canPlayPrevious =
     queue.length > 1 &&
@@ -1168,7 +1170,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     updateMediaSessionPosition(audioRef.current);
   }, [currentTime, duration]);
 
-  const transportValue = {
+  const transportValue = useMemo(() => ({
     currentTrack,
     queue,
     displayQueue,
@@ -1179,7 +1181,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     isRepeatEnabled,
     canPlayPrevious,
     canPlayNext,
-  };
+  }), [currentTrack, queue, displayQueue, currentIndex, isPlaying, volume, isShuffleEnabled, isRepeatEnabled, canPlayPrevious, canPlayNext]);
 
   const progressValue = {
     progress,
@@ -1187,7 +1189,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     duration,
   };
 
-  const actionsValue = {
+  const actionsValue = useMemo(() => ({
     playTrack,
     playQueue,
     prepareQueue,
@@ -1201,7 +1203,8 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     toggleRepeat,
     togglePlayback,
     getAudioElement,
-  };
+  }), [playTrack, playQueue, prepareQueue, playQueueAtPercent, replaceQueuePreservingCurrent,
+    playPrevious, playNext, setVolume, seekToPercent, toggleShuffle, toggleRepeat, togglePlayback, getAudioElement]);
 
   return (
     <PlayerTransportContext.Provider value={transportValue}>

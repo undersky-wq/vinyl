@@ -55,11 +55,12 @@ export function ShelfMixTrack({
 }) {
   const router = useRouter();
   const {user} = useAuth();
-  const {isFavorite, toggleFavorite, favoriteTrackIds} = useFavorites();
+  const {isFavorite, toggleFavorite} = useFavorites();
   const [engagement, setEngagement] = useState<MusicEngagement | null>(null);
   const {currentTrack, isPlaying} = usePlayerTransport();
   const {getAudioElement, playQueue, playQueueAtPercent, seekToPercent, togglePlayback} = usePlayerActions();
   const track = release.tracks.find(item => item.audioUrl) || release.tracks[0];
+  const trackId = track?.id;
   const queue = useMemo(() => musicPageQueue(queueReleases || [release]),[queueReleases,release]);
   const queueIndex = queue.findIndex(item => item.id === track?.id);
   const sourcePeaks = track?.waveformData?.length ? track.waveformData : buildFallbackWaveform(`${release.id}-${release.title}`);
@@ -105,11 +106,23 @@ export function ShelfMixTrack({
   useEffect(() => {
     let cancelled = false;
     const refresh = () => { void getMusicEngagement(release.id).then(value => { if (!cancelled) setEngagement(value); }).catch(() => undefined); };
+    const onEngagement = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === release.id) refresh();
+    };
+    const onFavoriteSaved = (event: Event) => {
+      if (trackId && (event as CustomEvent<string>).detail === trackId) refresh();
+    };
     refresh();
-    window.addEventListener('music-engagement', refresh);
+    window.addEventListener('music-engagement', onEngagement);
+    window.addEventListener('vinyl:favorite-saved', onFavoriteSaved);
     window.addEventListener('focus', refresh);
-    return () => { cancelled = true; window.removeEventListener('music-engagement', refresh); window.removeEventListener('focus', refresh); };
-  }, [release.id, favoriteTrackIds]);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('music-engagement', onEngagement);
+      window.removeEventListener('vinyl:favorite-saved', onFavoriteSaved);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [release.id, trackId]);
 
   useEffect(() => {
     let cancelled=false;
