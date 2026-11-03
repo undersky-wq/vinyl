@@ -42,8 +42,29 @@ const ordered = collectionExports.orderCollectionQueue([
   {id:'excluded',releaseId:'excluded',audioUrl:'/other'},
 ], ['a','b']);
 assert.equal(ordered.map(track=>track.id).join(','),'a2,a10,b2');
+const canExtend = collectionExports.canExtendCollectionQueue;
+assert.equal(canExtend({id:'a2'}, 'a2', ['a','b']), true);
+assert.equal(canExtend({id:'b2',releaseId:'b',playbackSource:{section:'collection'}}, 'a2', ['a','b']), true);
+assert.equal(canExtend({id:'b2',releaseId:'b',playbackSource:{section:'favorites'}}, 'a2', ['a','b']), false);
+assert.equal(canExtend({id:'c1',releaseId:'c',playbackSource:{section:'collection'}}, 'a2', ['a','b']), false);
+assert.equal(canExtend(null, 'a2', ['a','b']), false);
 assert(archive.includes('const queue = releases.flatMap'));
 assert(archive.includes('getCollectionPlaybackQueue()'));
-assert(archive.includes('replaceQueuePreservingCurrent(fullQueue'));
+assert(archive.includes('replaceCollectionQueueRef.current(fullQueue'));
+assert(archive.includes('collectionReleaseIds, currentTrack'));
+const active = {id:'playing',releaseId:'removed',audioUrl:'/playing',playbackSource:{section:'collection'}};
+const live = collectionExports.liveCollectionQueue([
+  {id:'a',releaseId:'one',audioUrl:'/a'},
+  {id:'b',releaseId:'two',audioUrl:'/b'},
+], ['two'], active);
+assert.equal(live.map(track=>track.id).join(','),'playing,b');
+assert.equal(live[0].id, active.id);
+assert.equal(live[0].queueAnchorOnly, true);
+assert.equal(collectionExports.liveCollectionQueue([],[],active).length,1);
+const changed = collectionExports.liveCollectionQueue([
+  {id:'a',releaseId:'one',audioUrl:'/a'},
+  {id:'b',releaseId:'two',audioUrl:'/b'},
+], ['one','two'], active);
+assert.equal(changed.map(track=>track.id).join(','),'playing,a,b');
 assert(archive.includes('queueReleases={releases}'));
 console.log('PASS: page order, selected start index, next/previous, locked audio excluded, originals metadata and independent favorites queue');

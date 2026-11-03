@@ -1,0 +1,13 @@
+.shelf-disc-transition{--disc-direction:1;position:absolute;inset:0;display:block;pointer-events:none;transform-style:preserve-3d}
+.shelf-disc-transition.is-reverse{--disc-direction:-1}
+.shelf-disc-layer{position:absolute;inset:0;display:block;transform-style:preserve-3d}
+/* Each disc keeps its own side while the next disc loads and enters. */
+.paper-archive .paper-record .shelf-disc-layer>.paper-record-front{transform:rotateY(0deg)}
+.paper-archive .paper-record .shelf-disc-layer>.paper-record-back{transform:rotateY(180deg)}
+.paper-archive .paper-record .shelf-disc-layer[data-back='true']>.paper-record-front{transform:rotateY(-180deg)}
+.paper-archive .paper-record .shelf-disc-layer[data-back='true']>.paper-record-back{transform:rotateY(0deg)}
+.shelf-disc-layer.is-outgoing{z-index:1;animation:shelf-disc-exit .55s cubic-bezier(.22,1,.36,1) both}
+.shelf-disc-layer.is-entering{z-index:2;animation:shelf-disc-enter .55s cubic-bezier(.22,1,.36,1) both}
+@keyframes shelf-disc-enter{from{opacity:0;transform:translateX(calc(var(--disc-direction)*22px)) scale(.97)}to{opacity:1;transform:translateX(0) scale(1)}}
+@keyframes shelf-disc-exit{from{opacity:1;transform:translateX(0) scale(1)}to{opacity:0;transform:translateX(calc(var(--disc-direction)*-22px)) scale(.97)}}
+@media(prefers-reduced-motion:reduce){.shelf-disc-layer.is-outgoing,.shelf-disc-layer.is-entering{animation:none}}

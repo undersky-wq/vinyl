@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Alert, Animated, BackHandler, Easing, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ChevronDown, Disc3, Download, Heart, Library, ListMusic, Moon, Sun, X } from 'lucide-react-native';
+import { AudioLines, ChevronDown, Disc3, Download, Heart, Library, ListMusic, Moon, Sun, X } from 'lucide-react-native';
 import { ReleaseCover } from '../components/ReleaseCover';
 import { getHomeReleases, getLibraryFeedFiltered, getRelease, getReleaseStyles } from '../lib/api';
 import { useDebouncedValue } from '../lib/use-debounced-value';
@@ -8,13 +8,17 @@ import { archiveGeometry, archiveStep, archiveWindow, clampPosition, expandedCov
 import { ArchiveTrackList } from '../components/ArchiveTrackList';
 import { ArchiveTracksView } from '../components/ArchiveTracksView';
 import { ArchiveGridView } from '../components/ArchiveGridView';
+import { ArchiveModeIcon } from '../components/ArchiveModeIcon';
+import { CountedLabel } from '../components/CountedLabel';
+import { getDownloadedTracks } from '../lib/offline-audio';
+import { downloadArchiveItems } from '../lib/download-archive';
 import { archiveMomentum } from '../lib/archive-momentum';
 import { archiveSectionColor, ARCHIVE_SECTION_COLORS } from '../lib/archive-section-colors';
 import { MINI_PLAYER_MASK_HEIGHT } from '../lib/mini-player-layout';
 import { playlistArchiveItems, archiveItemKey } from '../lib/playlist-archive';
 import { buildPlayableReleaseTracks } from '../lib/release-player-tracks';
 import { adaptiveStyles, colors, type ThemeMode } from '../theme';
-import type { LanguageProps, PlayerTrack, Playlist, Release, TabKey, Track } from '../types';
+import type { AuthUser, LanguageProps, PlayerTrack, Playlist, Release, TabKey, Track } from '../types';
 
 type Props = LanguageProps & {
   isActive?: boolean; isAdmin?: boolean; avatarUrl?: string | null;
@@ -24,7 +28,8 @@ type Props = LanguageProps & {
   onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
   onTogglePlayback: () => void;
   playlistLibrary?: { playlists: Playlist[]; requiresSignIn: boolean; onManage: () => void };
-  section?: 'collection' | 'favorites' | 'mixes'; favorites?: Track[]; requiresSignIn?: boolean;
+  section?: 'collection' | 'favorites' | 'mixes' | 'originals' | 'downloads'; favorites?: Track[]; requiresSignIn?: boolean;
+  currentUser?: AuthUser | null; onPlayAt?: (track: PlayerTrack, second: number, queue?: PlayerTrack[]) => void;
   favoriteIds?: Set<string>; onFavoriteTrack?: (id: string) => void; showTrackMeta?: boolean;
   playlists?: Playlist[]; onPlaylistToggle?: (playlist: Playlist, trackId: string) => Promise<void>;
 };
@@ -52,6 +57,9 @@ const Sleeve = memo(function Sleeve({ index, release, geometry, origin, mode, mo
   const opacity = useRef(new Animated.Value(geometry.opacity ?? 1)).current;
   const wasBrowsing = useRef(browsing);
   const previousMode = useRef(mode);
+  const returningFromList = previousMode.current !== mode
+    && (previousMode.current === 'tracks' || previousMode.current === 'grid')
+    && (mode === 'shelf' || mode === 'stack');
   const offset = useMemo(() => Animated.subtract(scroll, anchor), [scroll, anchor]);
   const translateX = useMemo(() => Animated.add(values.x, Animated.multiply(offset, scrollX)), [values, offset, scrollX]);
   const translateY = useMemo(() => Animated.add(values.y, Animated.multiply(offset, scrollY)), [values, offset, scrollY]);
@@ -66,7 +74,7 @@ const Sleeve = memo(function Sleeve({ index, release, geometry, origin, mode, mo
   useLayoutEffect(() => {
     const target = { x: geometry.x + geometry.size / 2 - COVER_BASE / 2, y: geometry.y + geometry.size / 2 - COVER_BASE / 2 };
     const labelTarget = { x: geometry.x + 60, y: geometry.y };
-    const direct = moving || reducedMotion || (browsing && wasBrowsing.current);
+    const direct = returningFromList || moving || reducedMotion || (browsing && wasBrowsing.current);
     wasBrowsing.current = browsing;
     if (direct) { values.setValue(target); labelPosition.setValue(labelTarget); return; }
     const animation = Animated.parallel([
@@ -74,14 +82,14 @@ const Sleeve = memo(function Sleeve({ index, release, geometry, origin, mode, mo
       Animated.timing(labelPosition, { toValue: labelTarget, duration: 750, easing: Easing.bezier(.16, 1, .3, 1), useNativeDriver: true }),
     ]);
     animation.start(); return () => animation.stop();
-  }, [geometry.x, geometry.y, geometry.size, moving, browsing, reducedMotion]);
+  }, [geometry.x, geometry.y, geometry.size, moving, browsing, reducedMotion, returningFromList]);
   useLayoutEffect(() => {
     const enteringStack = previousMode.current !== mode && mode === 'stack';
     previousMode.current = mode;
     // Perspective is a camera setting, not a distance to tween from 1e6 to 1200.
     // Enter Stack at its final orientation; only transport and scale assemble it.
     perspective.setValue(geometry.perspective);
-    if (enteringStack || reducedMotion) {
+    if (returningFromList || enteringStack || reducedMotion) {
       tilt.setValue(geometry.rotateX); rotation.setValue(geometry.rotateZ); rotationAfter.setValue(geometry.rotateZAfter);
       return;
     }
@@ -92,8 +100,14 @@ const Sleeve = memo(function Sleeve({ index, release, geometry, origin, mode, mo
       Animated.timing(rotationAfter, { ...config, toValue: geometry.rotateZAfter }),
     ]);
     animation.start(); return () => animation.stop();
-  }, [mode, geometry.rotateX, geometry.rotateZ, geometry.rotateZAfter, geometry.perspective, reducedMotion]);
-  useEffect(() => {
+  }, [mode, geometry.rotateX, geometry.rotateZ, geometry.rotateZAfter, geometry.perspective, reducedMotion, returningFromList]);
+  useLayoutEffect(() => {
+    if (returningFromList) {
+      scale.setValue(geometry.scale * geometry.size / COVER_BASE);
+      labels.setValue(tracks ? 1 : 0);
+      opacity.setValue(geometry.opacity ?? 1);
+      return;
+    }
     const config = { duration: reducedMotion ? 0 : 750, easing: Easing.bezier(.16, 1, .3, 1), useNativeDriver: true };
     const animation = Animated.parallel([
       Animated.timing(scale, { ...config, toValue: geometry.scale * geometry.size / COVER_BASE }),
@@ -102,7 +116,7 @@ const Sleeve = memo(function Sleeve({ index, release, geometry, origin, mode, mo
     ]);
     animation.start();
     return () => animation.stop();
-  }, [geometry.size, geometry.scale, geometry.opacity, tracks, reducedMotion]);
+  }, [geometry.size, geometry.scale, geometry.opacity, tracks, reducedMotion, returningFromList]);
   const angles = useMemo(() => [rotation, tilt, rotationAfter].map(value => value.interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] })), [rotation, tilt, rotationAfter]);
   return <View pointerEvents={(geometry.opacity ?? 1) === 0 ? 'none' : 'box-none'} style={[styles.sleeveLayer, { zIndex: geometry.zIndex }]}>
     <Animated.View renderToHardwareTextureAndroid style={[styles.sleeve, { width: COVER_BASE, height: COVER_BASE, opacity, transformOrigin: 'center', transform: [{ translateX }, { translateY }, { perspective }, { rotateZ: angles[0] }, { rotateX: angles[1] }, { rotateZ: angles[2] }, { scale }] }]}>
@@ -110,7 +124,7 @@ const Sleeve = memo(function Sleeve({ index, release, geometry, origin, mode, mo
       <ReleaseCover release={release} isAdmin={isAdmin} style={styles.cover} highQuality={geometry.zIndex === 20000} />
     </Pressable>
     </Animated.View>
-    <Animated.View pointerEvents={tracks ? 'auto' : 'none'} accessibilityElementsHidden={!tracks} importantForAccessibility={tracks ? 'auto' : 'no-hide-descendants'} style={[styles.canvasTrackLabels, { opacity: labels, width: labelWidth, transform: [{ translateX: labelPosition.x }, { translateY: labelY }] }]}><Pressable onPress={() => onPress(index)} style={styles.canvasTrackButton}><View style={styles.trackLabels}><Text style={styles.trackArtist} numberOfLines={1}>{release.artist}</Text><Text style={styles.trackTitle} numberOfLines={1}>{release.title}</Text></View><Text style={styles.trackYear}>{release.year}</Text></Pressable></Animated.View>
+    {mode === 'tracks' && <Animated.View pointerEvents={tracks ? 'auto' : 'none'} accessibilityElementsHidden={!tracks} importantForAccessibility={tracks ? 'auto' : 'no-hide-descendants'} style={[styles.canvasTrackLabels, { opacity: labels, width: labelWidth, transform: [{ translateX: labelPosition.x }, { translateY: labelY }] }]}><Pressable onPress={() => onPress(index)} style={styles.canvasTrackButton}><View style={styles.trackLabels}><Text style={styles.trackArtist} numberOfLines={1}>{release.artist}</Text><Text style={styles.trackTitle} numberOfLines={1}>{release.title}</Text></View><Text style={styles.trackYear}>{release.year}</Text></Pressable></Animated.View>}
   </View>;
 }, (previous, next) => {
   const { geometry: a, ...before } = previous;
@@ -119,9 +133,24 @@ const Sleeve = memo(function Sleeve({ index, release, geometry, origin, mode, mo
     && Object.keys(a).every(key => a[key as keyof CoverGeometry] === b[key as keyof CoverGeometry]);
 });
 
-export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = false, avatarUrl, theme, onToggleTheme, onNavigate, onOpenProfile, activeTrackId, isPlaying = false, onPlayTrack, onTogglePlayback, playlistLibrary, section = 'collection', favorites, requiresSignIn = false, favoriteIds, onFavoriteTrack, showTrackMeta = true, playlists = [], onPlaylistToggle }: Props) {
+export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = false, avatarUrl, theme, onToggleTheme, onNavigate, onOpenProfile, activeTrackId, isPlaying = false, onPlayTrack, onTogglePlayback, playlistLibrary, section = 'collection', favorites, requiresSignIn = false, favoriteIds, onFavoriteTrack, showTrackMeta = true, playlists = [], onPlaylistToggle, currentUser, onPlayAt }: Props) {
   const [catalogReleases, setReleases] = useState<Release[]>([]);
   const [genres, setGenres] = useState<Array<{ name: string; count: number }>>([]);
+  const [sectionTotals,setSectionTotals]=useState<{home:number|null;mixes:number|null;originals:number|null}>({home:null,mixes:null,originals:null});
+  useEffect(()=>{
+    let cancelled=false;
+    setSectionTotals({home:null,mixes:null,originals:null});
+    void Promise.allSettled([
+      getLibraryFeedFiltered(1,0,{isMix:false}),
+      getLibraryFeedFiltered(1,0,{isMix:true}),
+      getLibraryFeedFiltered(1,0,{isOriginal:true}),
+    ]).then(results=>{
+      if(cancelled)return;
+      const total=(index:number)=>{const result=results[index];return result.status==='fulfilled' ? result.value.collectionTotal ?? result.value.total : null;};
+      setSectionTotals({home:total(0),mixes:total(1),originals:total(2)});
+    });
+    return()=>{cancelled=true;};
+  },[currentUser?.id]);
   const [selectedStyle, setSelectedStyle] = useState('');
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<ArchiveMode>('shelf');
@@ -129,7 +158,7 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
   const [moving, setMoving] = useState(false);
   const [shelfAnchor, setShelfAnchor] = useState(0);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
-  const [picker, setPicker] = useState<'sections' | 'genres' | 'playlists' | 'trackPlaylists' | null>(null);
+  const [picker, setPicker] = useState<'sections' | 'genres' | 'music' | 'playlists' | 'trackPlaylists' | null>(null);
   const [playlistTrackId, setPlaylistTrackId] = useState<string | null>(null);
   const [savingPlaylist, setSavingPlaylist] = useState(false);
   const [playlistId, setPlaylistId] = useState('');
@@ -138,6 +167,8 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
   const [error, setError] = useState('');
   const [reducedMotion, setReducedMotion] = useState(false);
   const [selection, setSelection] = useState<ArchiveSelection>(null);
+  const [sectionBottom,setSectionBottom]=useState(240);
+  const headingEntrance=useRef(new Animated.Value(1)).current;
   const [selectionOrigin, setSelectionOrigin] = useState<{ index: number; geometry: CoverGeometry } | null>(null);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -146,18 +177,36 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
   const [detailError, setDetailError] = useState(false);
   const [detailRetry, setDetailRetry] = useState(0);
   const playlistMode = Boolean(playlistLibrary);
-  const trackCollection = playlistMode || section === 'favorites';
-  const mixesMode = section === 'mixes';
+  const downloadsMode = section === 'downloads';
+  const [downloadedTracks, setDownloadedTracks] = useState<PlayerTrack[]>([]);
+  const [downloadError, setDownloadError] = useState(false);
+  useEffect(() => {
+    if (!isActive) return;
+    let cancelled = false;
+    void getDownloadedTracks().then(tracks => {
+      if (!cancelled) { setDownloadedTracks(tracks); setDownloadError(false); }
+    }).catch(() => { if (!cancelled) setDownloadError(true); });
+    return () => { cancelled = true; };
+  }, [isActive, section]);
+  const trackCollection = playlistMode || section === 'favorites' || downloadsMode;
+  const mixesMode = section === 'mixes' || section === 'originals';
   const sectionKey = playlistMode ? 'playlists' : section === 'collection' ? 'home' : section;
   const sectionColor = archiveSectionColor(sectionKey, colors.muted);
   const sectionHighlight = { color: sectionColor };
   const playlistHighlight = { color: ARCHIVE_SECTION_COLORS.playlists };
   const activePlaylist = playlistLibrary?.requiresSignIn ? undefined : playlistLibrary?.playlists.find(item => item.id === playlistId) || playlistLibrary?.playlists[0];
   const debouncedQuery = useDebouncedValue(query);
-  const releases = useMemo(() => playlistMode ? playlistArchiveItems(activePlaylist, debouncedQuery) : section === 'favorites' ? playlistArchiveItems({ items: requiresSignIn ? [] : (favorites || []).map(track => ({ track })) }, debouncedQuery) : catalogReleases, [playlistMode, activePlaylist, section, requiresSignIn, favorites, debouncedQuery, catalogReleases]);
-  const playlistQueue = useMemo(() => trackCollection || mixesMode ? releases.flatMap(buildPlayableReleaseTracks) : undefined, [trackCollection, mixesMode, releases]);
+  const releases = useMemo(() => downloadsMode ? downloadArchiveItems(downloadedTracks, debouncedQuery) : playlistMode ? playlistArchiveItems(activePlaylist, debouncedQuery) : section === 'favorites' ? playlistArchiveItems({ items: requiresSignIn ? [] : (favorites || []).map(track => ({ track })) }, debouncedQuery) : catalogReleases, [downloadsMode, downloadedTracks, playlistMode, activePlaylist, section, requiresSignIn, favorites, debouncedQuery, catalogReleases]);
+  const playlistQueue = useMemo(() => downloadsMode ? downloadedTracks.filter(track => releases.some(release => release.tracks[0]?.id === track.id)) : trackCollection || mixesMode ? releases.flatMap(buildPlayableReleaseTracks) : undefined, [downloadsMode, downloadedTracks, trackCollection, mixesMode, releases]);
   const expanded = selection?.expanded === true;
   const selectedRelease = selection ? releases[selection.index] : null;
+  useEffect(()=>{
+    if(!selectedRelease)return;
+    headingEntrance.setValue(reducedMotion?1:0);
+    const animation=Animated.timing(headingEntrance,{toValue:1,duration:500,easing:Easing.bezier(.2,.7,.2,1),useNativeDriver:true,isInteraction:false});
+    animation.start();
+    return()=>animation.stop();
+  },[selectedRelease?.id,reducedMotion,headingEntrance]);
   const panel = useRef(new Animated.Value(0)).current;
   const chrome = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -181,7 +230,7 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
       setTransitioning(true);
       transitionTimer.current = setTimeout(() => setTransitioning(false), 750);
     }
-    setSelection(current => current?.expanded && mode === 'shelf' ? { ...current, expanded: false } : null);
+    setSelection(null);
   }
   useEffect(() => {
     if (!isActive || !selection) return;
@@ -197,26 +246,30 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
   function stopScroll() {
     motionGeneration.current += 1;
     scroll.stopAnimation(value => {
+      value = clampPosition(Number.isFinite(value) ? value : positionRef.current, releases.length);
       positionRef.current = value; windowPosition.current = Math.floor(value);
       setPosition(value); setMoving(false);
     });
   }
   useEffect(() => {
     const listener = scroll.addListener(({ value }) => {
+      if (!Number.isFinite(value)) return;
       positionRef.current = value;
-      // Only reconcile the cover window when a release boundary is crossed.
-      if (Math.floor(value) !== windowPosition.current) {
+      // Shelf's shared native transport needs new covers only near the window edge.
+      const windowStep = mode === 'shelf' ? 4 : 1;
+      if (Math.abs(Math.floor(value) - windowPosition.current) >= windowStep) {
         windowPosition.current = Math.floor(value); setPosition(value);
       }
     });
     return () => { motionGeneration.current += 1; scroll.removeListener(listener); scroll.stopAnimation(); };
-  }, [scroll]);
+  }, [scroll, mode]);
   useEffect(() => { if (!isActive) stopScroll(); }, [isActive]);
   const dragOrigin = useRef(0);
   const dragSelection = useRef<number | null>(null);
   const dragSelectionStep = useRef(0);
   const gridPhase = useRef(0);
   const [transitioning, setTransitioning] = useState(false);
+  const [canvasEntrance, setCanvasEntrance] = useState(false);
   const [transitionIndices, setTransitionIndices] = useState<number[]>([]);
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (transitionTimer.current) clearTimeout(transitionTimer.current); }, []);
@@ -226,9 +279,11 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
     setSelection(null);
     setSelectionOrigin(null);
     if (transitionTimer.current) clearTimeout(transitionTimer.current);
+    const betweenLists = (mode === 'grid' || mode === 'tracks') && (next === 'grid' || next === 'tracks');
+    setCanvasEntrance((mode === 'tracks' || mode === 'grid') && (next === 'shelf' || next === 'stack'));
     if (next === 'grid') gridPhase.current = position % 4;
     setTransitionIndices(current => [...new Set([...current, ...archiveWindow(position, releases.length, mode), ...archiveWindow(position, releases.length, next)])]);
-    setMoving(false); setTransitioning(!reducedMotion); setMode(next);
+    setMoving(false); setTransitioning(!reducedMotion && !betweenLists); setMode(next);
     transitionTimer.current = setTimeout(() => { setTransitioning(false); setTransitionIndices([]); }, reducedMotion ? 0 : 950);
   }
   const ru = lang === 'ru';
@@ -253,7 +308,7 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
     const id = ++request.current;
     busy.current = true; setLoading(true); setError('');
     const filters = { styles: selectedStyle ? [selectedStyle] : [], search: debouncedQuery };
-    const page = mixesMode ? getLibraryFeedFiltered(PAGE_SIZE, 0, { ...filters, isMix: true }, controller.signal).then(feed => ({ releases: feed.releases, hasMore: feed.hasMore })) : getHomeReleases(PAGE_SIZE, 0, filters, controller.signal).then(items => ({ releases: items, hasMore: items.length === PAGE_SIZE }));
+    const page = mixesMode ? getLibraryFeedFiltered(PAGE_SIZE, 0, { ...filters, ...(section === 'originals' ? { isOriginal: true } : { isMix: true }) }, controller.signal).then(feed => ({ releases: feed.releases, hasMore: feed.hasMore })) : getHomeReleases(PAGE_SIZE, 0, filters, controller.signal).then(items => ({ releases: items, hasMore: items.length === PAGE_SIZE }));
     void page.then(({ releases: next, hasMore: more }) => {
       if (controller.signal.aborted || id !== request.current) return;
       stopScroll(); scroll.setValue(0); windowPosition.current = 0;
@@ -262,13 +317,13 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
       if (!controller.signal.aborted && id === request.current) setError(ru ? 'Нет соединения. Откройте загрузки или повторите.' : 'No connection. Open downloads or retry.');
     }).finally(() => { if (id === request.current) { busy.current = false; setLoading(false); } });
     return () => controller.abort();
-  }, [debouncedQuery, selectedStyle, trackCollection, mixesMode]);
+  }, [debouncedQuery, selectedStyle, trackCollection, mixesMode, section]);
   async function loadMore() {
     if (trackCollection || busy.current || !hasMore || !isActive || query !== debouncedQuery) return;
     const id = request.current; busy.current = true;
     try {
       const filters = { styles: selectedStyle ? [selectedStyle] : [], search: debouncedQuery };
-      const feed = mixesMode ? await getLibraryFeedFiltered(PAGE_SIZE, releases.length, { ...filters, isMix: true }) : null;
+      const feed = mixesMode ? await getLibraryFeedFiltered(PAGE_SIZE, releases.length, { ...filters, ...(section === 'originals' ? { isOriginal: true } : { isMix: true }) }) : null;
       const next = feed ? feed.releases : await getHomeReleases(PAGE_SIZE, releases.length, filters);
       if (id !== request.current) return;
       setReleases(current => [...current, ...next.filter(release => !current.some(existing => existing.id === release.id))]);
@@ -316,19 +371,32 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
     },
     onPanResponderTerminate: () => stopScroll(),
   }), [mode, viewport.width, viewport.height, releases.length, transitioning, expanded, reducedMotion]);
-  const sections = [
+  const sectionCounts:Partial<Record<TabKey,number|string>>={home:sectionTotals.home??'—',mixes:sectionTotals.mixes??'—',originals:sectionTotals.originals??'—',playlists:playlists.length,downloads:downloadedTracks.length,favorites:favoriteIds?.size??favorites?.length??0};
+  const sectionDefinitions = [
     { key: 'home' as TabKey, label: ru ? 'Коллекция' : 'Collection', Icon: Library },
     { key: 'playlists' as TabKey, label: ru ? 'Плейлисты' : 'Playlists', Icon: ListMusic },
     { key: 'mixes' as TabKey, label: ru ? 'Миксы' : 'Mixes', Icon: Disc3 },
+    { key: 'originals' as TabKey, label: ru ? 'Треки' : 'Tracks', Icon: AudioLines },
     { key: 'favorites' as TabKey, label: ru ? 'Избранное' : 'Favorites', Icon: Heart },
     { key: 'downloads' as TabKey, label: ru ? 'Загрузки' : 'Downloads', Icon: Download },
   ];
+  const sections = sectionDefinitions;
   const SectionIcon = sections.find(item => item.key === sectionKey)?.Icon || Library;
   const selectGenre = (name: string) => { setSelectedStyle(name); setPicker(null); };
-  const tracksVisible = mode === 'tracks' && !transitioning && !selection;
+  const tracksVisible = mode === 'tracks' && !selection;
+  const tracksEntrance = useRef(new Animated.Value(0)).current;
+  useLayoutEffect(() => {
+    if (mode !== 'tracks' && mode !== 'grid' && !canvasEntrance) return;
+    tracksEntrance.setValue(reducedMotion ? 1 : 0);
+    if (reducedMotion) return;
+    const animation = Animated.timing(tracksEntrance, { toValue: 1, duration: 500, easing: Easing.bezier(.22, 1, .36, 1), useNativeDriver: true });
+    animation.start();
+    return () => animation.stop();
+  }, [mode, reducedMotion, tracksEntrance, canvasEntrance]);
   const gridVisible = mode === 'grid' && !transitioning && !selection;
   const nativeListVisible = tracksVisible || gridVisible;
-  const sectionLabel = sectionKey === 'playlists' ? (ru ? 'Плейлисты' : 'Playlists') : sectionKey === 'favorites' ? (ru ? 'Избранное' : 'Favorites') : sectionKey === 'mixes' ? (ru ? 'Миксы' : 'Mixes') : (ru ? 'Коллекция' : 'Collection');
+  const sectionName = downloadsMode ? (ru ? 'Загрузки' : 'Downloads') : sectionKey === 'playlists' ? (ru ? 'Плейлисты' : 'Playlists') : sectionKey === 'favorites' ? (ru ? 'Избранное' : 'Favorites') : sectionKey === 'mixes' ? (ru ? 'Миксы' : 'Mixes') : sectionKey === 'originals' ? (ru ? 'Треки' : 'Tracks') : (ru ? 'Коллекция' : 'Collection');
+  const sectionLabel = sectionName;
   const signInNeeded = playlistLibrary?.requiresSignIn || (section === 'favorites' && requiresSignIn);
   function openTrackPlaylists(id: string) {
     if (requiresSignIn) { onOpenProfile(); return; }
@@ -370,14 +438,16 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
         </View>
         <View style={styles.searchRow}>
           <TextInput value={query} onChangeText={setQuery} style={styles.search} placeholder={ru ? 'Поиск' : 'Search'} placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} accessibilityLabel={ru ? 'Поиск релизов и миксов' : 'Search releases and mixes'} />
-          <Animated.View pointerEvents={expanded ? 'none' : 'auto'} style={[styles.modes, { opacity: chrome }]}>{modes.map((key, index) => <Pressable key={key} onPress={() => changeMode(key)} accessibilityRole="tab" accessibilityState={{ selected: mode === key }} style={[styles.mode, mode === key && styles.modeSelected]}><Text style={[styles.modeText, mode === key && styles.modeTextSelected]}>{modeLabels[lang][index]}</Text></Pressable>)}</Animated.View>
+          <Animated.View pointerEvents={expanded ? 'none' : 'auto'} style={[styles.modes, { opacity: chrome }]}>{modes.map((key, index) => <Pressable key={key} onPress={() => changeMode(key)} accessibilityLabel={modeLabels[lang][index]} accessibilityRole="tab" accessibilityState={{ selected: mode === key }} style={[styles.mode, mode === key && styles.modeSelected]}><ArchiveModeIcon mode={key} color={mode === key ? colors.text : colors.muted} /></Pressable>)}</Animated.View>
         </View>
       </View>
     </View>
     <Animated.View pointerEvents={expanded ? 'none' : 'box-none'} style={[styles.archiveChrome, { opacity: chrome }]}>
     {mode === 'shelf' ? <>
-      <View style={styles.sections}>{sections.map(({ key, label, Icon }) => <Pressable key={key} onPress={() => { if (key === 'playlists' && playlistMode) setPicker('playlists'); else onNavigate(key); }} style={styles.section}><Icon size={13} color={key === sectionKey ? archiveSectionColor(key, colors.muted) : colors.muted} strokeWidth={1.5} /><Text style={[styles.sectionLabel, key === sectionKey && styles.sectionActive]}>{label}</Text></Pressable>)}</View>
-      {selectedRelease && !expanded && <Text style={[styles.heading, { top: Math.max(215, viewport.height * 0.265) }]} numberOfLines={2}><Text style={styles.headingArtist}>{selectedRelease.artist}</Text>{` : ${selectedRelease.title}`}</Text>}
+      <View style={styles.sections} onLayout={event=>{const {y,height}=event.nativeEvent.layout;setSectionBottom(y+height);}}>{sections.map(({ key, label, Icon }) => <Pressable key={key} onPress={() => { if (key === 'playlists' && playlistMode) setPicker('playlists'); else onNavigate(key); }} style={styles.section}><Icon size={13} color={key === sectionKey ? archiveSectionColor(key, colors.muted) : colors.muted} strokeWidth={1.5} /><CountedLabel label={label} count={sectionCounts[key]} style={[styles.sectionLabel, key === sectionKey && sectionHighlight]} /></Pressable>)}</View>
+      {selectedRelease && !expanded && <View style={[styles.heading, { top:sectionBottom+4 }]} accessibilityLabel={`${selectedRelease.artist} : ${selectedRelease.title}`}>
+        <Animated.Text style={[styles.headingText,styles.headingCentered,{opacity:headingEntrance,transform:[{translateY:headingEntrance.interpolate({inputRange:[0,1],outputRange:[-18,0]})}]}]}><Text style={styles.headingArtist}>{selectedRelease.artist}</Text>{' : '}{selectedRelease.title}</Animated.Text>
+      </View>}
       <ScrollView style={[styles.genreColumn, { height: Math.min(190, viewport.height * 0.24) + 84 }]} contentContainerStyle={{ paddingBottom: activeTrackId ? MINI_PLAYER_MASK_HEIGHT : 0 }} showsVerticalScrollIndicator={false}>
         {playlistLibrary ? <>
           {playlistLibrary.playlists.map(item => <Pressable key={item.id} style={styles.genre} onPress={() => setPlaylistId(item.id)}><Text style={[styles.genreText, item.id === activePlaylist?.id && sectionHighlight]}>{item.name} <Text style={styles.count}>{item.items.length}</Text></Text></Pressable>)}
@@ -388,30 +458,34 @@ export function HomeScreen({ lang, onLanguageChange, isActive = true, isAdmin = 
         </>}
       </ScrollView>
     </> : <View style={styles.context}>
-      <Pressable style={styles.contextButton} onPress={() => setPicker('sections')}><SectionIcon size={14} color={sectionColor} /><Text style={styles.contextText}>{sectionLabel}</Text><ChevronDown size={13} color={colors.text} /></Pressable>
-      <Pressable style={[styles.contextButton, { flex: 1, justifyContent: 'flex-end', minWidth: 0 }]} onPress={() => setPicker(playlistMode ? 'playlists' : 'genres')}><Text numberOfLines={1} style={[styles.contextText, sectionHighlight, { flexShrink: 1 }]}>{playlistMode ? activePlaylist?.name || (ru ? 'Выбрать плейлист' : 'Choose playlist') : selectedStyle || (ru ? 'Все' : 'All')} <Text style={styles.count}>{Math.min(releases.length, Math.round(position) + 1)} - {total}</Text></Text><ChevronDown size={13} color={sectionColor} /></Pressable>
+      <Pressable style={styles.contextButton} onPress={() => setPicker('sections')}><SectionIcon size={14} color={sectionColor} /><CountedLabel label={sectionLabel} count={sectionCounts[sectionKey] ?? '—'} style={[styles.contextText, sectionHighlight]} /><ChevronDown size={13} color={colors.text} /></Pressable>
+      {section !== 'favorites' && !downloadsMode ? <Pressable style={[styles.contextButton, { flex: 1, justifyContent: 'flex-end', minWidth: 0 }]} onPress={() => setPicker(playlistMode ? 'playlists' : mixesMode ? 'music' : 'genres')}><Text numberOfLines={1} style={[styles.contextText, sectionHighlight, { flexShrink: 1 }]}>{playlistMode ? activePlaylist?.name || (ru ? 'Выбрать плейлист' : 'Choose playlist') : selectedStyle || (section === 'originals' ? (ru ? 'Все треки' : 'All tracks') : mixesMode ? (ru ? 'Все миксы' : 'All mixes') : (ru ? 'Вся коллекция' : 'All collection'))} <Text style={styles.count}>{Math.min(releases.length, Math.round(position) + 1)} - {total}</Text></Text><ChevronDown size={13} color={sectionColor} /></Pressable> : null}
     </View>}
     </Animated.View>
     <View style={[styles.archiveViewport, nativeListVisible && { opacity: 0 }]} pointerEvents={nativeListVisible ? 'none' : 'auto'} aria-hidden={nativeListVisible} accessibilityElementsHidden={nativeListVisible} importantForAccessibility={nativeListVisible ? 'no-hide-descendants' : 'auto'} onTouchStart={() => { if (moving) stopScroll(); }} {...pan.panHandlers}>
-      <Animated.View pointerEvents="box-none" style={[styles.sleeveLayer, shelfTransport && { transform: [{ translateX: shelfTranslateX }, { translateY: shelfTranslateY }] }]}>
+      {selection && <Pressable style={StyleSheet.absoluteFillObject} onPress={collapseRelease} accessibilityRole="button" accessibilityLabel={ru ? 'Свернуть релиз' : 'Collapse release'} />}
+      <Animated.View pointerEvents="box-none" style={[styles.sleeveLayer, { opacity: canvasEntrance ? tracksEntrance : 1 }, shelfTransport && { transform: [{ translateX: shelfTranslateX }, { translateY: shelfTranslateY }] }]}>
       {[...new Set([...archiveWindow(position, releases.length, mode), ...transitionIndices, ...(selection ? [selection.index] : [])])].filter(index => viewport.width > 0 && index < releases.length).sort((a, b) => a - b).map(index => {
         const geometry = archiveGeometry(mode, index, mode === 'grid' ? position - gridPhase.current : layoutPosition, viewport, selection);
         return <Sleeve index={index} key={archiveItemKey(releases[index], trackCollection)} release={mode === 'tracks' && trackCollection ? { ...releases[index], title: releases[index].tracks[0]?.title || releases[index].title } : releases[index]} geometry={geometry} origin={selectionOrigin?.index === index ? selectionOrigin.geometry : undefined} mode={mode} moving={moving} browsing={!selection && !transitioning} reducedMotion={reducedMotion} scroll={scroll} anchor={layoutPosition} scrollX={0} scrollY={!selection && !transitioning && mode !== 'shelf' ? -archiveStep(mode, viewport) : 0} isAdmin={isAdmin} tracks={mode === 'tracks' && !selection} labelWidth={viewport.width * 0.94 - 60} onPress={pressRelease} />;
       })}
       </Animated.View>
     </View>
-    {gridVisible && <ArchiveGridView releases={releases} width={viewport.width} initialPosition={position - gridPhase.current} trackCollection={trackCollection} isAdmin={isAdmin} onLoadMore={() => void loadMore()} onAnchor={value => { const next = clampPosition(value, releases.length); gridPhase.current = 0; positionRef.current = next; scroll.setValue(next); setPosition(next); }} onSelect={(index, value) => { const next = clampPosition(value, releases.length); gridPhase.current = 0; positionRef.current = next; scroll.setValue(next); setPosition(next); setSelectionOrigin({ index, geometry: archiveGeometry('grid', index, next, viewport) }); setSelection({ index, expanded: true }); }} />}
-    {tracksVisible && <ArchiveTracksView releases={releases} initialIndex={position} compact={trackCollection} queue={playlistQueue} lang={lang} onLanguageChange={onLanguageChange} activeTrackId={activeTrackId} isPlaying={isPlaying} onPlayTrack={onPlayTrack} onTogglePlayback={onTogglePlayback} favoriteIds={favoriteIds} onFavoriteTrack={onFavoriteTrack || (() => onOpenProfile())} onPlaylistMenu={openTrackPlaylists} showTrackMeta={showTrackMeta} showKey={section !== 'favorites'} onLoadMore={() => void loadMore()} onAnchor={index => { const next = clampPosition(index, releases.length); positionRef.current = next; scroll.setValue(next); setPosition(next); }} />}
-    {!expanded && <View pointerEvents="none" style={styles.archiveTopMask} />}
-    {selection && <Pressable style={styles.closeRelease} onPress={collapseRelease} accessibilityLabel={ru ? 'Закрыть релиз' : 'Close release'}><X color={colors.text} size={22} /></Pressable>}
-    {selectedRelease && <Animated.View pointerEvents={expanded ? 'auto' : 'none'} accessibilityElementsHidden={!expanded} importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'} style={[styles.releasePanel, { top: viewport.height * .16 + expandedCoverSize(viewport) + 16, opacity: panel, transform: [{ translateY: panel.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] }]}>
-      <ArchiveTrackList release={!trackCollection && detail?.id === selectedRelease.id ? detail : selectedRelease} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry(value => value + 1)} lang={lang} activeTrackId={activeTrackId} isPlaying={isPlaying} onPlayTrack={onPlayTrack} onTogglePlayback={onTogglePlayback} playbackQueue={playlistQueue} favoriteIds={favoriteIds} onFavoriteTrack={onFavoriteTrack} onPlaylistMenu={openTrackPlaylists} showTrackMeta={showTrackMeta} showKey={section !== 'favorites'} />
+    {mode === 'grid' && <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: gridVisible ? tracksEntrance : 0 }]} pointerEvents={gridVisible ? 'auto' : 'none'} accessibilityElementsHidden={!gridVisible} importantForAccessibility={gridVisible ? 'auto' : 'no-hide-descendants'}>
+      <ArchiveGridView releases={releases} width={viewport.width} initialPosition={position - gridPhase.current} trackCollection={trackCollection} isAdmin={isAdmin} onLoadMore={() => void loadMore()} onAnchor={value => { const next = clampPosition(value, releases.length); gridPhase.current = 0; positionRef.current = next; scroll.setValue(next); setPosition(next); }} onSelect={(index, value) => { const next = clampPosition(value, releases.length); gridPhase.current = 0; positionRef.current = next; scroll.setValue(next); setPosition(next); setSelectionOrigin({ index, geometry: archiveGeometry('grid', index, next, viewport) }); setSelection({ index, expanded: true }); }} />
     </Animated.View>}
-    {!releases.length || error ? <View style={styles.status} pointerEvents="box-none"><Text style={styles.statusText}>{signInNeeded ? (ru ? 'Войдите, чтобы увидеть личные треки.' : 'Sign in to see your library.') : error || (loading ? (ru ? 'Загрузка...' : 'Loading...') : playlistMode && !activePlaylist ? (ru ? 'Плейлистов пока нет.' : 'No playlists yet.') : section === 'favorites' && !debouncedQuery ? (ru ? 'Избранных треков пока нет.' : 'No favorite tracks yet.') : mixesMode && !debouncedQuery ? (ru ? 'Миксов пока нет.' : 'No mixes yet.') : (ru ? 'Ничего не найдено' : 'Nothing found'))}</Text>{signInNeeded ? <Pressable onPress={onOpenProfile}><Text style={sectionHighlight}>{ru ? 'Войти' : 'Sign in'}</Text></Pressable> : error ? <Pressable onPress={() => onNavigate('downloads')}><Text style={sectionHighlight}>{ru ? 'Открыть загрузки' : 'Open downloads'}</Text></Pressable> : null}</View> : null}
+    {mode === 'tracks' && <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: tracksVisible ? tracksEntrance : 0, transform: [{ translateY: tracksEntrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]} pointerEvents={tracksVisible ? 'auto' : 'none'} accessibilityElementsHidden={!tracksVisible} importantForAccessibility={tracksVisible ? 'auto' : 'no-hide-descendants'}>
+      <ArchiveTracksView currentUser={currentUser} onPlayAt={onPlayAt} releases={releases} initialIndex={position} compact={trackCollection} queue={playlistQueue} lang={lang} onLanguageChange={onLanguageChange} activeTrackId={activeTrackId} isPlaying={isPlaying} onPlayTrack={onPlayTrack} onTogglePlayback={onTogglePlayback} favoriteIds={favoriteIds} onFavoriteTrack={onFavoriteTrack || (() => onOpenProfile())} onPlaylistMenu={openTrackPlaylists} showTrackMeta={showTrackMeta} showKey={section !== 'favorites' && !downloadsMode} onLoadMore={() => void loadMore()} onAnchor={index => { const next = clampPosition(index, releases.length); positionRef.current = next; scroll.setValue(next); setPosition(next); }} />
+    </Animated.View>}
+    {!expanded && <View pointerEvents="none" style={styles.archiveTopMask} />}
+    {selectedRelease && <Animated.View pointerEvents={expanded ? 'auto' : 'none'} accessibilityElementsHidden={!expanded} importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'} style={[styles.releasePanel, { top: viewport.height * .16 + expandedCoverSize(viewport) + 16, opacity: panel, transform: [{ translateY: panel.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] }]}>
+      <ArchiveTrackList key={selectedRelease.id} reveal revealed={expanded} reducedMotion={reducedMotion} release={!trackCollection && detail?.id === selectedRelease.id ? detail : selectedRelease} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry(value => value + 1)} lang={lang} activeTrackId={activeTrackId} isPlaying={isPlaying} onPlayTrack={onPlayTrack} onTogglePlayback={onTogglePlayback} playbackQueue={playlistQueue} favoriteIds={favoriteIds} onFavoriteTrack={onFavoriteTrack} onPlaylistMenu={openTrackPlaylists} showTrackMeta={showTrackMeta} showKey={section !== 'favorites' && !downloadsMode} />
+    </Animated.View>}
+    {!releases.length || error ? <View style={styles.status} pointerEvents="box-none"><Text style={styles.statusText}>{signInNeeded ? (ru ? 'Войдите, чтобы увидеть личные треки.' : 'Sign in to see your library.') : (downloadsMode && downloadError ? (ru ? 'Не удалось прочитать загрузки.' : 'Unable to read downloads.') : error) || (loading ? (ru ? 'Загрузка...' : 'Loading...') : playlistMode && !activePlaylist ? (ru ? 'Плейлистов пока нет.' : 'No playlists yet.') : downloadsMode && !debouncedQuery ? (ru ? 'Скачанных треков пока нет.' : 'No downloaded tracks yet.') : section === 'favorites' && !debouncedQuery ? (ru ? 'Избранных треков пока нет.' : 'No favorite tracks yet.') : mixesMode && !debouncedQuery ? (ru ? 'Миксов пока нет.' : 'No mixes yet.') : (ru ? 'Ничего не найдено' : 'Nothing found'))}</Text>{signInNeeded ? <Pressable onPress={onOpenProfile}><Text style={sectionHighlight}>{ru ? 'Войти' : 'Sign in'}</Text></Pressable> : error ? <Pressable onPress={() => onNavigate('downloads')}><Text style={sectionHighlight}>{ru ? 'Открыть загрузки' : 'Open downloads'}</Text></Pressable> : null}</View> : null}
     <Modal visible={picker !== null} transparent animationType={reducedMotion ? 'none' : 'slide'} onRequestClose={() => setPicker(null)}>
       <View style={styles.pickerRoot}><Pressable style={styles.scrim} onPress={() => setPicker(null)} accessibilityLabel={ru ? 'Закрыть' : 'Close'} /><View style={styles.picker}>
         <View style={styles.pickerTitle}><Text style={styles.brand}>{picker === 'playlists' || picker === 'trackPlaylists' ? (ru ? 'Плейлисты' : 'Playlists') : picker === 'genres' ? (ru ? 'Жанры' : 'Styles') : (ru ? 'Коллекция' : 'Collection')}</Text><Pressable onPress={() => setPicker(null)} hitSlop={12}><X color={colors.text} size={20} /></Pressable></View>
-        <ScrollView>{picker === 'trackPlaylists' ? <>{playlists.map(item => <Pressable key={item.id} style={styles.pickerItem} disabled={savingPlaylist} onPress={() => void toggleTrackPlaylist(item)}><Text style={[styles.pickerText, item.items.some(entry => entry.track.id === playlistTrackId) && playlistHighlight]}>{item.name}</Text><Text style={styles.trackYear}>{item.items.some(entry => entry.track.id === playlistTrackId) ? '✓' : '+'}</Text></Pressable>)}{!playlists.length && <Text style={styles.statusText}>{ru ? 'Создайте плейлист в полном плеере.' : 'Create a playlist in the full player.'}</Text>}</> : picker === 'playlists' ? <>{playlistLibrary?.playlists.map(item => <Pressable key={item.id} style={styles.pickerItem} onPress={() => { setPlaylistId(item.id); setPicker(null); }}><Text style={[styles.pickerText, item.id === activePlaylist?.id && sectionHighlight]}>{item.name}</Text><Text style={styles.trackYear}>{item.items.length}</Text></Pressable>)}<Pressable style={styles.pickerItem} onPress={() => { setPicker(null); playlistLibrary?.onManage(); }}><Text style={styles.pickerText}>{ru ? 'Управление плейлистами' : 'Manage playlists'}</Text></Pressable></> : picker === 'genres' ? [{ name: '', count: total }, ...genres].map(genre => <Pressable key={genre.name} style={styles.pickerItem} onPress={() => selectGenre(genre.name)}><Text style={[styles.pickerText, selectedStyle === genre.name && sectionHighlight]}>{genre.name || (ru ? 'Все' : 'All')}</Text><Text style={styles.trackYear}>{genre.count}</Text></Pressable>) : sections.map(({ key, label }) => <Pressable key={key} style={styles.pickerItem} onPress={() => { setPicker(null); onNavigate(key); }}><Text style={[styles.pickerText, key === sectionKey && { color: archiveSectionColor(key, colors.muted) }]}>{label}</Text></Pressable>)}</ScrollView>
+        <ScrollView onScroll={({ nativeEvent }) => { if (picker === 'music' && nativeEvent.layoutMeasurement.height + nativeEvent.contentOffset.y > nativeEvent.contentSize.height - 160) void loadMore(); }}>{picker === 'music' ? releases.map((item, index) => <Pressable key={item.id} style={styles.pickerItem} onPress={() => { stopScroll(); positionRef.current = index; scroll.setValue(index); setPosition(index); setSelection(null); setPicker(null); }}><SectionIcon size={18} color={sectionColor} /><Text style={[styles.pickerText, { flex: 1 }]}><Text style={{ fontWeight: '600' }}>{item.artist}</Text><Text style={{ fontSize: 12 }}> : {item.title}</Text></Text></Pressable>) : picker === 'trackPlaylists' ? <>{playlists.map(item => <Pressable key={item.id} style={styles.pickerItem} disabled={savingPlaylist} onPress={() => void toggleTrackPlaylist(item)}><ListMusic size={18} color={ARCHIVE_SECTION_COLORS.playlists} /><Text style={[styles.pickerText, item.items.some(entry => entry.track.id === playlistTrackId) && playlistHighlight]}>{item.name}</Text><Text style={styles.trackYear}>{item.items.some(entry => entry.track.id === playlistTrackId) ? '✓' : '+'}</Text></Pressable>)}{!playlists.length && <Text style={styles.statusText}>{ru ? 'Создайте плейлист в полном плеере.' : 'Create a playlist in the full player.'}</Text>}</> : picker === 'playlists' ? <>{playlistLibrary?.playlists.map(item => <Pressable key={item.id} style={styles.pickerItem} onPress={() => { setPlaylistId(item.id); setPicker(null); }}><ListMusic size={18} color={sectionColor} /><Text style={[styles.pickerText, item.id === activePlaylist?.id && sectionHighlight]}>{item.name}</Text><Text style={styles.trackYear}>{item.items.length}</Text></Pressable>)}<Pressable style={styles.pickerItem} onPress={() => { setPicker(null); playlistLibrary?.onManage(); }}><Text style={styles.pickerText}>{ru ? 'Управление плейлистами' : 'Manage playlists'}</Text></Pressable></> : picker === 'genres' ? [{ name: '', count: total }, ...genres].map(genre => <Pressable key={genre.name} style={styles.pickerItem} onPress={() => selectGenre(genre.name)}><Library size={18} color={sectionColor} /><Text style={[styles.pickerText, selectedStyle === genre.name && sectionHighlight]}>{genre.name || (ru ? 'Все' : 'All')}</Text><Text style={styles.trackYear}>{genre.count}</Text></Pressable>) : sections.map(({ key, label, Icon }) => <Pressable key={key} style={styles.pickerItem} onPress={() => { setPicker(null); onNavigate(key); }}><Icon size={18} color={archiveSectionColor(key, colors.muted)} /><CountedLabel label={label} count={sectionCounts[key]} style={[styles.pickerText, key === sectionKey && { color: archiveSectionColor(key, colors.muted) }]} /></Pressable>)}</ScrollView>
       </View></View>
     </Modal>
   </View>;
@@ -423,9 +497,12 @@ const styles = adaptiveStyles(StyleSheet.create({
   avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.panelSoft, alignItems: 'center', justifyContent: 'center' }, avatarInitial: { fontSize: 17, color: colors.text },
   headerBody: { flex: 1, gap: 7 }, brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9 }, brand: { color: colors.text, fontSize: 13, fontWeight: '700', letterSpacing: -0.35 }, language: { fontSize: 10, color: colors.muted },
   searchRow: { flexDirection: 'row', gap: 10, alignItems: 'center' }, search: { flex: 1, minWidth: 30, color: colors.text, padding: 0, paddingBottom: 4, fontSize: 13, borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
-  modes: { flexDirection: 'row', gap: 7 }, mode: { paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: 'transparent' }, modeSelected: { borderBottomColor: colors.text }, modeText: { color: colors.muted, fontSize: 12, letterSpacing: -0.4 }, modeTextSelected: { color: colors.text },
+  modes: { flexDirection: 'row', gap: 0 }, mode: { width: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: 'transparent' }, modeSelected: { borderBottomColor: colors.text }, modeText: { color: colors.muted, fontSize: 12, letterSpacing: -0.4 }, modeTextSelected: { color: colors.text },
   sections: { position: 'absolute', top: 94, left: '3%', zIndex: 20, gap: 4 }, section: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 21 }, sectionLabel: { fontSize: 14, color: colors.muted, fontWeight: '600', letterSpacing: -0.4 }, sectionActive: { color: colors.text },
-  heading: { position: 'absolute', left: '6%', right: '6%', zIndex: 15, textAlign: 'center', fontSize: 13, lineHeight: 18, color: colors.text }, headingArtist: { fontWeight: '700' },
+  heading: { position: 'absolute', left: '3%', right: '3%', zIndex: 15, flexDirection:'row',alignItems:'flex-start' },
+  headingCentered:{flex:1,textAlign:'center'},
+  headingText:{fontSize:13,lineHeight:18,color:colors.text,fontWeight:'400',includeFontPadding:false},
+  headingArtist: { fontWeight: '600' },
   genreColumn: { position: 'absolute', right: '3%', bottom: 0, overflow: 'hidden', width: '31%', zIndex: 20 }, genre: { alignItems: 'flex-end', height: 24, paddingVertical: 2 }, genreText: { color: colors.muted, fontWeight: '600', fontSize: 14, lineHeight: 20, includeFontPadding: false, letterSpacing: -0.6 }, count: { fontSize: 9, fontWeight: '500' }, blue: { color: colors.accent },
   context: { position: 'absolute', top: 91, left: '3%', right: '3%', zIndex: 25, flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.background, paddingBottom: 12 }, contextButton: { flexDirection: 'row', alignItems: 'center', gap: 5 }, contextText: { fontSize: 14, color: colors.text, fontWeight: '600' },
   sleeve: { position: 'absolute' }, coverButton: { flex: 1 }, cover: { width: '100%', height: '100%', borderRadius: 0 },
@@ -433,7 +510,6 @@ const styles = adaptiveStyles(StyleSheet.create({
   archiveTopMask: { position: 'absolute', top: 0, left: 0, right: 0, height: 126, zIndex: 10, backgroundColor: colors.background },
   archiveChrome: { ...StyleSheet.absoluteFillObject, zIndex: 20 },
   sleeveLayer: { ...StyleSheet.absoluteFillObject },
-  closeRelease: { position: 'absolute', top: 76, right: '3%', width: 44, height: 44, alignItems: 'center', justifyContent: 'center', zIndex: 45 },
   releasePanel: { position: 'absolute', left: '6%', right: '6%', bottom: 84, zIndex: 25 },
   canvasTrackLabels: { position: 'absolute', left: 0, top: 0, height: 48, flexDirection: 'row', alignItems: 'center', gap: 8 },
   canvasTrackButton: { flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', gap: 8 },

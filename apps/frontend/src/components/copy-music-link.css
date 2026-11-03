@@ -3,7 +3,8 @@ html body button.music-copy-link {
   width: 36px; min-height: 36px; padding: 8px; border: 0; border-radius: 0;
   background: transparent; color: inherit; box-shadow: none; cursor: pointer; transform: none;
 }
-html body button.music-copy-link:hover { opacity: .65; background: transparent; transform: none; }
+html body button.music-copy-link:hover { opacity: 1; background: transparent; transform: none; }
+html body button.music-copy-link:hover > :is(svg,sup) { opacity: .65; }
 html body button.music-copy-link:focus-visible { outline: 1px solid currentColor; outline-offset: 2px; }
 .music-link-notice {
   position: fixed; z-index: 100000; left: 50%; bottom: max(110px, calc(env(safe-area-inset-bottom) + 90px));

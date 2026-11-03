@@ -8,7 +8,6 @@ import { SiteLang } from '../lib/language';
 import { HomeRelease, Release } from '../types';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { ShelfMixTrack } from './shelf-mix-track';
-import { ShelfReleaseEditor } from './shelf-release-editor';
 import { ArchivePageHeader } from './archive-page-header';
 import { useCollectionCounts } from './use-collection-counts';
 import './record-archive.css';
@@ -35,11 +34,12 @@ export function ShelfMixDetail({ release, lang }: { release: Release; lang: Site
   })) }), [release]);
   const track = mix.tracks.find(item => item.audioUrl) || mix.tracks[0];
   const cover = release.coverStorageUrl || release.coverImageUrl || release.coverMediumStorageUrl || '/icon.png';
+  const smallCover = release.coverThumbStorageUrl || release.coverMediumStorageUrl || cover;
   const playing = currentTrack?.releaseId === release.id && isPlaying;
   function play() {
     if (!track?.audioUrl) return;
     if (currentTrack?.id === track.id) { togglePlayback(); return; }
-    playQueue([{ ...track, artist:release.artist, coverUrl:cover, coverFullUrl:cover,
+    playQueue([{ ...track, artist:release.artist, coverUrl:smallCover, coverFullUrl:cover, frontCoverMobileUrl:smallCover, frontCoverUrl:smallCover, frontCoverFullUrl:cover,
       waveformData:track.waveformData || [], releaseId:release.id, isPublic:true, isOriginal:release.isOriginal }],0);
   }
   return <main className="shelf-mix-detail paper-section-page" data-music-section={release.isOriginal ? 'originals' : 'mixes'}>
@@ -54,9 +54,8 @@ export function ShelfMixDetail({ release, lang }: { release: Release; lang: Site
       <Link href="/favorites" className="paper-section-favorites" aria-label={ru ? 'Избранное' : 'Favorites'}><Heart size={17}/><span><span className="shelf-mix-detail__section-label">{ru ? 'Избранное' : 'Favorites'}</span> <sup>{counts.favorites}</sup></span></Link>
     </nav>
     <article className="shelf-mix-detail__content">
-      <button className="shelf-mix-detail__cover" onClick={play} disabled={!track?.audioUrl} aria-label={playing ? (ru?'Пауза':'Pause') : release.isOriginal ? (ru?'Воспроизвести трек':'Play track') : (ru?'Воспроизвести микс':'Play mix')}><img src={cover} alt={release.title}/></button>
+      <button className="shelf-mix-detail__cover" onClick={play} disabled={!track?.audioUrl} aria-label={playing ? (ru?'Пауза':'Pause') : release.isOriginal ? (ru?'Воспроизвести трек':'Play track') : (ru?'Воспроизвести микс':'Play mix')}><picture><source media="(min-width:701px)" srcSet={cover}/><img src={smallCover} alt={release.title} width={900} height={900} decoding="async"/></picture></button>
       <section className="shelf-mix-detail__info">
-        <ShelfReleaseEditor id={release.id} lang={uiLang} className="shelf-mix-edit-corner"/>
         <ShelfMixTrack release={mix} lang={uiLang} actions={null} yearInHeading timelineControls commentsAlwaysOpen />
         {!track?.audioUrl ? <p className="muted">{ru?'Аудио ещё не загружено':'Audio is not available yet'}</p> : null}
       </section>

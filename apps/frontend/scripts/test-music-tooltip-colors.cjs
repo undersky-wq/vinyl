@@ -1,0 +1,12 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const read = file => fs.readFileSync(path.join(__dirname, '../src/components', file), 'utf8');
+const copy = read('copy-music-link.css');
+const theme = read('shelf-theme.css');
+assert.match(copy, /button\.music-copy-link:hover\s*\{[^}]*opacity:\s*1\s*;/, 'hover must not dim tooltip together with its host');
+assert.match(copy, /button\.music-copy-link:hover\s*>\s*:is\(svg,sup\)\s*\{[^}]*opacity:\s*\.65/, 'hover feedback belongs only to icon and counter');
+assert.match(theme, /\.paper-mix-engagement \.music-icon-tooltip:not\(:disabled\):is\(:hover,:focus-visible\)\{opacity:1!important\}/);
+assert(theme.includes('color:var(--shelf-web-ink,#111)!important'), 'all tooltip text uses the same theme ink');
+assert(read('download-music.tsx').includes('music-download music-copy-link music-icon-tooltip'), 'download shares the non-dimming tooltip behavior');
+console.log('PASS: consistent tooltip ink, no inherited host fading, icon-only hover feedback');

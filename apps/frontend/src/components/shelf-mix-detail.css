@@ -32,7 +32,6 @@ html[data-shelf-theme=dark] .shelf-mix-detail[data-music-section=originals]{--mu
 .shelf-mix-detail__content{position:relative;grid-template-columns:var(--detail-cover) minmax(0,1fr);grid-template-rows:auto 1fr auto auto;column-gap:32px;row-gap:20px}
 .shelf-mix-detail__cover{grid-column:1;grid-row:1/4}
 .shelf-mix-detail__info{display:contents}
-.shelf-mix-detail .shelf-mix-edit-corner{top:-28px;right:0}
 .shelf-mix-detail .paper-mix-heading{grid-column:2;grid-row:1}
 .shelf-mix-detail .paper-mix-heading h2{display:flex;align-items:baseline;justify-content:space-between;gap:18px;min-width:0;margin:0;font:600 clamp(18px,1.6vw,26px)/1.2 Arial,Helvetica,sans-serif;letter-spacing:-.6px}
 .shelf-mix-detail .paper-mix-heading h2>span{min-width:0;overflow-wrap:anywhere}

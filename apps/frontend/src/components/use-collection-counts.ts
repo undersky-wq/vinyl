@@ -1,17 +1,33 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getLibraryReleasesFeed } from '../lib/api';
+import { getLibraryReleasesFeed, getPlaylistCount } from '../lib/api';
 import { useAuth } from '../providers/auth-provider';
 import { useFavorites } from '../providers/favorites-provider';
-import { usePlaylists } from '../providers/playlists-provider';
 
 export function useCollectionCounts() {
   const {user} = useAuth();
-  const {playlists,isLoading} = usePlaylists();
   const {favoriteTrackIds} = useFavorites();
+  const userId = user?.id || null;
+  const [playlistCount,setPlaylistCount] = useState<{userId: string | null; value: number | null}>({userId:null,value:0});
   const [mixes,setMixes] = useState<number | null>(null);
   const [originals,setOriginals] = useState<number | null>(null);
   const [releases,setReleases] = useState<number | null>(null);
+  useEffect(() => {
+    if (!userId) {setPlaylistCount({userId:null,value:0});return;}
+    let cancelled = false;
+    let request = 0;
+    const refresh = () => {
+      const version = ++request;
+      void getPlaylistCount().then(value => {
+        if (!cancelled && version === request) setPlaylistCount({userId,value});
+      }).catch(() => {
+        // A failed refresh must not erase an already known count.
+      });
+    };
+    refresh();
+    window.addEventListener('vinyl:playlists-changed',refresh);
+    return () => {cancelled=true;window.removeEventListener('vinyl:playlists-changed',refresh);};
+  },[userId]);
   useEffect(() => {
     let cancelled=false;
     setMixes(null);
@@ -29,5 +45,6 @@ export function useCollectionCounts() {
     });
     return () => {cancelled=true;};
   },[user?.id]);
-  return {releases:releases ?? '—',playlists:isLoading?'…':playlists.length,mixes:mixes ?? '—',originals:originals ?? '—',favorites:favoriteTrackIds.length};
+  const count = userId ? (playlistCount.userId === userId ? playlistCount.value : null) : 0;
+  return {releases:releases ?? '—',playlists:count ?? '—',mixes:mixes ?? '—',originals:originals ?? '—',favorites:favoriteTrackIds.length};
 }

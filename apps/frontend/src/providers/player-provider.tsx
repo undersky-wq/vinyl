@@ -4,19 +4,25 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
-import { refreshPlayerTrack } from '../lib/api';
+import { getRelease, refreshPlayerTrack } from '../lib/api';
+import { cachedTrackArtwork, releaseArtworkSnapshot, type ReleaseArtwork } from '../lib/release-queue-artwork';
+import { vinylDisc } from '../lib/release-images';
+import { createShuffleCycle } from '../lib/shuffle-cycle';
 import { useAuth } from './auth-provider';
 import { hasNativePlayer } from '../lib/native-player';
 import { useNativePlayer } from './use-native-player';
 import { isIOSWebKit, watchPersistentAudioStall } from '../lib/audio-stall-guard';
 import { configureMusicAudioSession } from '../lib/music-audio-session';
 import { getMediaArtwork, getMediaMetadataKey, startMediaArtworkUpdate } from '../lib/media-artwork-update';
+import { preparePlayerState, readPlayerState, writePlayerState } from '../lib/player-storage';
 
 export type PlayerTrack = {
-  playbackSource?: { section: 'collection' | 'playlists' | 'mixes' | 'originals' | 'favorites'; name?: string };
+  queueAnchorOnly?: boolean;
+  playbackSource?: { section: 'collection' | 'playlists' | 'mixes' | 'originals' | 'favorites'; name?: string; href?: string };
   id: string;
   title: string;
   artist: string;
@@ -27,6 +33,8 @@ export type PlayerTrack = {
   frontCoverFullUrl?: string;
   frontCoverMobileUrl?: string;
   backCoverUrl?: string;
+  backCoverMobileUrl?: string;
+  backCoverMediumUrl?: string;
   position?: string | null;
   coverSide?: 'front' | 'back';
   releaseId?: string;
@@ -101,7 +109,6 @@ const PlayerActionsContext = createContext<
     | 'canPlayNext'
   > | null
 >(null);
-const PLAYER_STATE_KEY = 'vinyl-player-state';
 
 let sharedAudio: HTMLAudioElement | null = null;
 let sharedQueue: PlayerTrack[] = [];
@@ -127,38 +134,7 @@ function readStoredState() {
     return null;
   }
 
-  try {
-    const raw = window.sessionStorage.getItem(PLAYER_STATE_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    return JSON.parse(raw) as {
-      queue: PlayerTrack[];
-      displayQueue?: PlayerTrack[];
-      currentIndex: number;
-      currentTrack: PlayerTrack | null;
-      currentTime: number;
-      volume?: number;
-      isShuffleEnabled?: boolean;
-      isRepeatEnabled?: boolean;
-    };
-  } catch {
-    return null;
-  }
-}
-
-function getRandomNextIndex(currentIndex: number, size: number) {
-  if (size <= 1) {
-    return currentIndex;
-  }
-
-  let nextIndex = currentIndex;
-  while (nextIndex === currentIndex) {
-    nextIndex = Math.floor(Math.random() * size);
-  }
-
-  return nextIndex;
+  return readPlayerState(() => window.sessionStorage);
 }
 
 function mergeTrackById(tracks: PlayerTrack[], nextTrack: PlayerTrack) {
@@ -290,7 +266,10 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   const displayQueueRef = useRef<PlayerTrack[]>(sharedDisplayQueue);
   const currentIndexRef = useRef(sharedCurrentIndex);
   const currentTrackRef = useRef<PlayerTrack | null>(sharedCurrentTrack);
+  const releaseArtworkCache = useRef(new Map<string, ReleaseArtwork>());
+  const releaseArtworkVersions = useRef(new Map<string, number>());
   const shuffleEnabledRef = useRef(sharedIsShuffleEnabled);
+  const shuffleCycleRef = useRef(createShuffleCycle());
   const repeatEnabledRef = useRef(sharedIsRepeatEnabled);
   const pendingSeekPercentRef = useRef<number | null>(null);
   const recoveryInFlightRef = useRef(false);
@@ -318,9 +297,48 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(sharedIsShuffleEnabled);
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(sharedIsRepeatEnabled);
   const persistedSecond = Math.floor(currentTime);
+  const persistedState = useMemo(() => preparePlayerState({
+    queue, displayQueue, currentIndex, currentTrack, volume, isShuffleEnabled, isRepeatEnabled,
+  }), [queue, displayQueue, currentIndex, currentTrack, volume, isShuffleEnabled, isRepeatEnabled]);
+
+  function applyReleaseArtwork(release: ReleaseArtwork) {
+    releaseArtworkVersions.current.set(release.id,(releaseArtworkVersions.current.get(release.id)||0)+1);
+    releaseArtworkCache.current.set(release.id,releaseArtworkSnapshot(release));
+    const normalize = (track: PlayerTrack) => cachedTrackArtwork(track,releaseArtworkCache.current);
+    sharedQueue = queueRef.current.map(normalize);
+    sharedDisplayQueue = displayQueueRef.current.map(normalize);
+    queueRef.current = sharedQueue;
+    displayQueueRef.current = sharedDisplayQueue;
+    setQueue(sharedQueue);
+    setDisplayQueue(sharedDisplayQueue);
+    const active = currentTrackRef.current;
+    if (active) {
+      const next = normalize(active);
+      if (next !== active) { sharedCurrentTrack = next; currentTrackRef.current = next; setCurrentTrack(next); }
+    }
+  }
+  useEffect(() => {
+    const update = (event: Event) => {
+      const release = (event as CustomEvent<ReleaseArtwork>).detail;
+      if (release?.id) applyReleaseArtwork(release);
+    };
+    window.addEventListener('vinyl:release-artwork-updated',update);
+    return () => window.removeEventListener('vinyl:release-artwork-updated',update);
+  },[]);
+  useEffect(() => {
+    const id = currentTrack?.releaseId;
+    if (!id || !queueRef.current.some(track=>track.releaseId===id&&vinylDisc(track.position)===2)) return;
+    const version = releaseArtworkVersions.current.get(id)||0;
+    let cancelled = false;
+    void getRelease(id).then(release=>{
+      if (!cancelled && (releaseArtworkVersions.current.get(id)||0)===version) applyReleaseArtwork(release);
+    }).catch(()=>{});
+    return () => {cancelled=true;};
+  },[currentTrack?.releaseId]);
 
   function startQueuedTrack(index: number) {
-    const track = queueRef.current[index];
+    const queuedTrack = queueRef.current[index];
+    const track = queuedTrack ? cachedTrackArtwork(queuedTrack,releaseArtworkCache.current) : undefined;
     const audio = audioRef.current;
     if (!track || !audio) return;
     sharedCurrentIndex = index;
@@ -484,7 +502,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
 
     const onEnded = () => {
       const queueSize = queueRef.current.length;
-      if (!queueSize) {
+      if (!queueSize || (queueSize === 1 && queueRef.current[0]?.queueAnchorOnly && !repeatEnabledRef.current)) {
         playbackRequestedRef.current = false;
         setIsPlaying(false);
         setProgress(100);
@@ -496,7 +514,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       if (repeatEnabledRef.current) {
         nextIndex = currentIndexRef.current;
       } else if (shuffleEnabledRef.current) {
-        nextIndex = getRandomNextIndex(currentIndexRef.current, queueSize);
+        nextIndex = shuffleCycleRef.current.next(queueRef.current, currentIndexRef.current);
       } else if (nextIndex >= queueSize) {
         playbackRequestedRef.current = false;
         setIsPlaying(false);
@@ -543,7 +561,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
         const resumeTime = audioElement.currentTime || 0;
         const shouldResume = playbackRequestedRef.current || (!audioElement.paused && !audioElement.ended);
 
-        const nextTrack = { ...trackToRecover, ...refreshedTrack };
+        const nextTrack = cachedTrackArtwork({ ...trackToRecover, ...refreshedTrack },releaseArtworkCache.current);
         const nextQueue = mergeTrackById(queueRef.current, nextTrack);
         const nextDisplayQueue = mergeTrackById(displayQueueRef.current, nextTrack);
 
@@ -689,20 +707,28 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
 
     async function refreshSignedUrls() {
       try {
-        const refreshedTrack = await refreshPlayerTrack(trackToRefresh.id);
+        const refreshedTrack: PlayerTrack = await refreshPlayerTrack(trackToRefresh.id);
         if (isCancelled || !refreshedTrack.audioUrl) {
           return;
         }
 
         const hasChanged =
           refreshedTrack.audioUrl !== trackToRefresh.audioUrl ||
-          refreshedTrack.coverUrl !== trackToRefresh.coverUrl;
+          refreshedTrack.coverUrl !== trackToRefresh.coverUrl ||
+          refreshedTrack.frontCoverFullUrl !== trackToRefresh.frontCoverFullUrl ||
+          refreshedTrack.frontCoverMobileUrl !== trackToRefresh.frontCoverMobileUrl ||
+          refreshedTrack.backCoverUrl !== trackToRefresh.backCoverUrl ||
+          refreshedTrack.backCoverMobileUrl !== trackToRefresh.backCoverMobileUrl ||
+          refreshedTrack.backCoverMediumUrl !== trackToRefresh.backCoverMediumUrl ||
+          refreshedTrack.coverSide !== trackToRefresh.coverSide ||
+          refreshedTrack.position !== trackToRefresh.position ||
+          (Boolean(refreshedTrack.waveformData?.length) && !trackToRefresh.waveformData?.length);
 
         if (!hasChanged) {
           return;
         }
 
-        const nextTrack = { ...trackToRefresh, ...refreshedTrack };
+        const nextTrack = cachedTrackArtwork({ ...trackToRefresh, ...refreshedTrack },releaseArtworkCache.current);
         const nextQueue = mergeTrackById(queueRef.current, nextTrack);
         const nextDisplayQueue = mergeTrackById(displayQueueRef.current, nextTrack);
 
@@ -743,20 +769,8 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    window.sessionStorage.setItem(
-      PLAYER_STATE_KEY,
-        JSON.stringify({
-          queue,
-          displayQueue,
-          currentIndex,
-          currentTrack,
-          currentTime: persistedSecond,
-          volume,
-          isShuffleEnabled,
-          isRepeatEnabled,
-        }),
-      );
-  }, [queue, displayQueue, currentIndex, currentTrack, persistedSecond, volume, isShuffleEnabled, isRepeatEnabled]);
+    writePlayerState(() => window.sessionStorage, persistedState, persistedSecond);
+  }, [currentTrack, persistedSecond, persistedState]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -781,7 +795,14 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   }, [currentTrack]);
 
   const setQueueState = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
-    const playableTracks = tracks.filter((track) => Boolean(track.audioUrl));
+    const origin = new URL(window.location.href);
+    const layout = document.querySelector('.paper-archive')?.getAttribute('data-layout');
+    if (layout) origin.searchParams.set('layout', layout);
+    origin.searchParams.delete('reveal');
+    const href = origin.pathname + origin.search + origin.hash;
+    const playableTracks = tracks.filter((track) => Boolean(track.audioUrl)).map(track => cachedTrackArtwork({...track,
+      playbackSource: track.playbackSource ? {...track.playbackSource, href:track.playbackSource.href || href} : undefined,
+    },releaseArtworkCache.current));
     if (!playableTracks.length) {
       return null;
     }
@@ -795,7 +816,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     sharedQueue = playableTracks;
     automaticStartRef.current = null;
     playbackRequestedRef.current = true;
-    sharedDisplayQueue = (displayTracks || playableTracks).filter((track) => Boolean(track.audioUrl));
+    sharedDisplayQueue = (displayTracks || playableTracks).filter((track) => Boolean(track.audioUrl)).map(track=>cachedTrackArtwork(track,releaseArtworkCache.current));
     sharedCurrentIndex = safeIndex;
     sharedCurrentTrack = nextTrack;
     queueRef.current = playableTracks;
@@ -812,6 +833,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const playQueue = (tracks: PlayerTrack[], startIndex = 0, displayTracks?: PlayerTrack[]) => {
+    shuffleCycleRef.current.reset();
     setQueueState(tracks, startIndex, displayTracks);
   };
 
@@ -840,13 +862,13 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const playableTracks = tracks.filter((track) => Boolean(track.audioUrl)).map(track => ({...track, playbackSource:track.playbackSource || activeTrack.playbackSource}));
+    const playableTracks = tracks.filter((track) => Boolean(track.audioUrl)).map(track => cachedTrackArtwork({...track, playbackSource:track.playbackSource || activeTrack.playbackSource},releaseArtworkCache.current));
     const nextIndex = playableTracks.findIndex((track) => track.id === activeTrack.id);
     if (nextIndex < 0) {
       return;
     }
 
-    const requestedDisplayQueue = (displayTracks || playableTracks).filter((track) => Boolean(track.audioUrl));
+    const requestedDisplayQueue = (displayTracks || playableTracks).filter((track) => Boolean(track.audioUrl)).map(track=>cachedTrackArtwork(track,releaseArtworkCache.current));
     const nextDisplayQueue = requestedDisplayQueue.some((track) => track.id === activeTrack.id)
       ? requestedDisplayQueue
       : getReleaseScopedDisplayQueue(playableTracks, activeTrack) || playableTracks;
@@ -871,7 +893,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
 
     let nextIndex = currentIndexRef.current + 1;
     if (shuffleEnabledRef.current) {
-      nextIndex = getRandomNextIndex(currentIndexRef.current, queueSize);
+      nextIndex = shuffleCycleRef.current.next(queueRef.current, currentIndexRef.current);
     } else if (nextIndex >= queueSize) {
       if (!repeatEnabledRef.current) {
         return;
@@ -904,7 +926,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
 
     let previousIndex = currentIndexRef.current - 1;
     if (shuffleEnabledRef.current) {
-      previousIndex = getRandomNextIndex(currentIndexRef.current, queueSize);
+      previousIndex = shuffleCycleRef.current.next(queueRef.current, currentIndexRef.current);
     } else if (previousIndex < 0) {
       if (!repeatEnabledRef.current) {
         return;
@@ -913,7 +935,8 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       previousIndex = queueSize - 1;
     }
 
-    const previousTrack = queueRef.current[previousIndex];
+    const queuedPreviousTrack = queueRef.current[previousIndex];
+    const previousTrack = queuedPreviousTrack ? cachedTrackArtwork(queuedPreviousTrack,releaseArtworkCache.current) : undefined;
     if (!previousTrack) {
       return;
     }
@@ -981,6 +1004,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleShuffle = () => {
+    shuffleCycleRef.current.reset();
     const nextValue = !shuffleEnabledRef.current;
     shuffleEnabledRef.current = nextValue;
     sharedIsShuffleEnabled = nextValue;

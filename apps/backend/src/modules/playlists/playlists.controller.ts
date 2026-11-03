@@ -24,6 +24,12 @@ export class PlaylistsController {
     return this.playlistsService.findSummaries(request.user.id);
   }
 
+  @Get('count')
+  @UseGuards(AuthGuard)
+  count(@Req() request: any) {
+    return this.playlistsService.count(request.user.id);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @Req() request: any) {
     const user = await this.authService.getUserFromRequest(request);

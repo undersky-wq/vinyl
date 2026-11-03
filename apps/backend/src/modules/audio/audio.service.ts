@@ -10,6 +10,7 @@ import { promisify } from 'node:util';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { UploadAudioBodyDto } from './dto/upload-audio.dto';
+import { waveformFromPcm } from './waveform-data';
 
 const execFileAsync = promisify(execFile);
 
@@ -76,86 +77,11 @@ export class AudioService {
     return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
   }
 
-  private buildWaveformData(buffer: Buffer, points = 180) {
-    if (!buffer.length) {
-      return [];
-    }
-
-    const startOffset =
-      buffer.subarray(0, 3).toString('latin1') === 'ID3' && buffer.length >= 10
-        ? Math.min(
-            buffer.length,
-            10 +
-              ((buffer[6] & 0x7f) << 21) +
-              ((buffer[7] & 0x7f) << 14) +
-              ((buffer[8] & 0x7f) << 7) +
-              (buffer[9] & 0x7f),
-          )
-        : 0;
-    const audioBuffer = buffer.subarray(startOffset);
-    const chunkSize = Math.max(1, Math.floor(audioBuffer.length / points));
-    const peaks: number[] = [];
-
-    for (let point = 0; point < points; point += 1) {
-      const start = point * chunkSize;
-      const end = Math.min(audioBuffer.length, start + chunkSize);
-      let sum = 0;
-      let max = 0;
-
-      for (let index = start; index < end; index += 1) {
-        const value = Math.abs(audioBuffer[index] - 128) / 128;
-        sum += value;
-        max = Math.max(max, value);
-      }
-
-      const average = end > start ? sum / (end - start) : 0;
-      peaks.push(Math.min(1, Math.max(0.04, average * 0.55 + max * 0.45)));
-    }
-
-    const maxPeak = Math.max(...peaks, 0.01);
-    return peaks.map((peak) => Number(Math.min(1, peak / maxPeak).toFixed(3)));
+  private buildWaveformDataFromPcm(buffer: Buffer, points?: number) {
+    return waveformFromPcm(buffer, points);
   }
 
-  private buildWaveformDataFromPcm(buffer: Buffer, points = 180) {
-    if (buffer.length < 4) {
-      return [];
-    }
-
-    const sampleCount = Math.floor(buffer.length / 4);
-    if (!sampleCount) {
-      return [];
-    }
-
-    const chunkSize = Math.max(1, Math.floor(sampleCount / points));
-    const peaks: number[] = [];
-
-    for (let point = 0; point < points; point += 1) {
-      const startSample = point * chunkSize;
-      const endSample = Math.min(sampleCount, startSample + chunkSize);
-      if (startSample >= sampleCount) {
-        peaks.push(0.04);
-        continue;
-      }
-
-      let sumSquares = 0;
-      let max = 0;
-
-      for (let sampleIndex = startSample; sampleIndex < endSample; sampleIndex += 1) {
-        const value = Math.abs(buffer.readFloatLE(sampleIndex * 4));
-        sumSquares += value * value;
-        max = Math.max(max, value);
-      }
-
-      const length = Math.max(1, endSample - startSample);
-      const rms = Math.sqrt(sumSquares / length);
-      peaks.push(Math.min(1, Math.max(0.04, rms * 0.72 + max * 0.28)));
-    }
-
-    const maxPeak = Math.max(...peaks, 0.01);
-    return peaks.map((peak) => Number(Math.min(1, peak / maxPeak).toFixed(3)));
-  }
-
-  private async generateWaveformData(buffer: Buffer, mimeType: string, points = 180) {
+  private async generateWaveformData(buffer: Buffer, mimeType: string, points?: number) {
     if (!buffer.length) {
       return [];
     }
@@ -182,9 +108,10 @@ export class AudioService {
 
       const pcmBuffer = await fs.readFile(pcmPath);
       const waveform = this.buildWaveformDataFromPcm(pcmBuffer, points);
-      return waveform.length ? waveform : this.buildWaveformData(buffer, points);
+      return waveform;
     } catch {
-      return this.buildWaveformData(buffer, points);
+      // Compressed bytes are not amplitude data; keep the unavailable state explicit.
+      return [];
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
     }

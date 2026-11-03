@@ -44,7 +44,8 @@ export function archiveStep(mode: ArchiveMode, viewport: { width: number; height
 }
 
 export function clampPosition(position: number, count: number) {
-  return Math.max(0, Math.min(Math.max(0, count - 1), position));
+  const safeCount = Number.isFinite(count) ? Math.max(0, count) : 0;
+  return Math.max(0, Math.min(Math.max(0, safeCount - 1), Number.isFinite(position) ? position : 0));
 }
 
 export function archiveWindow(position: number, count: number, mode: ArchiveMode) {
@@ -52,7 +53,7 @@ export function archiveWindow(position: number, count: number, mode: ArchiveMode
     const start = Math.max(0, Math.floor(position / (mode === 'grid' ? 4 : 1)) * (mode === 'grid' ? 4 : 1) - (mode === 'grid' ? 4 : 2));
     return Array.from({ length: Math.max(0, Math.min(mode === 'grid' ? 44 : 20, count - start)) }, (_, index) => start + index);
   }
-  const radius = mode === 'stack' ? 4 : 16;
+    const radius = mode === 'stack' ? 4 : 16;
   const start = Math.max(0, Math.floor(position) - radius);
   return Array.from({ length: Math.max(0, Math.min(count, Math.ceil(position) + radius + 1) - start) }, (_, index) => start + index);
 }

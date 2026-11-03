@@ -25,7 +25,7 @@ async function readJson<T>(response: Response): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const cacheable = (!init?.method || init.method === 'GET') && isCatalogRequest(path);
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -181,7 +181,7 @@ export async function getLibraryFeed(limit = 20, offset = 0) {
 export async function getLibraryFeedFiltered(
   limit = 20,
   offset = 0,
-  filters: { styles?: string[]; artist?: string; key?: string | string[]; search?: string; isMix?: boolean } = {},
+  filters: { styles?: string[]; artist?: string; key?: string | string[]; search?: string; isMix?: boolean; isOriginal?: boolean } = {},
   signal?: AbortSignal,
 ) {
   const params = new URLSearchParams({
@@ -210,10 +210,12 @@ export async function getLibraryFeedFiltered(
   if (typeof filters.isMix === 'boolean') {
     params.set('isMix', filters.isMix ? 'true' : 'false');
   }
+  if (typeof filters.isOriginal === 'boolean') params.set('isOriginal', String(filters.isOriginal));
 
   return fetchJson<{
     releases: Release[];
     total: number;
+    collectionTotal?: number;
     totalTracks: number;
     hasMore: boolean;
     options: { styles: string[]; artists: string[]; keys: string[] };

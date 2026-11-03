@@ -1,0 +1,4 @@
+html body button.music-download { position:relative; color:inherit; }
+html body button.music-download:disabled { opacity:.45; cursor:wait; }
+.music-download-error { position:absolute; right:0; bottom:100%; width:max-content; max-width:200px; padding:6px 8px; background:var(--shelf-bg,#fff); color:var(--shelf-text,#111); border:1px solid currentColor; font-size:11px; }
+html[data-shelf-theme='dark'] .music-download-error { background:#111214; color:#f3f3f1; }

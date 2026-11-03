@@ -54,5 +54,15 @@ vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.Mo
   assert.equal(requests[6].options.method, undefined, 'Same account must retain its receipt');
   await reloaded.exports.recordMusicLinkCopy('mix/1', 'account-b');
   assert.equal(requests[7].options.method, 'POST', 'Different accounts must not share a receipt');
-  console.log('Music link copy counter tests passed');
+  const playStart = requests.length;
+  await reloaded.exports.recordMusicPlay('mix/1', 'a'.repeat(36));
+  await reloaded.exports.recordMusicPlay('mix/1', 'b'.repeat(36));
+  assert.equal(JSON.parse(requests[playStart].options.body).sessionId, JSON.parse(requests[playStart + 1].options.body).sessionId, 'Returning to a release must retain browser identity');
+  const afterReload = { ...context, exports: {} };
+  vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, afterReload);
+  await afterReload.exports.recordMusicPlay('mix/1', 'c'.repeat(36));
+  assert.equal(JSON.parse(requests[playStart + 2].options.body).sessionId, 'a'.repeat(36), 'Reload must preserve the playback identity');
+  await afterReload.exports.recordMusicPlay('mix/2', 'd'.repeat(36));
+  assert.equal(JSON.parse(requests[playStart + 3].options.body).sessionId, 'd'.repeat(36), 'Other releases have independent playback receipts');
+  console.log('Music link copy and browser playback counter tests passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

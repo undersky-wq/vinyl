@@ -1,5 +1,6 @@
 'use client';
 import './track-action-colors.css';
+import './playlist-count.css';
 import './playlist-popup-desktop.css';
 
 import { Check, Heart, ListMusic, Plus } from 'lucide-react';
@@ -84,8 +85,9 @@ export function TrackPlaylistMenu({
   const desktopDrag = useRef<{x:number;y:number;left:number;top:number} | null>(null);
   const desktopMoved = useRef(false);
   const { requireAuth } = useAuth();
-  const { createPlaylistWithTrack, isInAnyPlaylist, isLoading, playlists, toggleTrackInPlaylist } = usePlaylists();
-  const isInPlaylist = isInAnyPlaylist(trackId);
+  const { createPlaylistWithTrack, getTrackPlaylistCount, isLoading, playlists, toggleTrackInPlaylist } = usePlaylists();
+  const playlistCount = getTrackPlaylistCount(trackId);
+  const isInPlaylist = playlistCount > 0;
   const desktopPopup = isMounted && !isMobileSheet;
   const canSheetDrag = !desktopPopup && (sheetDrag || isMobileSheet);
 
@@ -388,7 +390,7 @@ export function TrackPlaylistMenu({
       <button
         type="button"
         className={`track-playlist-menu__trigger${isOpen ? ' active' : ''}${isInPlaylist ? ' saved' : ''}`}
-        aria-label={lang === 'ru' ? 'Меню трека' : 'Track menu'}
+        aria-label={playlistCount > 1 ? (lang === 'ru' ? `Меню трека, в плейлистах: ${playlistCount}` : `Track menu, in ${playlistCount} playlists`) : lang === 'ru' ? 'Меню трека' : 'Track menu'}
         data-tooltip={lang === 'ru' ? 'Добавить в плейлист' : 'Add to playlist'}
         onPointerDown={(event) => {
           event.stopPropagation();
@@ -410,6 +412,7 @@ export function TrackPlaylistMenu({
         }}
       >
         <ListMusic size={17} />
+        {playlistCount > 1 ? <span className="track-playlist-menu__count" aria-hidden="true">{playlistCount}</span> : null}
       </button>
 
       {renderedPopup}

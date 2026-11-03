@@ -1,8 +1,9 @@
-export type MusicEngagement = { favorites: number; plays: number; copies: number };
+export type MusicEngagement = { favorites: number; plays: number; copies: number; downloads?: number };
 
 type CopyReceipt = { requestId: string; completed: boolean };
 const copyReceipts = new Map<string, CopyReceipt>();
 const pendingCopies = new Map<string, Promise<MusicEngagement>>();
+const browserPlayIds = new Map<string, string>();
 
 function saveCopyReceipt(storageKey: string, receipt: CopyReceipt) {
   copyReceipts.set(storageKey, receipt);
@@ -49,9 +50,17 @@ export async function getMusicEngagement(id: string): Promise<MusicEngagement> {
 }
 
 export async function recordMusicPlay(id: string, sessionId: string) {
+  const storageKey = `vinyl:music-play:${id}`;
+  let browserId = browserPlayIds.get(id) || sessionId;
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (stored && /^[a-f0-9-]{36}$/.test(stored)) browserId = stored;
+    else localStorage.setItem(storageKey, browserId);
+  } catch { /* Retain session-level deduplication if browser storage is blocked. */ }
+  browserPlayIds.set(id, browserId);
   const response = await fetch(`/api/releases/${encodeURIComponent(id)}/plays`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId }),
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId: browserId }),
   });
   if (!response.ok) throw new Error('Unable to record playback');
   window.dispatchEvent(new CustomEvent('music-engagement', { detail: id }));

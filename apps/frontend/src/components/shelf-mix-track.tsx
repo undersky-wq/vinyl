@@ -18,8 +18,10 @@ import { usePlayerActions, usePlayerTransport } from '../providers/player-provid
 import { HomeRelease, TimelineComment } from '../types';
 import { TimelineCommentMarkers } from './timeline-comment-markers';
 import { CopyMusicLink } from './copy-music-link';
+import { DownloadMusic } from './download-music';
 import { TimelineCommentComposer } from './timeline-comment-composer';
 import { TimelineCommentRow } from './timeline-comment-row';
+import { ShelfReleaseYear } from './shelf-release-editor';
 import { musicPageQueue } from '../lib/music-page-queue';
 import './music-mobile-layout.css';
 
@@ -61,9 +63,12 @@ export function ShelfMixTrack({
   const queue = useMemo(() => musicPageQueue(queueReleases || [release]),[queueReleases,release]);
   const queueIndex = queue.findIndex(item => item.id === track?.id);
   const sourcePeaks = track?.waveformData?.length ? track.waveformData : buildFallbackWaveform(`${release.id}-${release.title}`);
-  const {ref: waveformRef, peaks} = useResponsiveWaveform(sourcePeaks,{minBars:48,maxBars:400,pixelsPerBar:4,adaptiveBelowPx:10000});
+  const {ref: waveformRef, peaks, barStyle} = useResponsiveWaveform(sourcePeaks,{minBars:48,maxBars:400,pixelsPerBar:4,adaptiveBelowPx:10000,snapToDevicePixels:true});
   const [comments,setComments] = useState<TimelineComment[]>([]);
   const [commentsOpen,setCommentsOpen] = useState(false);
+  const commentsPanelRef = useRef<HTMLDivElement>(null);
+  const commentsToggleRef = useRef<HTMLButtonElement>(null);
+  const waveformInteractionRef = useRef<HTMLDivElement>(null);
   const [commentText,setCommentText] = useState('');
   const [commentSecond,setCommentSecond] = useState<number | null>(null);
   const [savingComment,setSavingComment] = useState(false);
@@ -80,7 +85,22 @@ export function ShelfMixTrack({
   const duration = track?.durationSec || (rawParts && rawParts.length >= 2 && rawParts.length <= 3 && rawParts.every(Number.isFinite) ? rawParts.reduce((total,part)=>total*60+part,0) : 0);
   const totalDuration = isCurrent && audioDuration > 0 ? audioDuration : duration;
   const visibleComments = commentsAlwaysOpen || commentsOpen;
-  const selectedCommentSecond = commentSecond ?? (commentsAlwaysOpen ? Math.floor(elapsed) : null);
+  const selectedCommentSecond = previewProgress !== null
+    ? Math.floor(totalDuration * previewProgress / 100)
+    : commentSecond ?? (commentsAlwaysOpen ? Math.floor(elapsed) : null);
+
+  useEffect(() => {
+    if (!commentsOpen || commentsAlwaysOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (!window.matchMedia('(min-width:701px)').matches) return;
+      const target = event.target;
+      if (!(target instanceof Node) || commentsPanelRef.current?.contains(target) || commentsToggleRef.current?.contains(target) || waveformInteractionRef.current?.contains(target)) return;
+      setCommentsOpen(false);
+      onCommentsOpenChange?.(false, comments.length);
+    };
+    document.addEventListener('pointerdown', outside, true);
+    return () => document.removeEventListener('pointerdown', outside, true);
+  }, [commentsOpen, commentsAlwaysOpen, comments.length, onCommentsOpenChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,7 +133,7 @@ export function ShelfMixTrack({
 
   function commitSeek(percent: number, resume = false) {
     if(queueIndex < 0)return;
-    const second=Math.round(totalDuration*percent/100);
+    const second=Math.floor(totalDuration*percent/100);
     setCommentSecond(second);
     const audio=getAudioElement();
     if(isCurrent && audio && Number.isFinite(audio.duration) && audio.duration>0){seekToPercent(percent);if(resume && !isPlaying)togglePlayback();}
@@ -159,10 +179,11 @@ export function ShelfMixTrack({
       <span>{release.styles.join(' · ') || (lang==='ru'?'Стиль не указан':'Style unavailable')}</span>
       {!yearInHeading && release.year ? <time>{release.year}</time> : null}
       <div className="paper-mix-engagement">
-        <button type="button" aria-label={lang==='ru'?'Комментарии':'Comments'} title={lang==='ru'?'Комментарии':'Comments'} aria-expanded={visibleComments} onClick={()=>{const next=!commentsOpen;setCommentsOpen(next);onCommentsOpenChange?.(next,comments.length);}}><MessageCircle size={18}/>{comments.length>0?<sup>{comments.length}</sup>:null}</button>
-        <button type="button" aria-label={lang==='ru'?'Избранное':'Favorites'} title={lang==='ru'?'Избранное':'Favorites'} aria-pressed={isFavorite(track.id)} onClick={()=>void toggleFavorite(track.id)}><Heart size={18} fill={isFavorite(track.id)?'currentColor':'none'}/>{engagement && engagement.favorites>0?<sup>{engagement.favorites}</sup>:null}</button>
-        <span title={lang==='ru'?'Прослушивания':'Plays'} aria-label={`${lang==='ru'?'Прослушивания':'Plays'}: ${engagement?.plays ?? 0}`}><Headphones size={18}/>{engagement && engagement.plays>0?<sup>{engagement.plays}</sup>:null}</span>
+        <button ref={commentsToggleRef} type="button" className="music-icon-tooltip" aria-label={lang==='ru'?'Комментарии':'Comments'} data-tooltip={lang==='ru'?'Комментарии':'Comments'} aria-expanded={visibleComments} onClick={()=>{const next=!commentsOpen;setCommentsOpen(next);onCommentsOpenChange?.(next,comments.length);}}><MessageCircle size={18}/>{comments.length>0?<sup>{comments.length}</sup>:null}</button>
+        <button type="button" className="music-icon-tooltip" aria-label={lang==='ru'?'Избранное':'Favorites'} data-tooltip={lang==='ru'?'Избранное':'Favorites'} aria-pressed={isFavorite(track.id)} onClick={()=>void toggleFavorite(track.id)}><Heart size={18} fill={isFavorite(track.id)?'currentColor':'none'}/>{engagement && engagement.favorites>0?<sup>{engagement.favorites}</sup>:null}</button>
+        <span className="music-icon-tooltip" tabIndex={0} data-tooltip={lang==='ru'?'Прослушивания':'Plays'} aria-label={`${lang==='ru'?'Прослушивания':'Plays'}: ${engagement?.plays ?? 0}`}><Headphones size={18}/>{engagement && engagement.plays>0?<sup>{engagement.plays}</sup>:null}</span>
         <CopyMusicLink releaseId={release.id} lang={lang} copyCount={engagement?.copies ?? 0} />
+        <DownloadMusic releaseId={release.id} trackId={track.id} lang={lang} count={engagement?.downloads ?? 0} />
       </div>
     </div>;
   return <>
@@ -170,13 +191,13 @@ export function ShelfMixTrack({
       <button className="paper-mix-play" type="button" disabled={queueIndex < 0} aria-label={release.isOriginal ? (lang==='ru' ? isCurrent && isPlaying ? 'Пауза трека' : 'Воспроизвести трек' : isCurrent && isPlaying ? 'Pause track' : 'Play track') : (lang==='ru' ? isCurrent && isPlaying ? 'Пауза микса' : 'Воспроизвести микс' : isCurrent && isPlaying ? 'Pause mix' : 'Play mix')} onClick={()=>{if(isCurrent)togglePlayback();else playQueue(queue,queueIndex,queue);}}>
         {isCurrent && isPlaying ? <Pause size={24}/> : <Play size={24}/>}
       </button>
-      <h2><span className="paper-mix-name"><span className="paper-mix-artist" title={release.artist}>{release.artist}</span><span className="paper-mix-title-separator"> : </span><span className="paper-release-title-regular paper-mix-title" title={release.title}>{release.title}</span></span>{release.year ? <time dateTime={String(release.year)}>{release.year}</time> : null}</h2>
+      <h2><span className="paper-mix-name"><span className="paper-mix-artist" title={release.artist}>{release.artist}</span><span className="paper-mix-title-separator"> : </span><span className="paper-release-title-regular paper-mix-title" title={release.title}>{release.title}</span></span><ShelfReleaseYear id={release.id} year={release.year} lang={lang}/></h2>
     </div> : null}
     <div className={`paper-mix-timeline${timelineControls ? ' has-transport' : ''}`}>
-      <div className="paper-mix-wave">
+      <div ref={waveformInteractionRef} className="paper-mix-wave">
         <button ref={waveformRef} type="button" onClick={seek}
           onPointerDown={event=>{
-            if (!window.matchMedia('(max-width:700px)').matches || !event.isPrimary || event.button !== 0) return;
+            if (!event.isPrimary || event.button !== 0) return;
             scrubPointer.current = event.pointerId;
             event.currentTarget.setPointerCapture(event.pointerId);
             setPreviewProgress(pointerProgress(event));
@@ -193,7 +214,7 @@ export function ShelfMixTrack({
           onPointerCancel={()=>{scrubPointer.current=null;setPreviewProgress(null);suppressSeekClickUntil.current=Date.now()+500;}}
           onLostPointerCapture={()=>{scrubPointer.current=null;setPreviewProgress(null);}}
           aria-label={release.isOriginal ? (lang==='ru'?'Перемотать трек':'Seek track') : (lang==='ru'?'Перемотать микс':'Seek mix')}>
-          {peaks.map((peak,index)=><span key={index} className={(index/Math.max(1,peaks.length-1))*100<=(previewProgress ?? progress)?'is-active':''} style={{height:`${Math.max(8,Math.round(peak*100))}%`} as CSSProperties}/>)}
+          {peaks.map((peak,index)=><span key={index} className={(index/Math.max(1,peaks.length-1))*100<=(previewProgress ?? progress)?'is-active':''} style={{...barStyle(index),height:`${Math.max(2,Math.round(peak*100))}%`} as CSSProperties}/>)}
         </button>
         <TimelineCommentMarkers comments={comments} durationSec={totalDuration} />
       </div>
@@ -203,7 +224,7 @@ export function ShelfMixTrack({
       </div> : <div className="paper-mix-timeline-actions">{actions}<time>{normalizeDurationLabel(track.durationRaw,track.durationSec,'—')}</time></div>}
     </div>
     {metadata}
-    <div className="paper-mix-comments" data-open={visibleComments} inert={!visibleComments}>
+    <div ref={commentsPanelRef} className="paper-mix-comments" data-open={visibleComments} inert={!visibleComments}>
       <div className="paper-mix-comments-content">
       <TimelineCommentComposer lang={lang} second={selectedCommentSecond} text={commentText} onTextChange={setCommentText} onSubmit={addComment} pending={savingComment} disabled={Boolean(deletingComment)} />
       <div>{comments.map(comment=><TimelineCommentRow key={comment.id} comment={comment} timestamp={clock(comment.second)} onSeek={()=>{if(totalDuration>0)commitSeek(comment.second/totalDuration*100,true);}} actions={user && (user.id===comment.userId || user.role==='ADMIN') ? <button type="button" className="paper-mix-comment-delete" aria-label={lang==='ru'?'Удалить комментарий':'Delete comment'} title={lang==='ru'?'Удалить комментарий':'Delete comment'} aria-busy={deletingComment===comment.id} disabled={Boolean(deletingComment) || savingComment} onClick={()=>void removeComment(comment)}>{deletingComment===comment.id?<LoaderCircle size={16} aria-hidden="true"/>:<Trash2 size={16} aria-hidden="true"/>}</button> : null} />)}</div>

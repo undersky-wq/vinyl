@@ -86,7 +86,7 @@ async function refreshed(track: WebTrack): Promise<WebTrack> {
   return { ...track, audioUrl: data.audioUrl, coverUrl: allowedMedia(data.coverUrl) ? data.coverUrl : track.coverUrl };
 }
 
-async function applyRepeat() { await TrackPlayer.setRepeatMode(repeat || shuffle ? RepeatMode.Queue : RepeatMode.Off); }
+async function applyRepeat() { await TrackPlayer.setRepeatMode(repeat ? RepeatMode.Track : shuffle ? RepeatMode.Queue : RepeatMode.Off); }
 
 async function orderedTracks() {
   const active = await TrackPlayer.getActiveTrack();

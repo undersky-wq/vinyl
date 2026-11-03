@@ -15,6 +15,7 @@ import {
   UserProfile,
 } from '../types';
 import type { PlayerTrack } from '../providers/player-provider';
+import { uploadFormData } from './upload-form-data';
 
 const API_URL =
   typeof window === 'undefined'
@@ -151,6 +152,14 @@ function mapHomeRelease(release: HomeReleaseApi): HomeRelease {
     coverMediumStorageUrl: release.coverMediumStorageUrl,
     coverImageUrl: release.coverImageUrl,
     backCoverUrl: release.backCoverUrl,
+    secondCoverUrl: release.secondCoverUrl,
+    secondBackCoverUrl: release.secondBackCoverUrl,
+    backCoverThumbUrl: release.backCoverThumbUrl,
+    backCoverMediumUrl: release.backCoverMediumUrl,
+    secondCoverThumbUrl: release.secondCoverThumbUrl,
+    secondCoverMediumUrl: release.secondCoverMediumUrl,
+    secondBackCoverThumbUrl: release.secondBackCoverThumbUrl,
+    secondBackCoverMediumUrl: release.secondBackCoverMediumUrl,
     images: release.images,
     tracks: orderedTracks.map((track) => ({
       id: track.id,
@@ -293,6 +302,11 @@ export async function getPlaylists(cookieHeader?: string) {
   return fetchJson<Playlist[]>('/playlists', {
     headers: cookieHeader ? { cookie: cookieHeader } : undefined,
   });
+}
+
+export async function getPlaylistCount() {
+  const result = await fetchJson<{ count: number }>('/playlists/count');
+  return result.count;
 }
 
 export async function getPlaylistSummaries(cookieHeader?: string) {
@@ -459,7 +473,9 @@ export async function createPlaylist(input: { name: string; description?: string
     throw new Error('Failed to create playlist');
   }
 
-  return parseJsonResponse<Playlist>(response);
+  const playlist = await parseJsonResponse<Playlist>(response);
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('vinyl:playlists-changed'));
+  return playlist;
 }
 
 export async function addTrackToPlaylist(playlistId: string, trackId: string) {
@@ -585,7 +601,8 @@ export async function uploadTrackAudio(trackId: string, file: File, onProgress?:
   return parseJsonResponse<{ id: string }>(response);
 }
 
-export async function createManualRelease(payload: FormData) {
+export async function createManualRelease(payload: FormData, onProgress?: (percent: number | null) => void) {
+  if (onProgress) return uploadFormData<Release>(`${API_URL}/releases/manual`, payload, onProgress);
   const response = await fetch(`${API_URL}/releases/manual`, {
     method: 'POST',
     credentials: 'include',
@@ -629,11 +646,11 @@ export async function uploadReleaseCover(releaseId: string, file: File) {
   return parseJsonResponse<Release>(response);
 }
 
-export async function uploadReleaseBackCover(releaseId: string, file: File) {
+export async function uploadReleaseBackCover(releaseId: string, file: File, side: 'back' | 'front2' | 'back2' = 'back') {
   const payload = new FormData();
   payload.append('file', file);
 
-  const response = await fetch(`${API_URL}/releases/${releaseId}/back-cover`, {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/back-cover${side === 'back' ? '' : `?side=${side}`}`, {
     method: 'POST',
     credentials: 'include',
     body: payload,
@@ -646,8 +663,33 @@ export async function uploadReleaseBackCover(releaseId: string, file: File) {
   return parseJsonResponse<Release>(response);
 }
 
-export async function removeReleaseBackCover(releaseId: string) {
-  const response = await fetch(`${API_URL}/releases/${releaseId}/back-cover`, {
+export async function selectReleaseCover(releaseId: string, imageId: string, side: 'front' | 'back' | 'front2' | 'back2') {
+  const response = await fetch(`${API_URL}/releases/${encodeURIComponent(releaseId)}/cover-selection`, {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageId, side }),
+  });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not select cover'));
+  return parseJsonResponse<Release>(response);
+}
+
+export async function deleteReleaseGalleryImage(releaseId: string, imageId: string) {
+  const response = await fetch(`${API_URL}/releases/${encodeURIComponent(releaseId)}/images/${encodeURIComponent(imageId)}`, {
+    method: 'DELETE', credentials: 'include',
+  });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not delete image'));
+  return parseJsonResponse<Release>(response);
+}
+
+export async function removeReleaseCover(releaseId: string) {
+  const response = await fetch(`${API_URL}/releases/${encodeURIComponent(releaseId)}/cover`, {
+    method: 'DELETE', credentials: 'include',
+  });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not hide front cover'));
+  return parseJsonResponse<{ success: boolean }>(response);
+}
+
+export async function removeReleaseBackCover(releaseId: string, side: 'back' | 'front2' | 'back2' = 'back') {
+  const response = await fetch(`${API_URL}/releases/${releaseId}/back-cover${side === 'back' ? '' : `?side=${side}`}`, {
     method: 'DELETE',
     credentials: 'include',
   });

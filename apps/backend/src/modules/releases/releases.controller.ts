@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   Body,
   UploadedFiles,
   UploadedFile,
@@ -27,6 +28,9 @@ import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
 import { UpdateReleaseStylesDto } from './dto/update-release-styles.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
 import { ReleasesService } from './releases.service';
+import { SelectReleaseCoverDto } from './dto/select-release-cover.dto';
+import type { Response } from 'express';
+import { pipeline } from 'node:stream/promises';
 
 const MAX_AUDIO_UPLOAD_BYTES = 500 * 1024 * 1024;
 
@@ -103,12 +107,25 @@ export class ReleasesController {
     return this.releasesService.getMusicEngagement(id);
   }
 
+  @Get(':id/tracks/:trackId/download')
+  @UseGuards(AuthGuard)
+  async downloadMusic(@Param('id') id: string, @Param('trackId') trackId: string, @Req() request: any, @Res() response: Response) {
+    const file = await this.releasesService.openMusicDownload(id, trackId, request.user.id, request.method !== 'HEAD');
+    response.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+    response.setHeader('Content-Disposition', `attachment; filename="music${file.filename.match(/\.[a-zA-Z0-9]+$/)?.[0] || '.mp3'}"; filename*=UTF-8''${encodeURIComponent(file.filename).replace(/['()*]/g, char => '%' + char.charCodeAt(0).toString(16))}`);
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    if (request.method === 'HEAD') { file.stream.destroy(); response.end(); return; }
+    await pipeline(file.stream, response);
+  }
+
   @Post(':id/plays')
-  recordPlay(@Param('id') id: string, @Body() body: { sessionId?: string }) {
-    if (!body.sessionId || !/^[a-f0-9-]{36}$/.test(body.sessionId)) {
+  async recordPlay(@Param('id') id: string, @Body() body: { sessionId?: string }, @Req() request: any) {
+    if (typeof body.sessionId !== 'string' || !/^[a-f0-9-]{36}$/.test(body.sessionId)) {
       throw new BadRequestException('Invalid playback session');
     }
-    return this.releasesService.recordMusicPlay(id, body.sessionId);
+    const user = await this.authService.getUserFromRequest(request);
+    return this.releasesService.recordMusicPlay(id, body.sessionId, user?.id);
   }
 
   @Post(':id/copies')
@@ -200,8 +217,20 @@ export class ReleasesController {
 
   @Delete(':id/back-cover')
   @UseGuards(AdminGuard)
-  async removeBackCover(@Param('id') id: string) {
-    return this.releasesService.removeBackCover(id);
+  async removeBackCover(@Param('id') id: string, @Query('side') side?: string) {
+    return this.releasesService.removeBackCover(id, side);
+  }
+
+  @Post(':id/cover-selection')
+  @UseGuards(AdminGuard)
+  async selectCover(@Param('id') id: string, @Body() dto: SelectReleaseCoverDto) {
+    return this.releasesService.selectCover(id, dto.imageId, dto.side);
+  }
+
+  @Delete(':id/images/:imageId')
+  @UseGuards(AdminGuard)
+  async deleteGalleryImage(@Param('id') id: string, @Param('imageId') imageId: string) {
+    return this.releasesService.deleteGalleryImage(id, imageId);
   }
 
   @Post(':id/back-cover')
@@ -217,8 +246,9 @@ export class ReleasesController {
   async uploadBackCover(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
+    @Query('side') side?: string,
   ) {
-    return this.releasesService.uploadBackCover(id, file);
+    return this.releasesService.uploadBackCover(id, file, side);
   }
 
   @Patch(':id/styles')

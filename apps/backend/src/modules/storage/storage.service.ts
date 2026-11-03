@@ -1,13 +1,37 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import sanitizeFilename from 'sanitize-filename';
+import { createReadStream } from 'node:fs';
+import { Readable } from 'node:stream';
 
 @Injectable()
 export class StorageService {
+  async objectExists(bucket: string, key: string) {
+    if (this.isLocalBucket(bucket)) {
+      try { return (await stat(this.resolveLocalObjectPath(bucket, key))).isFile(); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false; throw error; }
+    }
+    if (!this.client) throw new Error('Storage is not configured');
+    try { await this.client.send(new HeadObjectCommand({ Bucket: bucket, Key: key })); return true; }
+    catch (error) { if ((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) return false; throw error; }
+  }
+
+  async openDownload(bucket: string, key: string): Promise<Readable> {
+    if (this.isLocalBucket(bucket)) {
+      const file = this.resolveLocalObjectPath(bucket, key);
+      const info = await stat(file);
+      if (!info.isFile()) throw new Error('Audio file unavailable');
+      return createReadStream(file);
+    }
+    if (!this.client) throw new Error('Audio storage unavailable');
+    const result = await this.client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    if (!(result.Body instanceof Readable)) throw new Error('Audio file unavailable');
+    return result.Body;
+  }
   private readonly client: S3Client | null;
   private readonly endpoint: string | null;
   private readonly signedUrlCache = new Map<string, { url: string; expiresAt: number }>();

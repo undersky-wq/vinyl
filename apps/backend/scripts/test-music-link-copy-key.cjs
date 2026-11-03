@@ -8,6 +8,11 @@ const source = fs.readFileSync(path.join(__dirname, '../src/modules/releases/mus
 const context = { exports: {}, require };
 vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context);
 const { musicLinkCopyKey } = context.exports;
+const { musicPlayKey } = context.exports;
+assert.equal(musicPlayKey('device-a', 'user-1'), musicPlayKey('device-b', 'user-1'));
+assert.notEqual(musicPlayKey('device-a', 'user-1'), musicPlayKey('device-a', 'user-2'));
+assert.notEqual(musicPlayKey('device-a', 'user-1'), musicLinkCopyKey('device-a', 'user-1'));
+assert.equal(musicPlayKey('guest-session'), 'guest-session');
 assert.equal(musicLinkCopyKey('browser-a', 'user-1'), musicLinkCopyKey('browser-b', 'user-1'));
 assert.notEqual(musicLinkCopyKey('browser-a', 'user-1'), musicLinkCopyKey('browser-a', 'user-2'));
 assert.equal(musicLinkCopyKey('guest-request'), 'guest-request');

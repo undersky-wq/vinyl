@@ -74,7 +74,7 @@ async function saveDownloadDetails(track: PlayerTrack) {
   // Persist descriptions, never expiring signed audio URLs or authentication data.
   const details = { id: track.id, title: track.title, artist: track.artist,
     releaseId: track.releaseId, durationRaw: track.durationRaw, durationSec: track.durationSec,
-    waveformData: track.waveformData, isMix: track.isMix, isPublic: track.isPublic };
+    waveformData: track.waveformData, isMix: track.isMix, isOriginal: track.isOriginal, isPublic: track.isPublic };
   const temp = `${fileUri}.json.tmp`;
   await FileSystem.writeAsStringAsync(temp, JSON.stringify(details));
   await FileSystem.moveAsync({ from: temp, to: `${fileUri}.json` });

@@ -19,8 +19,13 @@ import {
 } from 'react-native';
 import { ChevronDown, Heart, ListMusic, ListPlus, MessageCircle, Pause, Pencil, Play, Repeat, Shuffle, SkipBack, SkipForward, Trash2 } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
+import { MusicComments } from './MusicComments';
+import { copyMusicLink, getMusicEngagement, type MusicEngagement } from '../lib/music-engagement';
+import { Share2, Repeat1, Headphones } from 'lucide-react-native';
+import { archiveSectionColor, archiveWaveformColor } from '../lib/archive-section-colors';
+import { resampleWaveform } from '../lib/waveform-resample';
 import { FeedbackPressable as Pressable } from './FeedbackPressable';
-import { adaptiveStyles, colors, radius, spacing } from '../theme';
+import { adaptiveStyles, colors, radius, spacing, getActiveThemeMode } from '../theme';
 import { normalizeDurationLabel } from '../lib/time';
 import { playbackTimelineComment } from '../lib/timeline-comments';
 import { getHeldSeekPosition, HELD_SEEK_INTERVAL_MS } from '../lib/held-seek';
@@ -40,6 +45,7 @@ import {
 } from '../lib/api';
 
 type FullPlayerProps = {
+  lang?: 'ru' | 'en';
   track: PlayerTrack | null;
   visible: boolean;
   isPlaying: boolean;
@@ -92,15 +98,7 @@ function buildFallbackWaveform(count: number) {
 
 function sampleWaveform(source: number[] | null | undefined, count: number) {
   const values = source?.length ? source : buildFallbackWaveform(count);
-  const maxValue = Math.max(...values, 1);
-
-  return Array.from({ length: count }, (_, index) => {
-    const start = Math.floor((index / count) * values.length);
-    const end = Math.max(start + 1, Math.floor(((index + 1) / count) * values.length));
-    const slice = values.slice(start, end);
-    const peak = Math.max(...slice, 0) / maxValue;
-    return Math.max(0.16, Math.min(1, peak));
-  });
+  return resampleWaveform(values, count);
 }
 
 const WaveformBars = memo(function WaveformBars({
@@ -117,7 +115,7 @@ const WaveformBars = memo(function WaveformBars({
       {bars.map((bar, index) => (
         <View
           key={`${index}-${bar.toFixed(3)}`}
-          style={[styles.waveformBar, { height: 8 + bar * 48, backgroundColor: color }]}
+          style={[styles.waveformBar, { height: Math.max(2, bar * 56), backgroundColor: color }]}
         />
       ))}
     </View>
@@ -312,6 +310,7 @@ export function FullPlayer({
   onToggleShuffle,
   onToggleRepeat,
   onOpenRelease,
+  lang = 'en',
 }: FullPlayerProps) {
   const [progressWidth, setProgressWidth] = useState(1);
   const [dragProgress, setDragProgress] = useState<number | null>(null);
@@ -322,6 +321,16 @@ export function FullPlayer({
   const [playlistName, setPlaylistName] = useState('');
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [comments, setComments] = useState<TimelineComment[]>([]);
+  const [engagement, setEngagement] = useState<MusicEngagement>({ favorites: 0, plays: 0, copies: 0 });
+  const [copyNotice, setCopyNotice] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    let live = true;
+    setEngagement({ favorites: 0, plays: 0, copies: 0 });
+    if (track?.isMix && track.releaseId) void getMusicEngagement(track.releaseId).then(value => { if (live) setEngagement(value); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [track?.id, isFavorite]);
+  useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current); }, []);
   const [activeComment, setActiveComment] = useState<TimelineComment | null>(null);
   const [commentText, setCommentText] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -530,7 +539,7 @@ export function FullPlayer({
     return () => {
       cancelled = true;
     };
-  }, [track?.releaseId]);
+    }, [track?.releaseId, visible, currentUser?.id]);
 
   function measureWaveform() {
     waveformTouchRef.current?.measureInWindow((x, _y, width) => {
@@ -696,8 +705,8 @@ export function FullPlayer({
   );
 
   const waveformBars = useMemo(
-    () => sampleWaveform(track?.waveformData, 86),
-    [track?.id, track?.waveformData],
+    () => sampleWaveform(track?.waveformData, Math.max(24, Math.floor(progressWidth / 4))),
+    [track?.id, track?.waveformData, progressWidth],
   );
   const displayedComment = activeComment ?? (visible && isPlaying && !isSeeking ? playbackTimelineComment(comments, positionMs) : null);
   const tipWidth = Math.min(240, progressWidth);
@@ -756,7 +765,7 @@ export function FullPlayer({
                   pointerEvents="none"
                   style={[styles.waveformPlayedClip, { width: `${visibleProgress * 100}%` }]}
                 >
-                  <WaveformBars bars={waveformBars} color={colors.accent} width={progressWidth} />
+                  <WaveformBars bars={waveformBars} color={archiveWaveformColor(track.playbackSource || (track.isOriginal ? 'originals' : track.isMix ? 'mixes' : 'home'), colors.accent, getActiveThemeMode() === 'dark')} width={progressWidth} />
                 </View>
                 {durationMs > 0
                   ? comments.map((comment) => {
@@ -791,41 +800,17 @@ export function FullPlayer({
             </View>
           </View>
 
-          {track.isMix ? (
-            <View style={styles.commentComposer}>
-              <TextInput
-                value={commentText}
-                onChangeText={setCommentText}
-                placeholder={editingCommentId ? 'Edit comment' : `Comment at ${formatMs(visiblePositionMs)}`}
-                placeholderTextColor={colors.muted}
-                style={styles.commentInput}
-                returnKeyType="done"
-                onSubmitEditing={() => void saveTimelineComment()}
-              />
-              {editingCommentId ? (
-                <Pressable style={styles.commentIconButton} onPress={resetCommentEditor}>
-                  <Text style={styles.commentCancelText}>×</Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                style={[
-                  styles.commentSaveButton,
-                  (!commentText.trim() || isSavingComment) && styles.disabledButton,
-                ]}
-                disabled={!commentText.trim() || isSavingComment}
-                onPress={() => void saveTimelineComment()}
-              >
-                <Text style={styles.commentSaveText}>{editingCommentId ? 'Save' : '+'}</Text>
-              </Pressable>
-            </View>
-          ) : null}
 
           <View style={styles.controls}>
             <Pressable
               style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
               onPress={onToggleShuffle}
+              accessibilityRole="button"
+              accessibilityLabel="Shuffle"
+              accessibilityState={{ selected: isShuffleEnabled }}
             >
-              <Shuffle size={22} color={isShuffleEnabled ? colors.accent : colors.muted} strokeWidth={2.4} />
+              <Shuffle size={22} color={isShuffleEnabled ? colors.text : colors.muted} strokeWidth={2.4} />
+              {isShuffleEnabled ? <View style={styles.modeDot} /> : null}
             </Pressable>
             <Pressable
               style={({ pressed }) => [
@@ -871,15 +856,17 @@ export function FullPlayer({
             <Pressable
               style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
               onPress={onToggleRepeat}
+              accessibilityRole="button"
+              accessibilityLabel="Repeat current track"
+              accessibilityState={{ selected: isRepeatEnabled }}
             >
-              <Repeat size={22} color={isRepeatEnabled ? colors.accent : colors.muted} strokeWidth={2.4} />
+              <Repeat1 size={22} color={isRepeatEnabled ? colors.text : colors.muted} strokeWidth={2.4} />
+              {isRepeatEnabled ? <View style={styles.modeDot} /> : null}
             </Pressable>
           </View>
 
           <View style={styles.secondaryControls}>
-            <View style={styles.downloadButtonWrap}>
-              <TrackDownloadButton track={track} size={22} />
-            </View>
+            {track.isMix ? <View style={styles.iconButton} accessibilityLabel={`Plays (${engagement.plays})`}><Headphones size={22} color={colors.text} />{engagement.plays > 0 ? <Text style={styles.commentCount}>{engagement.plays}</Text> : null}</View> : null}
             <Pressable
               style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
               onPress={onFavorite}
@@ -887,9 +874,10 @@ export function FullPlayer({
               <Heart
                 size={22}
                 strokeWidth={2.4}
-                color={isFavorite ? colors.accent : colors.muted}
-                fill={isFavorite ? colors.accent : 'none'}
+                color={isFavorite ? '#db3045' : colors.text}
+                fill={isFavorite ? '#db3045' : 'none'}
               />
+              {engagement.favorites > 0 ? <Text style={styles.commentCount}>{engagement.favorites}</Text> : null}
             </Pressable>
             {track.isMix ? (
               <Pressable
@@ -908,9 +896,11 @@ export function FullPlayer({
                   color={isCommentsSheetOpen || comments.length ? colors.accent : colors.muted}
                   strokeWidth={2.4}
                 />
-                <Text pointerEvents="none" style={styles.commentCount}>{comments.length}</Text>
+                {comments.length > 0 ? <Text pointerEvents="none" style={styles.commentCount}>{comments.length}</Text> : null}
               </Pressable>
             ) : null}
+            {track.isMix && track.releaseId ? <Pressable style={styles.iconButton} accessibilityLabel="Copy link" onPress={() => { void copyMusicLink(track.releaseId!).then(() => { setCopyNotice(true); if (copyTimer.current) clearTimeout(copyTimer.current); copyTimer.current = setTimeout(() => setCopyNotice(false), 3500); void getMusicEngagement(track.releaseId!).then(setEngagement).catch(() => undefined); }).catch(() => undefined); }}><Share2 size={22} color={colors.text} />{engagement.copies > 0 ? <Text style={styles.commentCount}>{engagement.copies}</Text> : null}</Pressable> : null}
+            {copyNotice ? <Text style={{ color: colors.text }}>Link copied</Text> : null}
             <Pressable
               style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
               onPress={() => {
@@ -1067,46 +1057,7 @@ export function FullPlayer({
                 onScroll={handleSheetScroll}
                 {...sheetContentPanResponder.panHandlers}
               >
-                {comments.length ? (
-                  comments.map((comment) => {
-                    const canEdit =
-                      Boolean(currentUser) &&
-                      (currentUser?.role === 'ADMIN' || comment.userId === currentUser?.id);
-
-                    return (
-                      <View key={comment.id} style={styles.commentSheetRow}>
-                        {comment.user.avatarStorageUrl ? (
-                          <Image source={{ uri: comment.user.avatarStorageUrl }} style={styles.commentSheetAvatar} />
-                        ) : (
-                          <View style={styles.commentSheetAvatarFallback}>
-                            <Text style={styles.commentSheetInitial}>{getAvatarInitial(comment.user.displayName)}</Text>
-                          </View>
-                        )}
-                        <View style={styles.commentSheetBody}>
-                          <View style={styles.commentSheetMeta}>
-                            <Text numberOfLines={1} style={styles.commentSheetName}>
-                              {comment.user.displayName}
-                            </Text>
-                            <Text style={styles.commentSheetTime}>{formatMs(comment.second * 1000)}</Text>
-                          </View>
-                          <Text style={styles.commentSheetText}>{comment.text}</Text>
-                        </View>
-                        {canEdit ? (
-                          <View style={styles.commentSheetActions}>
-                            <Pressable style={styles.commentIconButton} onPress={() => startEditComment(comment)}>
-                              <Pencil size={15} color={colors.muted} strokeWidth={2.4} />
-                            </Pressable>
-                            <Pressable style={styles.commentIconButton} onPress={() => void deleteTimelineComment(comment)}>
-                              <Trash2 size={15} color={colors.muted} strokeWidth={2.4} />
-                            </Pressable>
-                          </View>
-                        ) : null}
-                      </View>
-                    );
-                  })
-                ) : (
-                  <Text style={styles.playlistMenuEmpty}>No comments yet</Text>
-                )}
+                {track.releaseId ? <MusicComments releaseId={track.releaseId} comments={comments} onChange={setComments} currentUser={currentUser} ru={lang === 'ru'} second={visiblePositionMs / 1000} onSeek={second => onSeek(second * 1000 / Math.max(1, durationMs), true)} /> : null}
               </ScrollView>
             </Animated.View>
           </View>
@@ -1275,7 +1226,7 @@ const styles = adaptiveStyles(StyleSheet.create({
     fontWeight: '400',
   },
   commentTipAnchor: { position: 'absolute', bottom: '100%', paddingBottom: 8, zIndex: 20 },
-  commentCount: { position: 'absolute', top: 0, left: 0, right: 0, textAlign: 'center', color: colors.muted, fontSize: 10, lineHeight: 12, fontVariant: ['tabular-nums'], includeFontPadding: false },
+  commentCount: { position: 'absolute', top: 13, right: 0, width: 15, textAlign: 'left', color: colors.text, fontSize: 10, lineHeight: 12, fontVariant: ['tabular-nums'], includeFontPadding: false },
   times: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1374,6 +1325,7 @@ const styles = adaptiveStyles(StyleSheet.create({
     backgroundColor: colors.panelSoft,
     opacity: 0.8,
   },
+  modeDot: { position: 'absolute', bottom: 4, width: 4, height: 4, borderRadius: 2, backgroundColor: colors.text },
   iconButtonHeld: {
     backgroundColor: colors.panelSoft,
   },

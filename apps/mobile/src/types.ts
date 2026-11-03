@@ -33,6 +33,7 @@ export type Release = {
   country: string | null;
   styles: string[];
   isMix?: boolean;
+  isOriginal?: boolean;
   coverStorageUrl: string | null;
   coverThumbStorageUrl?: string | null;
   coverMediumStorageUrl?: string | null;
@@ -111,6 +112,8 @@ export type PlayerTrack = {
   waveformData?: number[] | null;
   isPublic?: boolean;
   isMix?: boolean;
+  isOriginal?: boolean;
+  playbackSource?: 'home' | 'playlists' | 'mixes' | 'originals' | 'favorites' | 'downloads';
 };
 
 export type TimelineComment = {
@@ -120,6 +123,8 @@ export type TimelineComment = {
   second: number;
   text: string;
   createdAt: string;
+  likeCount?: number;
+  likedByMe?: boolean;
   user: {
     id: string;
     displayName: string;
@@ -127,4 +132,4 @@ export type TimelineComment = {
   };
 };
 
-export type TabKey = 'home' | 'library' | 'playlists' | 'mixes' | 'favorites' | 'profile' | 'downloads';
+export type TabKey = 'home' | 'library' | 'playlists' | 'mixes' | 'originals' | 'favorites' | 'profile' | 'downloads';

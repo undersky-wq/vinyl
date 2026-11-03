@@ -15,7 +15,7 @@ const GridTile = memo(function GridTile({ release, index, size, isAdmin, onSelec
 }) {
   const tile = useRef<View>(null);
   return <Pressable ref={tile} accessibilityRole="button" accessibilityLabel={`${release.artist} : ${release.title}`} onPress={() => tile.current?.measureInWindow((_x, y) => onSelect(index, y))} style={{ width: size, height: size }}>
-    <ReleaseCover release={release} isAdmin={isAdmin} style={styles.cover} />
+    <ReleaseCover release={release} isAdmin={isAdmin} style={styles.cover} transitionMs={0} />
   </Pressable>;
 });
 
@@ -23,8 +23,8 @@ export function ArchiveGridView({ releases, width, initialPosition, trackCollect
   const list = useRef<FlatList<Release>>(null);
   const viewport = useRef<View>(null);
   const metrics = archiveGridMetrics(width);
-  const position = useRef(initialPosition);
-  const restored = useRef(false);
+  const startRow = useRef(Math.floor(clampPosition(initialPosition, releases.length) / metrics.columns)).current;
+  const position = useRef(startRow * metrics.columns);
   function remember(event: NativeSyntheticEvent<NativeScrollEvent>) {
     position.current = clampPosition(Math.max(0, event.nativeEvent.contentOffset.y) / metrics.step * metrics.columns, releases.length);
   }
@@ -40,12 +40,7 @@ export function ArchiveGridView({ releases, width, initialPosition, trackCollect
     data={releases} numColumns={4} columnWrapperStyle={styles.row} keyExtractor={release => archiveItemKey(release, trackCollection)}
     renderItem={({ item, index }) => <GridTile release={item} index={index} size={metrics.size} isAdmin={isAdmin} onSelect={select} />}
     getItemLayout={(_data, row) => ({ index: row, length: metrics.step, offset: row * metrics.step })}
-    initialScrollIndex={releases.length ? Math.floor(clampPosition(initialPosition, releases.length) / metrics.columns) : undefined}
-    onContentSizeChange={() => {
-      if (restored.current || !releases.length) return;
-      restored.current = true;
-      list.current?.scrollToOffset({ offset: initialPosition / metrics.columns * metrics.step, animated: false });
-    }}
+    initialScrollIndex={releases.length ? startRow : undefined}
     initialNumToRender={24} maxToRenderPerBatch={12} windowSize={5}
     scrollEventThrottle={64} onScroll={remember}
     onScrollEndDrag={event => { remember(event); onAnchor(position.current); }}

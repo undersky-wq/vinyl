@@ -1,6 +1,6 @@
 'use client';
 
-import { LoaderCircle, Plus, Trash2, UploadCloud } from 'lucide-react';
+import { CheckCircle2, LoaderCircle, Plus, Trash2, UploadCloud } from 'lucide-react';
 import { useState } from 'react';
 import { createManualRelease } from '../lib/api';
 import { SiteLang } from '../lib/language';
@@ -11,6 +11,7 @@ type UploadFormProps = {
   lang: SiteLang;
   releases?: Release[];
   initialOriginal?: boolean;
+  initialMix?: boolean;
 };
 
 type ManualTrackRow = {
@@ -35,8 +36,12 @@ function createTrackRow(index: number): ManualTrackRow {
   };
 }
 
-export function UploadForm({ lang, initialOriginal = false }: UploadFormProps) {
-  const [original, setOriginal] = useState(initialOriginal);
+export function UploadForm({ lang, initialOriginal = false, initialMix = false }: UploadFormProps) {
+  const [destination, setDestination] = useState<'collection' | 'mixes' | 'originals'>(initialOriginal ? 'originals' : initialMix ? 'mixes' : 'collection');
+  const original = destination === 'originals';
+  const mix = destination === 'mixes';
+  const music = original || mix;
+  const [progress, setProgress] = useState<number | null>(0);
   const [artist, setArtist] = useState('');
   const [title, setTitle] = useState('');
   const [year, setYear] = useState('');
@@ -61,13 +66,13 @@ export function UploadForm({ lang, initialOriginal = false }: UploadFormProps) {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (editingCover || editingBackCover || isSubmitting) return;
+    if (editingCover || editingBackCover || isSubmitting || createdReleaseId) return;
     setStatus('');
     setCreatedReleaseId('');
 
     const validTracks = tracks.filter((track) => track.title.trim());
-    if (original && (validTracks.length !== 1 || !validTracks[0].audioFile)) {
-      setStatus(lang === 'ru' ? 'Для Tracks добавь один трек с MP3. Следующую композицию загрузи отдельно.' : 'For Tracks, add one track with an MP3. Upload each composition separately.');
+    if (music && (validTracks.length !== 1 || !validTracks[0].audioFile)) {
+      setStatus(lang === 'ru' ? 'Добавьте один трек или микс с MP3. Каждый файл загружается отдельно.' : 'Add one track or mix with an MP3. Upload each file separately.');
       return;
     }
     if (!artist.trim() || !title.trim() || !validTracks.length) {
@@ -86,7 +91,7 @@ export function UploadForm({ lang, initialOriginal = false }: UploadFormProps) {
     payload.append('country', country.trim());
     payload.append('styles', styles.trim());
     payload.append('isOriginal', String(original));
-    payload.append('isMix', String(original));
+    payload.append('isMix', String(music));
     payload.append(
       'tracks',
       JSON.stringify(
@@ -114,10 +119,15 @@ export function UploadForm({ lang, initialOriginal = false }: UploadFormProps) {
     });
 
     setIsSubmitting(true);
+    setProgress(0);
+    setStatus(lang === 'ru' ? 'Передача файлов на сервер…' : 'Uploading files…');
     try {
-      const release = await createManualRelease(payload);
+      const release = await createManualRelease(payload, percent => {
+        setProgress(percent);
+        if (percent === 100) setStatus(lang === 'ru' ? 'Файлы переданы. Сервер обрабатывает MP3 и сохраняет релиз — дождитесь завершения.' : 'Files uploaded. Processing MP3 and saving the release — please wait.');
+      });
       setCreatedReleaseId(release.id);
-      setStatus(original ? (lang === 'ru' ? 'Трек добавлен в Tracks.' : 'Track added to Tracks.') : (lang === 'ru' ? 'Релиз добавлен в коллекцию.' : 'Release added to collection.'));
+      setStatus(mix ? (lang === 'ru' ? 'Микс успешно добавлен в Миксы.' : 'Mix successfully added to Mixes.') : original ? (lang === 'ru' ? 'Трек успешно добавлен в Треки.' : 'Track successfully added to Tracks.') : (lang === 'ru' ? 'Релиз успешно добавлен в коллекцию.' : 'Release successfully added to collection.'));
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
       setStatus(
@@ -131,7 +141,8 @@ export function UploadForm({ lang, initialOriginal = false }: UploadFormProps) {
   }
 
   return (
-    <form className="upload-form upload-form--manual release-panel" onSubmit={handleSubmit}>
+    <form className="upload-form upload-form--manual release-panel" onSubmit={handleSubmit} aria-busy={isSubmitting} onChangeCapture={() => { if (createdReleaseId) { setCreatedReleaseId(''); setStatus(''); } }}>
+      <fieldset className="manual-upload__fields" disabled={isSubmitting}>
       <div className="manual-upload__section">
         <div>
           <p className="muted">{lang === 'ru' ? 'Данные релиза' : 'Release details'}</p>
@@ -140,8 +151,9 @@ export function UploadForm({ lang, initialOriginal = false }: UploadFormProps) {
 
         <div className="field">
           <label htmlFor="manual-destination">{lang === 'ru' ? 'Раздел' : 'Section'}</label>
-          <select id="manual-destination" value={original ? 'originals' : 'collection'} disabled={isSubmitting} onChange={event => setOriginal(event.target.value === 'originals')}>
+          <select id="manual-destination" value={destination} disabled={isSubmitting} onChange={event => setDestination(event.target.value as typeof destination)}>
             <option value="collection">{lang === 'ru' ? 'Коллекция' : 'Collection'}</option>
+            <option value="mixes">{lang === 'ru' ? 'Миксы — сет / микс' : 'Mixes — set / mix'}</option>
             <option value="originals">Tracks — {lang === 'ru' ? 'моя музыка' : 'my music'}</option>
           </select>
           {original && <p className="muted">{lang === 'ru' ? 'Одна композиция с обложкой и MP3. Прослушивание открыто всем, комментарии — как у миксов.' : 'One composition with artwork and an MP3. Everyone can listen; comments work like mixes.'}</p>}
@@ -195,7 +207,7 @@ export function UploadForm({ lang, initialOriginal = false }: UploadFormProps) {
           <button
             type="button"
             className="track-icon-button"
-            disabled={original || isSubmitting}
+            disabled={music || isSubmitting}
             onClick={() => setTracks((current) => [...current, createTrackRow(current.length)])}
             aria-label={lang === 'ru' ? 'Добавить трек' : 'Add track'}
           >
@@ -261,18 +273,21 @@ export function UploadForm({ lang, initialOriginal = false }: UploadFormProps) {
       </div>
 
       <div className="manual-upload__footer">
-        <button className="nav-link manual-upload__submit" type="submit" disabled={isSubmitting || editingCover || editingBackCover}>
+        <button className="nav-link manual-upload__submit" type="submit" disabled={isSubmitting || editingCover || editingBackCover || Boolean(createdReleaseId)}>
           {isSubmitting ? <LoaderCircle size={17} className="track-upload-button__spinner" /> : null}
-          {original ? (lang === 'ru' ? 'Загрузить трек' : 'Upload track') : (lang === 'ru' ? 'Добавить релиз' : 'Add release')}
+          {createdReleaseId ? <CheckCircle2 size={17} /> : null}
+          {isSubmitting ? (progress === 100 ? (lang === 'ru' ? 'Обработка MP3…' : 'Processing MP3…') : `${lang === 'ru' ? 'Загрузка' : 'Uploading'}${progress === null ? '…' : ` ${progress}%`}`) : createdReleaseId ? (lang === 'ru' ? 'Загружено' : 'Uploaded') : mix ? (lang === 'ru' ? 'Загрузить микс' : 'Upload mix') : original ? (lang === 'ru' ? 'Загрузить трек' : 'Upload track') : (lang === 'ru' ? 'Добавить релиз' : 'Add release')}
         </button>
         {createdReleaseId ? (
-          <a className="nav-link" href={original ? '/tracks' : `/releases/${createdReleaseId}`}>
+          <a className="nav-link" href={`/releases/${createdReleaseId}`}>
             {lang === 'ru' ? 'Открыть релиз' : 'Open release'}
           </a>
         ) : null}
       </div>
 
-      {status ? <p className="muted" role="status">{status}</p> : null}
+      </fieldset>
+      {isSubmitting ? <progress className="manual-upload__progress" max={100} value={progress ?? undefined} aria-label={lang === 'ru' ? 'Передача файлов' : 'File upload'} /> : null}
+      {status ? <p className="manual-upload__status" data-success={Boolean(createdReleaseId)} role="status" aria-live="polite">{status}</p> : null}
     </form>
   );
 }

@@ -67,6 +67,10 @@ html body .paper-upload-page .track-icon-button {
 }
 .paper-upload-page .track-icon-button:disabled { opacity: .3; }
 .paper-upload-page .manual-upload__footer { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; padding-top: 24px; border-top: 1px solid var(--upload-line); }
+.paper-upload-page .manual-upload__fields { display:contents; border:0; padding:0; margin:0; min-width:0; }
+.paper-upload-page .manual-upload__progress { grid-column:1 / -1; width:100%; height:6px; accent-color:var(--upload-accent); }
+.paper-upload-page .manual-upload__status { grid-column:1 / -1; color:var(--upload-ink,currentColor); margin:0; }
+.paper-upload-page .manual-upload__status[data-success=true] { font-weight:600; padding:12px 0; border-block:1px solid var(--upload-line); }
 html body .paper-upload-page .manual-upload__footer .nav-link {
   display: inline-flex; align-items: center; gap: 10px; padding: 10px 0;
   border: 0; border-bottom: 1px solid currentColor; border-radius: 0;

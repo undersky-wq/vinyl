@@ -1,0 +1,17 @@
+.mini-release-preview{position:fixed;inset:0;z-index:1000100;background:transparent;color:var(--shelf-web-ink,#111);font-family:Arial,Helvetica,sans-serif;animation:mini-release-backdrop .55s ease both}
+.mini-release-preview__panel{display:contents}
+.mini-release-preview.paper-archive{background:transparent!important;pointer-events:none}
+.mini-release-preview__dismiss{position:absolute;inset:110px 0 100px;width:100%;padding:0;border:0;background:transparent!important;box-shadow:none;pointer-events:auto;cursor:default}
+.mini-release-preview :is(.paper-record.is-selected,.paper-tracklist){pointer-events:auto}
+.mini-release-preview.is-closing *{pointer-events:none!important}
+@media(max-width:700px){.mini-release-preview__dismiss{top:180px;bottom:100px}}
+.mini-release-preview.paper-archive .paper-record.is-selected{animation:mini-release-cover 1.05s cubic-bezier(.19,1,.22,1) both}
+.mini-release-preview.is-closing{animation:mini-release-backdrop .55s ease reverse both;pointer-events:none}
+.mini-release-preview.is-closing .paper-record.is-selected{animation:mini-release-cover .55s ease reverse both}
+body:has(>.mini-release-preview) .paper-archive:not(.mini-release-preview) :is(.paper-record,.paper-list-tracks,.paper-styles,.paper-sections,.paper-playlists,.paper-mix-index,.collection-navigator){transition:translate .55s cubic-bezier(.16,1,.3,1),opacity .55s ease}
+body.is-mini-release-expanded .paper-archive:not(.mini-release-preview) :is(.paper-record,.paper-list-tracks){translate:var(--mini-release-exit-x,-110vw) 0!important;opacity:0!important;pointer-events:none}
+body.is-mini-release-expanded .paper-archive:not(.mini-release-preview) :is(.paper-styles,.paper-mix-index,.collection-navigator){translate:110vw 0!important;pointer-events:none}
+body.is-mini-release-expanded .paper-archive:not(.mini-release-preview) :is(.paper-sections,.paper-playlists){translate:-110vw 0!important;pointer-events:none}
+@keyframes mini-release-backdrop{from{opacity:0}to{opacity:1}}
+@keyframes mini-release-cover{from{opacity:0;scale:.76;rotate:y 20deg;translate:0 25vh}to{opacity:1;scale:1;rotate:y 0deg;translate:0 0}}
+@media(prefers-reduced-motion:reduce){.mini-release-preview,.mini-release-preview *{animation-duration:.01s!important}body:has(>.mini-release-preview) .paper-archive *{transition:none!important}}

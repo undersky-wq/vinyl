@@ -11,7 +11,9 @@ import { getCurrentUser } from '../../lib/api';
 import { normalizeSiteLang } from '../../lib/language';
 
 export default async function UploadPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
-  const initialOriginal = (await searchParams).type === 'original';
+  const type = (await searchParams).type;
+  const initialOriginal = type === 'original';
+  const initialMix = type === 'mix';
   const cookieStore = await cookies();
   const lang = normalizeSiteLang(cookieStore.get('site-lang')?.value);
   const cookieHeader = cookieStore
@@ -25,8 +27,8 @@ export default async function UploadPage({ searchParams }: { searchParams: Promi
       <ShelfThemeToggle compact iconOnly />
       <LanguageSwitcher lang={lang} single />
     </div>
-    <span>{initialOriginal ? 'Tracks' : (lang === 'ru' ? 'Коллекция' : 'Collection')} : {lang === 'ru' ? 'загрузка' : 'upload'}</span>
-    <Link href={initialOriginal ? '/tracks' : '/'}>{lang === 'ru' ? 'Назад к музыке' : 'Back to music'}</Link>
+    <span>{initialOriginal ? (lang === 'ru' ? 'Треки' : 'Tracks') : initialMix ? (lang === 'ru' ? 'Миксы' : 'Mixes') : (lang === 'ru' ? 'Коллекция' : 'Collection')} : {lang === 'ru' ? 'загрузка' : 'upload'}</span>
+    <Link href={initialOriginal ? '/tracks' : initialMix ? '/mixes' : '/'}>{lang === 'ru' ? 'Назад к музыке' : 'Back to music'}</Link>
   </header>;
 
   if (currentUser?.role !== 'ADMIN') {
@@ -49,7 +51,7 @@ export default async function UploadPage({ searchParams }: { searchParams: Promi
   return (
     <main className="paper-profile-page paper-upload-page">
       {header}
-      <UploadForm lang={lang} initialOriginal={initialOriginal} />
+      <UploadForm lang={lang} initialOriginal={initialOriginal} initialMix={initialMix} />
     </main>
   );
 }

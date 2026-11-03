@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { AdminGuard, AuthGuard, PlaybackGuard } from './auth/auth.guards';
 import { PrismaService } from './prisma/prisma.service';
 import { StorageService } from './storage/storage.service';
+import { signedSideCoverUrls } from './releases/release-back-cover';
+import { signedTrackArtwork } from './releases/release-track-artwork';
 
 @Controller()
 export class AppController {
@@ -112,6 +114,7 @@ export class AppController {
         ...item.track,
         release: {
           ...item.track.release,
+          ...await signedSideCoverUrls(item.track.release.images, key => this.storageService.getSignedObjectUrl(coversBucket, key)),
           coverStorageUrl:
             item.track.release.coverStorageKey
               ? (await this.storageService.getSignedObjectUrl(
@@ -159,7 +162,7 @@ export class AppController {
       where: { id },
       include: {
         audioFiles: true,
-        release: true,
+        release: { include: { images: { where: { OR: [{ isBackCover: true }, { isSecondFrontCover: true }, { isSecondBackCover: true }] } } } },
       },
     });
 
@@ -167,21 +170,7 @@ export class AppController {
       throw new NotFoundException('Track not found');
     }
 
-    const coverStorageUrl =
-      track.release.coverStorageKey
-        ? (await this.storageService.getSignedObjectUrl(coversBucket, track.release.coverStorageKey)) ||
-          track.release.coverStorageUrl
-        : track.release.coverStorageUrl;
-    const coverThumbStorageUrl =
-      track.release.coverThumbStorageKey
-        ? (await this.storageService.getSignedObjectUrl(coversBucket, track.release.coverThumbStorageKey)) ||
-          track.release.coverThumbStorageUrl
-        : track.release.coverThumbStorageUrl;
-    const coverMediumStorageUrl =
-      track.release.coverMediumStorageKey
-        ? (await this.storageService.getSignedObjectUrl(coversBucket, track.release.coverMediumStorageKey)) ||
-          track.release.coverMediumStorageUrl
-        : track.release.coverMediumStorageUrl;
+    const artwork = await signedTrackArtwork(track.release, track.position, key => this.storageService.getSignedObjectUrl(coversBucket, key));
     const audioFile = track.audioFiles[0];
 
     return {
@@ -191,6 +180,7 @@ export class AppController {
       releaseId: track.releaseId,
       isPublic: track.release.isMix,
       isOriginal: track.release.isOriginal,
+      position: track.position,
       audioUrl: audioFile
         ? (await this.storageService.getSignedObjectUrl(
             audioBucket,
@@ -200,12 +190,7 @@ export class AppController {
           audioFile.storageUrl ||
           ''
         : '',
-      coverUrl:
-        coverThumbStorageUrl ||
-        coverMediumStorageUrl ||
-        coverStorageUrl ||
-        track.release.coverImageUrl ||
-        '',
+      ...artwork,
       waveformData: track.waveformData,
     };
   }

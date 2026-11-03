@@ -1,11 +1,12 @@
 'use client';
 
-import { Download, MessageCircle } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { FavoriteButton } from './track-actions';
 import { useFavorites } from '../providers/favorites-provider';
 import { getMusicEngagement, type MusicEngagement } from '../lib/music-engagement';
 import './player-mix-counters.css';
 import { CopyMusicLink } from './copy-music-link';
+import { DownloadMusic } from './download-music';
 import { TimelineCommentComposer } from './timeline-comment-composer';
 import { TimelineCommentRow } from './timeline-comment-row';
 import { useEffect, useRef, useState } from 'react';
@@ -57,12 +58,12 @@ export function PlayerMixActions({ track, lang, currentTime, duration, comments,
   }, [isMix, track.releaseId, favoriteTrackIds]);
   return <div className="player-page__mix-actions">
     <div className="player-page__secondary-actions">
-      {isMix ? <button type="button" className="player-page__comments-toggle player-page__comments-icon" aria-label={lang === 'ru' ? 'Комментарии' : 'Comments'} title={lang === 'ru' ? 'Комментарии' : 'Comments'} aria-expanded={open} onClick={() => setOpen(!open)}><MessageCircle size={18}/>{comments.length > 0 ? <sup>{comments.length}</sup> : null}</button> : null}
+      {isMix ? <button type="button" className="player-page__comments-toggle player-page__comments-icon music-icon-tooltip" aria-label={lang === 'ru' ? 'Комментарии' : 'Comments'} data-tooltip={lang === 'ru' ? 'Комментарии' : 'Comments'} aria-expanded={open} onClick={() => setOpen(!open)}><MessageCircle size={18}/>{comments.length > 0 ? <sup>{comments.length}</sup> : null}</button> : null}
       <FavoriteButton trackId={track.id} lang={lang} alwaysVisible count={isMix ? engagement?.favorites : undefined}/>
       {children}
       {isMix ? <>
-      <a className="player-page__download" href={track.audioUrl} download aria-label={track.isOriginal ? (lang === 'ru' ? 'Скачать трек' : 'Download track') : (lang === 'ru' ? 'Скачать микс' : 'Download mix')}><Download size={18} /></a>
       {track.releaseId ? <CopyMusicLink releaseId={track.releaseId} lang={lang} copyCount={engagement?.copies ?? 0} /> : null}
+      {track.releaseId ? <DownloadMusic releaseId={track.releaseId} trackId={track.id} lang={lang} count={engagement?.downloads ?? 0} /> : null}
       </> : null}
     </div>
     {status ? <p className="player-page__action-status" role="status">{status}</p> : null}

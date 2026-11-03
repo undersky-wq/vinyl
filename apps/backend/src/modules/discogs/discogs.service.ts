@@ -480,9 +480,13 @@ export class DiscogsService {
           type: ImageType.COVER,
           url: uploaded.url,
           storageKey: uploaded.storageKey,
+          thumbStorageKey: uploaded.thumbStorageKey,
+          mediumStorageKey: uploaded.mediumStorageKey,
         },
         update: {
           url: uploaded.url,
+          thumbStorageKey: uploaded.thumbStorageKey,
+          mediumStorageKey: uploaded.mediumStorageKey,
         },
       });
     }

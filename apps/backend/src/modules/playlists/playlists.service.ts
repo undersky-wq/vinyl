@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
+import { signedSideCoverUrls } from '../releases/release-back-cover';
 
 @Injectable()
 export class PlaylistsService {
@@ -13,6 +14,10 @@ export class PlaylistsService {
     private readonly storageService: StorageService,
   ) {}
 
+  async count(userId: string) {
+    return { count: await this.prisma.playlist.count({ where: { userId } }) };
+  }
+
   async findAll(userId: string) {
     const playlists = await this.prisma.playlist.findMany({
       where: { userId },
@@ -21,7 +26,7 @@ export class PlaylistsService {
           include: {
             track: {
               include: {
-                release: true,
+                release: { include: { images: { where: { OR: [{ isBackCover: true }, { isSecondFrontCover: true }, { isSecondBackCover: true }] } } } },
                 audioFiles: true,
               },
             },
@@ -69,7 +74,7 @@ export class PlaylistsService {
           include: {
             track: {
               include: {
-                release: true,
+                release: { include: { images: { where: { OR: [{ isBackCover: true }, { isSecondFrontCover: true }, { isSecondBackCover: true }] } } } },
                 audioFiles: true,
               },
             },
@@ -297,6 +302,7 @@ export class PlaylistsService {
       items: Array<{
         track: {
           release: {
+            images?: Array<{ isBackCover?: boolean; isSecondFrontCover?: boolean; isSecondBackCover?: boolean; storageKey: string; url: string; thumbStorageKey?: string | null; mediumStorageKey?: string | null }>;
             isMix?: boolean;
             isOriginal?: boolean;
             coverStorageKey?: string | null;
@@ -327,6 +333,9 @@ export class PlaylistsService {
             ...item.track,
             release: {
               ...item.track.release,
+              ...await signedSideCoverUrls(item.track.release.images, key => this.storageService.getSignedObjectUrl(
+                this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers', key,
+              )),
               coverStorageUrl:
                 item.track.release.coverStorageKey
                   ? (await this.storageService.getSignedObjectUrl(

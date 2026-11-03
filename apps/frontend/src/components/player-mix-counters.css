@@ -10,3 +10,8 @@ html[data-visual-variant] body .player-page .player-page__secondary-actions :is(
 html[data-visual-variant='shelf'] body .player-page .player-page__secondary-actions .track-favorite-button.active,
 html[data-visual-variant='shelf'] body .player-page .player-page__secondary-actions .track-favorite-button.active svg{color:#db3045!important}
 html[data-visual-variant='shelf'] body .player-page .player-page__secondary-actions .track-favorite-button.active svg{fill:#db3045!important;stroke:#db3045!important}
+@media(min-width:701px){
+  html[data-visual-variant] body .player-page .player-page__secondary-actions .track-favorite-button{
+    display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:3px;
+  }
+}

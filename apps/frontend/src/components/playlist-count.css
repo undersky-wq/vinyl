@@ -1,0 +1,6 @@
+html body .track-playlist-menu__trigger .track-playlist-menu__count{
+  position:absolute;top:calc(50% - 14px);left:calc(50% + 9px);transform:none;
+  width:auto;min-width:1ch;margin:0;padding:0;pointer-events:none;
+  color:#27874d!important;font:400 9px/1 Arial,Helvetica,sans-serif;font-variant-numeric:tabular-nums;
+  text-align:center;white-space:nowrap;
+}

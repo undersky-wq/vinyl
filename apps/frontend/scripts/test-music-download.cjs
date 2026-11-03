@@ -1,0 +1,23 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const ts = require('typescript');
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+let user = null;
+const source = fs.readFileSync(path.join(__dirname, '../src/components/download-music.tsx'), 'utf8');
+const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
+const moduleValue = { exports: {} };
+new Function('require', 'module', 'exports', compiled)(name => {
+  if (name.endsWith('.css')) return {};
+  if (name === '../providers/auth-provider') return { useAuth: () => ({ user }) };
+  return require(name);
+}, moduleValue, moduleValue.exports);
+const render = count => renderToStaticMarkup(React.createElement(moduleValue.exports.DownloadMusic, { releaseId: 'mix', trackId: 'track', count, lang: 'ru' }));
+assert.equal(render(4), '', 'guests see neither download nor counter');
+user = { id: 'user1' };
+assert(render(0).includes('aria-label="Скачать"')); assert(!render(0).includes('<sup>'));
+assert(render(7).includes('<sup>7</sup>'));
+assert(source.includes("method: 'HEAD'") && !source.includes('.blob('), 'preflight without buffering the MP3');
+for (const file of ['shelf-mix-track.tsx', 'player-mix-actions.tsx']) assert(fs.readFileSync(path.join(__dirname, '../src/components', file), 'utf8').includes('<DownloadMusic'));
+console.log('PASS: guest-hidden download, positive-only counters, shared listing/full-player integration and streamed download trigger');

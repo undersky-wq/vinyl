@@ -12,8 +12,19 @@
   html body .player-page[data-playback-source] .player-page__timeline>span:last-child{
     grid-column:2;grid-row:2;justify-self:end;
   }
+  html[data-visual-variant] body .player-page[data-playback-source] .player-page__timeline>span{
+    position:static;inset:auto;transform:none;translate:none;width:auto;text-align:inherit;
+  }
 }
 @media(max-width:700px){
+  html[data-visual-variant][data-shelf-theme] body .player-page[data-playback-source] .player-page__cover-frame,
+  html[data-visual-variant][data-shelf-theme] body .player-page[data-playback-source] .player-page__cover-frame>img{
+    border:0!important;box-shadow:none!important;
+  }
+  html body .player-page[data-playback-source] .player-page__cover-frame:not(:focus-visible),
+  html body .player-page[data-playback-source] .player-page__cover-frame>img{
+    outline:0!important;-webkit-tap-highlight-color:transparent;
+  }
   html body .player-page[data-playback-source] .player-page__cover-frame,
   html body .player-page[data-playback-source] .player-page__cover-frame>img{
     border:0!important;box-shadow:none!important;

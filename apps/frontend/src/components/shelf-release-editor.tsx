@@ -1,8 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Pencil, X, Trash2 } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { getRelease } from '../lib/api';
 import { SiteLang } from '../lib/language';
@@ -12,6 +13,13 @@ import { useWebEditMode } from './admin-edit-mode-sync';
 
 const Detail = dynamic(() => import('./shelf-release-form').then(module => module.ShelfReleaseForm), { ssr: false });
 
+export function ShelfReleaseYear({ id, year, lang, editable = true }: { id: string; year?: number | null; lang: SiteLang; editable?: boolean }) {
+  return <span className="shelf-release-year">
+    {editable && <ShelfReleaseEditor id={id} lang={lang}/>}
+    {year ? <time dateTime={String(year)}>{year}</time> : null}
+  </span>;
+}
+
 export function ShelfReleaseEditor({ id, lang, className = '' }: { id: string; lang: SiteLang; className?: string }) {
   const { user } = useAuth();
   const enabled = useWebEditMode();
@@ -20,7 +28,6 @@ export function ShelfReleaseEditor({ id, lang, className = '' }: { id: string; l
   const [open, setOpen] = useState(false);
   const [release, setRelease] = useState<Release | null>(null);
   const [error, setError] = useState(false);
-  const [removing, setRemoving] = useState(false);
   const allowed = user?.role === 'ADMIN' && enabled;
   useEffect(() => {
     if (!open || !allowed) { dialog.current?.close(); return; }
@@ -37,22 +44,11 @@ export function ShelfReleaseEditor({ id, lang, className = '' }: { id: string; l
     router.refresh();
     window.dispatchEvent(new Event('vinyl:release-updated'));
   }
-  async function removeCover() {
-    if (!allowed || removing || !confirm(lang === 'ru' ? 'Убрать обложку релиза? Исходный файл останется на диске.' : 'Remove release cover? The original file will remain on disk.')) return;
-    setRemoving(true);
-    try {
-      const response = await fetch(`/api/releases/${encodeURIComponent(id)}/cover`, { method:'DELETE', credentials:'include' });
-      if (!response.ok) throw new Error('Cover removal failed');
-      close();
-    } catch { alert(lang === 'ru' ? 'Не удалось убрать обложку.' : 'Could not remove cover.'); }
-    finally { setRemoving(false); }
-  }
   return <>
-    <button type="button" className={`shelf-edit-trigger ${className}`} aria-label={lang === 'ru' ? 'Редактировать релиз' : 'Edit release'} onClick={event => { event.stopPropagation(); setOpen(true); }}><Pencil size={16}/></button>
-    <dialog className="shelf-editor" ref={dialog} aria-label={lang === 'ru' ? 'Редактирование релиза' : 'Release editor'} onCancel={close} onClose={() => setOpen(false)} onClick={event => event.stopPropagation()}>
+    <button type="button" className={`shelf-edit-trigger shelf-release-edit-trigger ${className}`} aria-label={lang === 'ru' ? 'Редактировать релиз' : 'Edit release'} onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); setOpen(true); }}><Pencil size={16}/></button>
+    {createPortal(<dialog className="shelf-editor" ref={dialog} aria-label={lang === 'ru' ? 'Редактирование релиза' : 'Release editor'} onCancel={close} onClose={() => setOpen(false)} onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
       <button type="button" className="shelf-editor-close" aria-label={lang === 'ru' ? 'Закрыть' : 'Close'} onClick={close}><X size={22}/></button>
-      {release && <button type="button" className="shelf-edit-trigger" disabled={removing} onClick={() => void removeCover()}><Trash2 size={16}/> {lang === 'ru' ? 'Убрать обложку' : 'Remove cover'}</button>}
       {open && (release ? <Detail key={release.id} release={release} lang={lang}/> : <p>{error ? (lang === 'ru' ? 'Не удалось загрузить релиз. Закройте окно и попробуйте снова.' : 'Could not load release. Close and retry.') : (lang === 'ru' ? 'Загрузка…' : 'Loading…')}</p>)}
-    </dialog>
+    </dialog>, document.body)}
   </>;
 }

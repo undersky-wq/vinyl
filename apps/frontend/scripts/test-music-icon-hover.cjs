@@ -1,0 +1,12 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const css = fs.readFileSync(path.join(__dirname, '../src/components/shelf-theme.css'), 'utf8');
+const motion = css.slice(css.indexOf('@media (hover:hover) and (pointer:fine)'), css.indexOf('.shelf-theme-toggle {'));
+assert(motion.includes('.paper-mix-engagement,.player-page__secondary-actions'), 'listing and full player share hover motion');
+assert(motion.includes("button:not(:disabled):not([aria-disabled='true'])"), 'informational spans and disabled buttons do not animate');
+assert(motion.includes(':is(:hover,:focus-visible) > svg'), 'only the icon transforms; counters and tooltips remain stationary');
+assert(motion.includes('translateY(-2px) scale(1.14)'));
+assert(motion.includes(':active > svg') && motion.includes('scale(.94)'));
+assert(motion.includes('prefers-reduced-motion:reduce') && motion.includes('transform:none!important'));
+console.log('PASS: mouse/keyboard feedback, fixed counters/tooltips, noninteractive exclusions and reduced motion');

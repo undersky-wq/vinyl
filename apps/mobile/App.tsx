@@ -8,7 +8,6 @@ import { FullPlayer } from './src/components/FullPlayer';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
 import { PlaylistsScreen } from './src/screens/PlaylistsScreen';
-import { DownloadsScreen } from './src/screens/DownloadsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReleaseDetailScreen } from './src/screens/ReleaseDetailScreen';
 import {
@@ -24,6 +23,9 @@ import {
   toggleFavoriteTrack,
 } from './src/lib/api';
 import { syncNotificationArtwork } from './src/lib/notification-artwork';
+import { publishPlaybackPosition } from './src/lib/playback-position';
+import { shuffledQueue, playbackRepeatMode } from './src/lib/playback-modes';
+import { recordMusicPlay } from './src/lib/music-engagement';
 import { resolveOfflineTrack, warmOfflineAudioIndex, withCachedOfflineAudio } from './src/lib/offline-audio';
 import { createPlaybackRequests, replaceQueueAroundActiveTrack } from './src/lib/playback-queue';
 import { createRetriableResource, type RetriableResource } from './src/lib/retriable-resource';
@@ -39,6 +41,7 @@ const tabs: Array<{ key: TabKey; label: Record<AppLanguage, string>; Icon: typeo
   { key: 'library', label: { en: 'Library', ru: 'Библиотека' }, Icon: Library },
   { key: 'playlists', label: { en: 'Playlists', ru: 'Плейлисты' }, Icon: ListMusic },
   { key: 'mixes', label: { en: 'Mixes', ru: 'Миксы' }, Icon: AudioLines },
+  { key: 'originals', label: { en: 'Tracks', ru: 'Треки' }, Icon: AudioLines },
   { key: 'favorites', label: { en: 'Likes', ru: 'Избранное' }, Icon: Heart },
   { key: 'downloads', label: { en: 'Downloads', ru: 'Загрузки' }, Icon: Download },
 ];
@@ -52,6 +55,7 @@ function loadTrackPlayerModule() {
       Capability: trackPlayerModule.Capability || {},
       Event: trackPlayerModule.Event || {},
       State: trackPlayerModule.State || {},
+      RepeatMode: trackPlayerModule.RepeatMode || {},
     };
   } catch {
     return {
@@ -60,6 +64,7 @@ function loadTrackPlayerModule() {
       Capability: {},
       Event: {},
       State: {},
+      RepeatMode: {},
     };
   }
 }
@@ -70,6 +75,7 @@ const AppKilledPlaybackBehavior = nativeTrackPlayer.AppKilledPlaybackBehavior;
 const Capability = nativeTrackPlayer.Capability;
 const Event = nativeTrackPlayer.Event;
 const State = nativeTrackPlayer.State;
+const RepeatMode = nativeTrackPlayer.RepeatMode;
 
 function isNativeTrackPlayerAvailable() {
   const player = TrackPlayer as any;
@@ -121,6 +127,21 @@ export default function App() {
   const [favoriteTracks, setFavoriteTracks] = useState<FavoriteTrack[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const listen = useRef({ key: '', position: 0, elapsed: 0, sent: false, at: 0 });
+  useEffect(() => {
+    publishPlaybackPosition(currentTrack?.id || '', positionMs);
+    const key = `${currentUser?.id || 'guest'}:${currentTrack?.id || ''}`;
+    const now = Date.now();
+    if (listen.current.key !== key) listen.current = { key, position: positionMs, elapsed: 0, sent: false, at: now };
+    const state = listen.current;
+    const delta = positionMs - state.position;
+    if (isPlaying && delta > 0 && delta <= Math.min(5000, now - state.at + 1000)) state.elapsed += delta;
+    state.position = positionMs; state.at = now;
+    if ((currentTrack?.isMix || currentTrack?.isOriginal) && currentTrack.releaseId && state.elapsed >= 30000 && !state.sent) {
+      state.sent = true;
+      void recordMusicPlay(currentTrack.releaseId).catch(() => { if (listen.current === state) state.sent = false; });
+    }
+  }, [currentTrack?.id, currentUser?.id, positionMs, isPlaying]);
   const accountId = useRef<string | null>(null);
   function applyAuth(next: AuthUser | null) {
     if (accountId.current !== (next?.id || null)) {
@@ -137,7 +158,7 @@ export default function App() {
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
   const [activeRelease, setActiveRelease] = useState<Release | null>(null);
-  const isHomeVisible = (activeTab === 'home' || activeTab === 'mixes' || activeTab === 'favorites' || (activeTab === 'playlists' && !playlistManagement)) && !activeRelease;
+  const isHomeVisible = (activeTab === 'home' || activeTab === 'mixes' || activeTab === 'originals' || activeTab === 'favorites' || activeTab === 'downloads' || (activeTab === 'playlists' && !playlistManagement)) && !activeRelease;
   const currentTrackRef = useRef<PlayerTrack | null>(null);
   const queueRef = useRef<PlayerTrack[]>([]);
   const queueSignatureRef = useRef('');
@@ -399,6 +420,9 @@ export default function App() {
   }
 
   async function playTrack(track: PlayerTrack, nextQueue?: PlayerTrack[], nextQueuePreview?: PlayerTrack[], loadQueue?: () => Promise<PlayerTrack[]>) {
+    const source = track.playbackSource || (activeTab === 'playlists' || activeTab === 'favorites' || activeTab === 'mixes' || activeTab === 'originals' || activeTab === 'downloads' ? activeTab : 'home');
+    track = { ...track, playbackSource: source };
+    nextQueue = nextQueue?.map(item => ({ ...item, playbackSource: source }));
     const request = playbackRequestsRef.current.begin();
     const previousTrackId = currentTrackRef.current?.id;
     playbackRequestIdRef.current = request;
@@ -549,18 +573,11 @@ export default function App() {
       return;
     }
 
-    if (isShuffleEnabled && offset === 1) {
-      const candidates = queue.filter((track) => track.id !== currentTrack.id);
-      const nextTrack = candidates[Math.floor(Math.random() * candidates.length)] || currentTrack;
-      void setTrackForPlayback(nextTrack);
-      return;
-    }
-
     const index = Math.max(0, queue.findIndex((track) => track.id === currentTrack.id));
     const nextIndex = index + offset;
 
     if (nextIndex < 0 || nextIndex >= queue.length) {
-      if (isRepeatEnabled) {
+      if (isRepeatEnabled || isShuffleEnabled) {
         void setTrackForPlayback(queue[offset === 1 ? 0 : queue.length - 1]);
       }
       return;
@@ -838,13 +855,37 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (desiredPlayingRef.current && isRepeatEnabled && positionMs > 0 && durationMs > 0 && positionMs >= durationMs - 450) {
-      if (isRepeatEnabled) {
-        void seekToRatio(0);
-        setIsPlaying(true);
-      }
-    }
-  }, [positionMs, durationMs, isRepeatEnabled]);
+    if (!isNativeTrackPlayerAvailable()) return;
+    let cancelled=false;
+    void ensureTrackPlayerReady().then(async()=>{
+      if(!cancelled)await TrackPlayer.setRepeatMode(RepeatMode[playbackRepeatMode(isRepeatEnabled,isShuffleEnabled)]);
+    }).catch(error=>console.warn('Unable to update repeat mode',error));
+    return()=>{cancelled=true;};
+  }, [isRepeatEnabled,isShuffleEnabled]);
+  const originalQueueOrderRef=useRef<PlayerTrack[]>([]);
+  const queueMembers=queue.map(track=>track.id).sort().join('|');
+  useEffect(()=>{
+    const active=currentTrackRef.current;
+    if(!active||!queueRef.current.length)return;
+    let tracks=queueRef.current;
+    if(isShuffleEnabled){
+      const known = new Map(tracks.map(track => [track.id, track]));
+      const saved = originalQueueOrderRef.current;
+      const savedIds = new Set(saved.map(track => track.id));
+      originalQueueOrderRef.current = [
+        ...saved.flatMap(track => known.has(track.id) ? [known.get(track.id)!] : []),
+        ...tracks.filter(track => !savedIds.has(track.id)),
+      ];
+      tracks=shuffledQueue(tracks,active.id);
+    }else if(originalQueueOrderRef.current.length){
+      const current=new Map(tracks.map(track=>[track.id,track]));
+      tracks=[...originalQueueOrderRef.current.flatMap(track=>current.has(track.id)?[current.get(track.id)!]:[]),...tracks.filter(track=>!originalQueueOrderRef.current.some(old=>old.id===track.id))];
+      originalQueueOrderRef.current=[];
+    }else return;
+    // Serialize behind the active load without cancelling its playback request.
+    const request=playbackRequestIdRef.current;
+    void replacePlaybackQueue(tracks,queuePreview,request).catch(error=>console.warn('Unable to update shuffle queue',error));
+  },[isShuffleEnabled,queueMembers]);
 
   useEffect(() => {
     if ((!activeRelease && !playlistManagement) || isFullPlayerOpen) {
@@ -873,9 +914,7 @@ export default function App() {
       );
     }
 
-    if (activeTab === 'downloads') {
-      return <DownloadsScreen lang={lang} activeTrackId={currentTrack?.id || null} onPlayTrack={playTrack} />;
-    }
+    if (activeTab === 'downloads') return null;
 
     if (activeTab === 'home') {
       return null;
@@ -925,10 +964,11 @@ export default function App() {
       );
     }
 
-    if (activeTab === 'mixes' || activeTab === 'favorites') return null;
+    if (activeTab === 'mixes' || activeTab === 'originals' || activeTab === 'favorites') return null;
 
     return (
       <ProfileScreen
+        onOpenCollection={() => setActiveTab('home')}
         lang={lang}
         onLanguageChange={setLang}
         onAuthChange={applyAuth}
@@ -955,7 +995,9 @@ export default function App() {
         onPlayTrack={playTrack}
         onTogglePlayback={togglePlayback}
         playlistLibrary={activeTab === 'playlists' ? { playlists, requiresSignIn: !currentUser, onManage: () => setPlaylistManagement(true) } : undefined}
-        section={activeTab === 'mixes' ? 'mixes' : activeTab === 'favorites' ? 'favorites' : 'collection'}
+        section={activeTab === 'downloads' ? 'downloads' : activeTab === 'originals' ? 'originals' : activeTab === 'mixes' ? 'mixes' : activeTab === 'favorites' ? 'favorites' : 'collection'}
+        currentUser={currentUser}
+        onPlayAt={(track, second, nextQueue) => { void (async () => { if (currentTrackRef.current?.id !== track.id) await playTrack(track, nextQueue); if (currentTrackRef.current?.id !== track.id) return; await ensureTrackPlayerReady(); if (isNativeTrackPlayerAvailable()) { await TrackPlayer.seekTo(second); await TrackPlayer.play(); } positionMsRef.current = second * 1000; setPositionMs(second * 1000); })().catch(() => Alert.alert(lang === 'ru' ? 'Не удалось начать воспроизведение' : 'Unable to start playback')); }}
         favorites={favoriteTracks}
         requiresSignIn={!currentUser}
         favoriteIds={favoriteIds}
@@ -968,7 +1010,7 @@ export default function App() {
         onNavigate={(tab) => { setActiveRelease(null); setActiveTab(tab); }}
       />
     ),
-    [currentUser?.id, currentUser?.avatarStorageUrl, currentUser?.role, isFullPlayerOpen, isHomeVisible, lang, theme, currentTrack?.id, isPlaying, activeTab, playlists, favoriteIds, favoriteTracks, showTrackMeta],
+    [currentUser, isFullPlayerOpen, isHomeVisible, lang, theme, currentTrack?.id, isPlaying, activeTab, playlists, favoriteIds, favoriteTracks, showTrackMeta],
   );
   const activeScreen = useMemo(
     () => renderScreen(),
@@ -1028,6 +1070,7 @@ export default function App() {
         />
 
         <FullPlayer
+          lang={lang}
           track={currentTrack}
           visible={isFullPlayerOpen}
           isPlaying={isPlaying}

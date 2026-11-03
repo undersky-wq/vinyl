@@ -84,6 +84,9 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 412, height: 850 }
 }
 assert.deepEqual(archiveWindow(0, 0, 'stack'), []);
 assert.deepEqual(archiveWindow(0, 3, 'shelf'), [0, 1, 2]);
+assert.equal(clampPosition(NaN, 401), 0);
+assert.equal(clampPosition(Infinity, 401), 0);
+assert.equal(clampPosition(25, 0), 0);
 assert(archiveWindow(200, 401, 'stack').length <= 9);
 assert.equal(clampPosition(-2, 10), 0);
 assert.equal(clampPosition(30, 10), 9);
@@ -95,7 +98,7 @@ assert(homeSource.includes('shelfTransport && moving ? shelfAnchor : position'),
 assert(homeSource.includes('transform: [{ translateX: shelfTranslateX }, { translateY: shelfTranslateY }]'), 'Shelf uses one moving transport layer');
 assert(homeSource.includes('scrollX={0}'), 'individual sleeves do not duplicate the Shelf transport');
 const { archiveSectionColor, ARCHIVE_SECTION_COLORS } = load('lib/archive-section-colors.ts');
-assert.deepEqual(ARCHIVE_SECTION_COLORS, { home: '#3478db', playlists: '#27874d', mixes: '#8950c8', favorites: '#db3045' });
+assert.deepEqual(ARCHIVE_SECTION_COLORS, { home: '#3478db', playlists: '#27874d', mixes: '#8950c8', originals: '#d9a441', favorites: '#db3045' });
 for (const [key, color] of Object.entries(ARCHIVE_SECTION_COLORS)) {
   assert.equal(archiveSectionColor(key, '#777'), color);
 }
@@ -115,8 +118,10 @@ assert(!fullPlayerSource.includes('commentsExpanded'), 'comment list stays in th
 assert(fullPlayerSource.includes('style={styles.commentCount}>{comments.length}</Text>'), 'original comment icon shows the live comment count');
 assert(fullPlayerSource.includes('accessibilityState={{ expanded: isCommentsSheetOpen }}'), 'original comment button exposes its sheet state');
 assert(fullPlayerSource.includes('commentTipAnchor, { left: tipLeft, width: tipWidth }'), 'tooltip is bounded by waveform width, not its tiny avatar');
-assert(homeSource.includes('selectedRelease && !expanded && <Text style={[styles.heading'), 'Shelf heading appears only for a selected preview, not while browsing the closed shelf');
+assert(homeSource.includes('selectedRelease && !expanded && <View style={[styles.heading'), 'Shelf heading appears only for a selected preview, not while browsing the closed shelf');
 assert(!homeSource.includes('selectedRelease || releases[Math.round(position)]'), 'browsing does not expose the centered release title');
+assert(!homeSource.includes('styles.closeRelease'), 'release previews do not display a close cross');
+assert(homeSource.includes('style={StyleSheet.absoluteFillObject} onPress={collapseRelease}'), 'empty canvas closes the preview in every layout');
 assert(homeSource.includes("height: 24, paddingVertical: 2"), 'genre rows match the mobile website 24px rhythm');
 assert(homeSource.includes('lineHeight: 20, includeFontPadding: false'), 'Android font padding does not enlarge genre rows');
 assert(homeSource.includes("bottom: 0, overflow: 'hidden', width: '31%'"), 'genres clip at the screen edge, not above the player');
@@ -137,10 +142,14 @@ for (const velocity of [-.5, -.01, .001, .01, .5]) {
   if (result.duration) assert(Math.abs(3 * (result.target - 12) / result.duration - Math.max(-.035, Math.min(.035, velocity))) < 1e-10, 'cubic inertia starts at finger velocity');
 }
 assert(homeSource.includes('scroll.setValue(next)'), 'drag updates shared scroll rather than React state');
-assert(homeSource.includes('Math.floor(value) !== windowPosition.current'), 'reconcile only at release boundaries');
+assert(homeSource.includes("const windowStep = mode === 'shelf' ? 4 : 1"), 'Shelf batches window updates while Stack retains single-release updates');
+assert(homeSource.includes('Math.abs(Math.floor(value) - windowPosition.current) >= windowStep'), 'reconcile only at buffered window boundaries');
+assert(homeSource.includes("{mode === 'tracks' && <Animated.View pointerEvents={tracks"), 'Shelf does not mount hidden track labels for every cover');
 assert(!homeSource.includes('useNativeDriver: false'), 'archive animations must stay on native driver');
 assert(homeSource.includes("previousMode.current !== mode && mode === 'stack'"), 'Stack uses final orientation on entry');
-assert(homeSource.includes('if (enteringStack || reducedMotion)'), 'Stack entry does not tween through Shelf rotations');
+assert(homeSource.includes('if (returningFromList || enteringStack || reducedMotion)'), 'Stack entry does not tween through stale list rotations');
+assert(homeSource.includes('const direct = returningFromList ||'), 'leaving a native list sets destination cover positions before revealing');
+assert(homeSource.includes('opacity: canvasEntrance ? tracksEntrance : 1'), 'destination canvas fades in instead of exposing the old left-hand column');
 assert(!homeSource.includes('Animated.timing(perspective'), 'camera perspective must not warp during layout assembly');
 assert(!homeSource.includes('onOpenRelease(releases['), 'cover presses must not navigate to the legacy screen');
 const trackListSource = fs.readFileSync(path.join(__dirname, '../src/components/ArchiveTrackList.tsx'), 'utf8');
@@ -148,12 +157,17 @@ assert(trackListSource.includes('const content = <View style={[styles.details,')
 assert(trackListSource.includes('accessibilityLabel="BPM"'), 'Tracks show BPM metadata');
 assert(trackListSource.includes("'Favorite'"), 'Tracks expose favorite action');
 assert(trackListSource.includes("'Add to playlist'"), 'Tracks expose playlist menu');
-assert(homeSource.includes('getLibraryFeedFiltered(PAGE_SIZE, 0, { ...filters, isMix: true }'), 'mixes load their own paginated feed');
+assert(homeSource.includes("section === 'originals' ? { isOriginal: true } : { isMix: true }"), 'mixes and originals load separate paginated feeds');
 assert(homeSource.includes("section === 'favorites' ? playlistArchiveItems"), 'favorites reuse sleeve data model');
 const tracksViewSource = fs.readFileSync(path.join(__dirname, '../src/components/ArchiveTracksView.tsx'), 'utf8');
 assert(tracksViewSource.includes('<FlatList'), 'Tracks use a native virtualized scrolling list');
 const gridViewSource = fs.readFileSync(path.join(__dirname, '../src/components/ArchiveGridView.tsx'), 'utf8');
 assert(gridViewSource.includes('<FlatList') && gridViewSource.includes('numColumns={4}'), 'Grid uses native virtualized columns');
+assert(homeSource.includes('!reducedMotion && !betweenLists'), 'Grid and Tracks switch directly without the transitional sleeve canvas');
+assert(!gridViewSource.includes('onContentSizeChange'), 'Grid must not restore its scroll offset a second time after showing');
+assert(gridViewSource.includes('initialScrollIndex={releases.length ? startRow'), 'Grid starts at a stable row');
+assert(!tracksViewSource.includes('setPositioned') && !tracksViewSource.includes('opacity:'), 'Tracks must appear without waiting for a swipe or viewability callback');
+assert(tracksViewSource.includes('releaseDetails.get(release)'), 'returning to Tracks reuses loaded release details');
 assert(!gridViewSource.includes('Animated.') && !gridViewSource.includes('PanResponder') && !gridViewSource.includes('useState'), 'Grid scrolling must not animate or reconcile individual tiles every frame');
 assert(homeSource.includes('nativeListVisible ? \'none\' : \'auto\''), 'canvas gesture responder cannot intercept native Grid and Tracks scroll');
 assert(!/panel:\s*\{[^}]*borderLeft/.test(trackListSource), 'rule must not stretch with the scrolling viewport');

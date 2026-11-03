@@ -38,6 +38,7 @@ model User {
   favoriteTracks  FavoriteTrack[]
   timelineComments TimelineComment[]
   timelineCommentLikes TimelineCommentLike[]
+  musicDownloads MusicDownload[]
 }
 
 model Session {
@@ -100,8 +101,20 @@ model Release {
   timelineComments  TimelineComment[]
   musicPlays        MusicPlay[]
   linkCopies        MusicLinkCopy[]
+  musicDownloads    MusicDownload[]
 
   @@index([isMix, isOriginal])
+}
+
+model MusicDownload {
+  releaseId String
+  userId String
+  createdAt DateTime @default(now())
+  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([releaseId, userId])
+  @@index([userId])
 }
 
 model MusicLinkCopy {
@@ -191,8 +204,13 @@ model Image {
   id         String    @id @default(cuid())
   releaseId  String
   type       ImageType @default(COVER)
+  isBackCover Boolean  @default(false)
+    isSecondFrontCover Boolean @default(false)
+    isSecondBackCover Boolean @default(false)
   url        String
   storageKey String    @unique
+  thumbStorageKey String?
+  mediumStorageKey String?
   createdAt  DateTime  @default(now())
   release    Release   @relation(fields: [releaseId], references: [id], onDelete: Cascade)
 }

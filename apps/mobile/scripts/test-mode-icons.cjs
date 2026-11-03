@@ -1,0 +1,11 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const native = fs.readFileSync(path.join(__dirname, '../src/components/ArchiveModeIcon.tsx'), 'utf8');
+const web = fs.readFileSync(path.join(__dirname, '../../frontend/src/components/archive-layout-icon.tsx'), 'utf8');
+const shapes = source => [...source.matchAll(/<(?:path|Path|rect|Rect)\s+([^>]+)\/>/g)].map(match => match[1]);
+assert.deepEqual(shapes(native), shapes(web), 'All SVG contours and cover counts match the website');
+assert.match(native, /width=\{22\} height=\{22\}/);
+assert.match(native, /viewBox="0 0 24 24" fill="none"/);
+assert.match(native, /strokeWidth=\{1.2\} strokeLinecap="round" strokeLinejoin="round"/);
+console.log('PASS: native mode icons match mobile web contours, size and stroke');

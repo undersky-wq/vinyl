@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const ts = require('typescript');
 const state = [];
 let slot = 0, effects = [], resize;
-const sandbox = { exports: {}, window: { matchMedia: () => ({ matches: true }) },
+const sandbox = { exports: {}, window: { matchMedia: () => ({ matches: true }), addEventListener() {}, removeEventListener() {} },
   ResizeObserver: class { constructor(callback) { resize = callback; } observe() {} disconnect() {} },
   require: () => ({
     useState(initial) { const index = slot++; if (!(index in state)) state[index] = initial; return [state[index], next => { state[index] = typeof next === 'function' ? next(state[index]) : next; }]; },
@@ -22,10 +22,11 @@ function render() {
   return result;
 }
 const closed = render();
-closed.ref({getBoundingClientRect:()=>({width:320})});
+let width = 320;
+closed.ref({getBoundingClientRect:()=>({width,left:0})});
 render();
 assert.equal(render().barCount,80,'Opening a previously absent player must measure the mounted waveform');
-resize([{contentRect:{width:480}}]);
+width = 480; resize([{contentRect:{width:480}}]);
 assert.equal(render().barCount,120,'Resizing must update bar count');
 render().ref(null);
 render();

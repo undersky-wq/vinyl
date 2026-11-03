@@ -1,12 +1,13 @@
 import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Heart, ListPlus } from 'lucide-react-native';
 import { TrackDownloadButton } from './TrackDownloadButton';
+import { ReleaseReveal } from './ReleaseReveal';
 import { buildPlayableReleaseTracks } from '../lib/release-player-tracks';
 import { normalizeDurationLabel } from '../lib/time';
 import { adaptiveStyles, colors } from '../theme';
 import type { PlayerTrack, Release } from '../types';
 
-export function ArchiveTrackList({ release, loading, error, onRetry, lang, activeTrackId, isPlaying, onPlayTrack, onTogglePlayback, playbackQueue, inline = false, compact = false, hideHeading = false, index = 0, favoriteIds, onFavoriteTrack, onPlaylistMenu, showTrackMeta = true, showKey = true }: {
+export function ArchiveTrackList({ release, loading, error, onRetry, lang, activeTrackId, isPlaying, onPlayTrack, onTogglePlayback, playbackQueue, inline = false, compact = false, hideHeading = false, index = 0, favoriteIds, onFavoriteTrack, onPlaylistMenu, showTrackMeta = true, showKey = true, reveal = false, revealed = true, reducedMotion = false }: {
   release: Release; loading: boolean; error: boolean; onRetry: () => void; lang: 'en' | 'ru';
   activeTrackId?: string | null; isPlaying: boolean;
   onPlayTrack: (track: PlayerTrack, queue?: PlayerTrack[]) => void; onTogglePlayback: () => void;
@@ -14,17 +15,19 @@ export function ArchiveTrackList({ release, loading, error, onRetry, lang, activ
   inline?: boolean; compact?: boolean; hideHeading?: boolean; index?: number; favoriteIds?: Set<string>;
   onFavoriteTrack?: (id: string) => void; onPlaylistMenu?: (id: string) => void;
   showTrackMeta?: boolean; showKey?: boolean;
+  reveal?: boolean; revealed?: boolean; reducedMotion?: boolean;
 }) {
   const queue = buildPlayableReleaseTracks(release);
+  const entrance = { enabled: reveal && !inline, visible: revealed, reducedMotion };
   const content = <View style={[styles.details, inline && styles.inline, inline && compact && styles.compactContent]}>
-    {!compact && !hideHeading && <><Text style={styles.artist}>{release.artist}</Text>
-    <View style={styles.meta}><Text style={styles.title}>{release.title}</Text><Text style={styles.year}>{release.year}</Text></View></>}
+    {!compact && !hideHeading && <><ReleaseReveal {...entrance} step={0}><Text style={styles.artist}>{release.artist}</Text></ReleaseReveal>
+    <ReleaseReveal {...entrance} step={1}><View style={styles.meta}><Text style={styles.title}>{release.title}</Text><Text style={styles.year}>{release.year}</Text></View></ReleaseReveal></>}
     {loading && !release.tracks.length ? <Text style={styles.message}>{lang === 'ru' ? 'Загрузка треков...' : 'Loading tracks...'}</Text> : null}
     {error ? <Pressable onPress={onRetry}><Text style={styles.message}>{lang === 'ru' ? 'Повторить загрузку' : 'Retry loading'}</Text></Pressable> : null}
-    {release.tracks.map(track => {
+    {release.tracks.map((track, trackIndex) => {
       const playable = queue.find(item => item.id === track.id);
       const active = track.id === activeTrackId;
-      return <View key={track.id} style={[styles.row, active && styles.active]}>
+      return <ReleaseReveal key={track.id} {...entrance} step={trackIndex + 2}><View style={[styles.row, active && styles.active]}>
         <Pressable accessibilityRole="button" accessibilityLabel={`${active && isPlaying ? 'Pause' : 'Play'}: ${track.title}`} disabled={!playable} style={[styles.play, !playable && styles.disabled]} onPress={() => {
           if (!playable) return;
           if (active) onTogglePlayback(); else onPlayTrack(playable, playbackQueue || queue);
@@ -35,10 +38,10 @@ export function ArchiveTrackList({ release, loading, error, onRetry, lang, activ
         {onPlaylistMenu && <Pressable accessibilityRole="button" accessibilityLabel={lang === 'ru' ? 'Добавить в плейлист' : 'Add to playlist'} style={styles.action} onPress={() => onPlaylistMenu(track.id)}><ListPlus size={15} color={colors.muted} strokeWidth={1.5} /></Pressable>}
         {playable && !inline ? <TrackDownloadButton track={playable} /> : null}
         <Text style={styles.time}>{normalizeDurationLabel(track.durationRaw, track.durationSec, '-')}</Text>
-      </View>;
+      </View></ReleaseReveal>;
     })}
     {!loading && !error && !release.tracks.length ? <Text style={styles.message}>{lang === 'ru' ? 'Треклист недоступен' : 'Tracklist unavailable'}</Text> : null}
-    {!compact && <Text style={styles.genres}>{release.styles.join(' · ')}</Text>}
+    {!compact && <ReleaseReveal {...entrance} step={release.tracks.length + 2}><Text style={styles.genres}>{release.styles.join(' · ')}</Text></ReleaseReveal>}
     </View>;
   return inline ? content : <ScrollView style={styles.panel} nestedScrollEnabled showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>{content}</ScrollView>;
 }

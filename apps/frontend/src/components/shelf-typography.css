@@ -1,0 +1,24 @@
+/* Shared by page content, status messages and portalled dialogs in the Shelf design. */
+html[data-visual-variant='shelf'] {
+  --shelf-font-family: Arial, Helvetica, sans-serif;
+}
+
+html[data-visual-variant='shelf'] body,
+html[data-visual-variant='shelf'] body :where(*) {
+  font-family: var(--shelf-font-family) !important;
+  font-stretch: normal !important;
+}
+
+/* Recovery codes and technical snippets must remain unambiguous and selectable. */
+html[data-visual-variant='shelf'] body :is(pre, code, kbd, samp),
+html[data-visual-variant='shelf'] body :is(pre, code, kbd, samp) * {
+  font-family: Consolas, 'Courier New', monospace !important;
+}
+
+html[data-visual-variant='shelf'] .paper-empty {
+  font-size: clamp(12px, 1.15vw, 16px);
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.45;
+  letter-spacing: 0;
+}

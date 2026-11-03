@@ -23,7 +23,16 @@ export type Track = {
   }>;
 };
 
-export type Release = {
+export type ReleaseCoverVariants = {
+  backCoverThumbUrl?: string | null;
+  backCoverMediumUrl?: string | null;
+  secondCoverThumbUrl?: string | null;
+  secondCoverMediumUrl?: string | null;
+  secondBackCoverThumbUrl?: string | null;
+  secondBackCoverMediumUrl?: string | null;
+};
+
+export type Release = ReleaseCoverVariants & {
   id: string;
   audioComplete?: boolean;
   artist: string;
@@ -39,16 +48,23 @@ export type Release = {
   coverMediumStorageUrl?: string | null;
   coverImageUrl: string | null;
   backCoverUrl?: string | null;
+  secondCoverUrl?: string | null;
+  secondBackCoverUrl?: string | null;
   images?: Array<{
     id: string;
     type: 'COVER' | 'GALLERY';
+    thumbUrl?: string | null;
+    mediumUrl?: string | null;
+    isBackCover?: boolean;
+    isSecondFrontCover?: boolean;
+    isSecondBackCover?: boolean;
     url: string;
     storageKey: string;
   }>;
   tracks: Track[];
 };
 
-export type HomeRelease = {
+export type HomeRelease = ReleaseCoverVariants & {
   tracksLoaded?: boolean;
   trackCount?: number;
   trackSearchText?: string;
@@ -65,9 +81,16 @@ export type HomeRelease = {
   coverMediumStorageUrl?: string | null;
   coverImageUrl: string | null;
   backCoverUrl?: string | null;
+  secondCoverUrl?: string | null;
+  secondBackCoverUrl?: string | null;
   images?: Array<{
     id: string;
     type: 'COVER' | 'GALLERY';
+    isBackCover?: boolean;
+    thumbUrl?: string | null;
+    mediumUrl?: string | null;
+    isSecondFrontCover?: boolean;
+    isSecondBackCover?: boolean;
     url: string;
     storageKey: string;
   }>;
@@ -84,7 +107,7 @@ export type HomeRelease = {
   }>;
 };
 
-export type HomeReleaseApi = {
+export type HomeReleaseApi = ReleaseCoverVariants & {
   tracksLoaded?: boolean;
   trackCount?: number;
   trackSearchText?: string;
@@ -101,9 +124,16 @@ export type HomeReleaseApi = {
   coverMediumStorageUrl?: string | null;
   coverImageUrl: string | null;
   backCoverUrl?: string | null;
+  secondCoverUrl?: string | null;
+  secondBackCoverUrl?: string | null;
   images?: Array<{
     id: string;
     type: 'COVER' | 'GALLERY';
+    isBackCover?: boolean;
+    thumbUrl?: string | null;
+    mediumUrl?: string | null;
+    isSecondFrontCover?: boolean;
+    isSecondBackCover?: boolean;
     url: string;
     storageKey: string;
   }>;

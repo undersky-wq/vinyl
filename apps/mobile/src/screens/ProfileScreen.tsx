@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Activity, ChevronLeft, Database, LogOut, RefreshCcw, Shield, SlidersHorizontal, UploadCloud, Users } from 'lucide-react-native';
-import { AnimatedLogo } from '../components/AnimatedLogo';
+import { AdminSitePanel } from '../components/AdminSitePanel';
 import {
   AudioJobStatus,
   getAudioNormalizeBackfillStatus,
@@ -18,11 +18,12 @@ import {
   startAudioWaveformBackfill,
   updateAuthSettings,
 } from '../lib/api';
-import { colors, radius, spacing, shelfStyles } from '../theme';
+import { colors, adaptiveStyles } from '../theme';
 import { LanguageProps } from '../types';
 import { AuthUser, ProfileStats, UserProfile } from '../types';
 
 type ProfileScreenProps = LanguageProps & {
+  onOpenCollection: () => void;
   onAuthChange?: (user: AuthUser | null) => void;
   showTrackMeta?: boolean;
   onShowTrackMetaChange?: (value: boolean) => void;
@@ -54,7 +55,7 @@ function getPercent(status: AudioJobStatus | null) {
   return Math.min(100, Math.round((status.processed / status.total) * 100));
 }
 
-export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, showTrackMeta = true, onShowTrackMetaChange }: ProfileScreenProps) {
+export function ProfileScreen({ lang, onLanguageChange: setLang, onOpenCollection, onAuthChange, showTrackMeta = true, onShowTrackMetaChange }: ProfileScreenProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [view, setView] = useState<ProfileView>('main');
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -342,6 +343,10 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
     };
   }, []);
 
+  if (isAdmin) {
+    return <AdminSitePanel lang={lang} onLanguageChange={setLang} onClose={onOpenCollection} onAuthChange={applyUser} showTrackMeta={showTrackMeta} onShowTrackMetaChange={onShowTrackMetaChange} />;
+  }
+
   if (user && view === 'users') {
     return (
       <View style={styles.screen}>
@@ -390,22 +395,16 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
     <View style={styles.screen}>
       <View style={styles.headerShell}>
         <View style={styles.headerTop}>
-          <AnimatedLogo lang={lang} />
+          <Text style={styles.brand}>{isRu ? 'Коллекция винила' : 'Vinyl collection'}</Text>
           <View style={styles.language}>
-            <Pressable onPress={() => setLang('ru')}>
-              <Text style={[styles.languageText, lang === 'ru' && styles.languageActive]}>
-                {isRu ? 'РУ' : 'RU'}
-              </Text>
-            </Pressable>
-            <Pressable onPress={() => setLang('en')}>
-              <Text style={[styles.languageText, lang === 'en' && styles.languageActive]}>
-                {isRu ? 'АНГ' : 'ENG'}
-              </Text>
+            <Pressable onPress={() => setLang(isRu ? 'en' : 'ru')} hitSlop={10} accessibilityRole="button" accessibilityLabel={isRu ? 'Switch to English' : 'Переключить на русский'}>
+              <Text style={styles.languageText}>{isRu ? 'RU' : 'ENG'}</Text>
             </Pressable>
           </View>
         </View>
       </View>
 
+      <Text style={[styles.headerHint, { marginHorizontal: '6%' }]}>{isRu ? 'Профиль : настройки' : 'Profile : settings'}</Text>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {user ? (
           <>
@@ -444,16 +443,16 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
 
             <View style={styles.section}>
               <View style={styles.sectionTitleRow}>
-                <SlidersHorizontal size={18} color={colors.accent} strokeWidth={2.5} />
+                <SlidersHorizontal size={18} color={colors.text} strokeWidth={2.5} />
                 <Text style={styles.sectionTitle}>{labels.settings}</Text>
               </View>
 
               {isAdmin ? (
                 <>
                   <ActionRow
-                    icon={<Users size={18} color={colors.accent} strokeWidth={2.5} />}
+                    icon={<Users size={18} color={colors.text} strokeWidth={2.5} />}
                     title={labels.users}
-                    subtitle={`${users.length} accounts`}
+                    subtitle={`${users.length} ${isRu ? 'аккаунтов' : 'accounts'}`}
                     onPress={() => setView('users')}
                   />
                   <ActionRow
@@ -462,14 +461,14 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
                     subtitle={labels.uploadHint}
                   />
                   <ActionRow
-                    icon={<RefreshCcw size={18} color={colors.accent} strokeWidth={2.5} />}
+                    icon={<RefreshCcw size={18} color={colors.text} strokeWidth={2.5} />}
                     title={busyAction === 'discogs' ? 'Syncing...' : labels.sync}
                     subtitle={isRu ? 'Подтянуть новые релизы из Discogs' : 'Import new releases from Discogs'}
                     onPress={runDiscogsSync}
                     disabled={Boolean(busyAction)}
                   />
                   <ActionRow
-                    icon={<Shield size={18} color={isRegistrationInviteRequired ? colors.accent : colors.muted} strokeWidth={2.5} />}
+                    icon={<Shield size={18} color={isRegistrationInviteRequired ? colors.text : colors.muted} strokeWidth={2.5} />}
                     title={labels.registrationInvite}
                     subtitle={labels.registrationInviteHint}
                     valueText={isRegistrationInviteRequired ? 'ON' : 'OFF'}
@@ -478,7 +477,7 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
                     disabled={Boolean(busyAction)}
                   />
                   <ActionRow
-                    icon={<Activity size={18} color={colors.accent} strokeWidth={2.5} />}
+                    icon={<Activity size={18} color={colors.text} strokeWidth={2.5} />}
                     title={busyAction === 'waveform' ? `Waveform ${waveformPercent}%` : labels.waveform}
                     subtitle={isRu ? 'Пересчитать длительность и волну треков' : 'Rebuild duration and waveform data'}
                     onPress={() => void runAudioJob('waveform', startAudioWaveformBackfill, getAudioWaveformBackfillStatus)}
@@ -486,7 +485,7 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
                     progress={waveformPercent}
                   />
                   <ActionRow
-                    icon={<Database size={18} color={colors.accent} strokeWidth={2.5} />}
+                    icon={<Database size={18} color={colors.text} strokeWidth={2.5} />}
                     title={busyAction === 'normalize' ? `MP3 ${normalizePercent}%` : labels.prepare}
                     subtitle={isRu ? 'Подготовить MP3 для стабильного стриминга' : 'Prepare MP3 for stable streaming'}
                     onPress={() => void runAudioJob('normalize', startAudioNormalizeBackfill, getAudioNormalizeBackfillStatus)}
@@ -496,14 +495,14 @@ export function ProfileScreen({ lang, onLanguageChange: setLang, onAuthChange, s
                 </>
               ) : (
                 <ActionRow
-                  icon={<Shield size={18} color={colors.accent} strokeWidth={2.5} />}
+                  icon={<Shield size={18} color={colors.text} strokeWidth={2.5} />}
                   title={isRu ? 'Аккаунт активен' : 'Account active'}
                   subtitle={isRu ? 'Можно лайкать треки и собирать плейлисты.' : 'You can like tracks and create playlists.'}
                 />
               )}
 
               <ActionRow
-                icon={<Activity size={18} color={showTrackMeta ? colors.accent : colors.muted} strokeWidth={2.5} />}
+                icon={<Activity size={18} color={showTrackMeta ? colors.text : colors.muted} strokeWidth={2.5} />}
                 title={labels.trackMeta}
                 subtitle={showTrackMeta ? (isRu ? 'Включено' : 'Enabled') : (isRu ? 'Выключено' : 'Disabled')}
                 valueText={showTrackMeta ? 'ON' : 'OFF'}
@@ -632,339 +631,62 @@ function ActionRow({
   );
 }
 
-const styles = shelfStyles(StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  headerShell: {
-    position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
-    top: -6,
-    zIndex: 10,
-    paddingHorizontal: 12,
-    paddingTop: (StatusBar.currentHeight || 0) + 10,
-    paddingBottom: 9,
-    borderRadius: 24,
-    backgroundColor: 'rgba(24,24,24,0.96)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.55,
-    shadowRadius: 30,
-  },
-  headerTop: {
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTitle: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.panelSoft,
-  },
-  usersCount: {
-    width: 42,
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  language: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-  },
-  languageText: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  languageActive: {
-    color: colors.text,
-  },
-  content: {
-    gap: 14,
-    paddingHorizontal: spacing.md,
-    paddingTop: 76,
-    paddingBottom: 84,
-  },
-  usersContent: {
-    gap: 10,
-    paddingHorizontal: spacing.md,
-    paddingTop: 76,
-    paddingBottom: 84,
-  },
-  heroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: spacing.md,
-    borderRadius: 26,
-    backgroundColor: colors.panel,
-  },
-  heroText: {
-    flex: 1,
-  },
-  card: {
-    gap: 12,
-    padding: spacing.md,
-    borderRadius: 22,
-    backgroundColor: colors.panel,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  input: {
-    minHeight: 46,
-    paddingHorizontal: 14,
-    borderRadius: radius.pill,
-    backgroundColor: colors.panelSoft,
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  button: {
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.panelSoft,
-  },
-  buttonText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  modeButton: {
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  modeText: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  message: {
-    color: colors.accentStrong,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  avatar: {
-    width: 82,
-    height: 82,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 41,
-    backgroundColor: colors.panelSoft,
-  },
-  avatarText: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  name: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  email: {
-    marginTop: 3,
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  role: {
-    marginBottom: 4,
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  statCard: {
-    flex: 1,
-    minHeight: 82,
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 20,
-    backgroundColor: colors.panel,
-  },
-  statLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  statValue: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  section: {
-    gap: 10,
-    padding: spacing.md,
-    borderRadius: 26,
-    backgroundColor: colors.panel,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  actionRow: {
-    minHeight: 62,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: 20,
-    backgroundColor: colors.panelSoft,
-  },
-  actionProgress: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(181,120,255,0.16)',
-  },
-  actionIcon: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(0,0,0,0.28)',
-  },
-  actionText: {
-    flex: 1,
-    gap: 2,
-  },
-  actionTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  actionSubtitle: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 16,
-  },
-  actionChevron: {
-    color: colors.muted,
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  actionValue: {
-    minWidth: 34,
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '900',
-    textAlign: 'right',
-  },
-  actionValueActive: {
-    color: colors.accent,
-  },
-  disabled: {
-    opacity: 0.58,
-  },
-  userRow: {
-    minHeight: 96,
-    flexDirection: 'row',
-    gap: 12,
-    padding: 12,
-    borderRadius: 24,
-    backgroundColor: colors.panel,
-  },
-  userAvatar: {
-    width: 54,
-    height: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 27,
-    backgroundColor: colors.panelSoft,
-  },
-  userAvatarText: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  userMain: {
-    flex: 1,
-    gap: 4,
-  },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  userName: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  userRole: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-    color: colors.muted,
-    fontSize: 9,
-    fontWeight: '900',
-    backgroundColor: colors.panelSoft,
-  },
-  userRoleAdmin: {
-    color: colors.accent,
-  },
-  userEmail: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  userDate: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  userStats: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 3,
-  },
-  userStat: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-    color: colors.text,
-    fontSize: 10,
-    fontWeight: '800',
-    backgroundColor: colors.panelSoft,
-  },
+const styles = adaptiveStyles(StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  headerShell: { paddingHorizontal: '6%', paddingTop: 18, paddingBottom: 0, backgroundColor: colors.background },
+  headerTop: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  brand: { color: colors.text, fontSize: 14, fontWeight: '600', letterSpacing: -.4 },
+  headerHint: { color: colors.muted, fontSize: 14, marginTop: 14 },
+  headerTitle: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
+  backButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  usersCount: { color: colors.text, fontSize: 24, fontWeight: '400' },
+  language: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  languageText: { color: colors.muted, fontSize: 11, fontWeight: '400' },
+  languageActive: { color: colors.text },
+  content: { gap: 30, paddingHorizontal: '6%', paddingTop: 30, paddingBottom: 100 },
+  usersContent: { paddingHorizontal: '6%', paddingTop: 24, paddingBottom: 100 },
+  heroCard: { alignItems: 'flex-start', gap: 14 },
+  heroText: { width: '100%' },
+  card: { gap: 16 },
+  title: { color: colors.text, fontSize: 24, fontWeight: '600' },
+  input: { minHeight: 46, paddingHorizontal: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, color: colors.text, fontSize: 14 },
+  button: { minHeight: 46, alignItems: 'center', justifyContent: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.text },
+  buttonText: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  modeButton: { alignItems: 'center', paddingVertical: 8 },
+  modeText: { color: colors.muted, fontSize: 13, fontWeight: '400' },
+  message: { color: colors.text, fontSize: 13, lineHeight: 18 },
+  avatar: { width: 180, height: 180, alignItems: 'center', justifyContent: 'center', borderRadius: 90, backgroundColor: colors.panelSoft },
+  avatarText: { color: colors.text, fontSize: 48, fontWeight: '400' },
+  name: { color: colors.text, fontSize: 28, fontWeight: '600', letterSpacing: -.7 },
+  email: { marginTop: 4, color: colors.muted, fontSize: 14 },
+  role: { marginBottom: 6, color: colors.muted, fontSize: 12 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
+  statCard: { width: '44%', gap: 6 },
+  statLabel: { color: colors.muted, fontSize: 12 },
+  statValue: { color: colors.text, fontSize: 32, fontWeight: '400' },
+  section: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.text },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14 },
+  sectionTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  actionRow: { minHeight: 46, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  actionProgress: { position: 'absolute', bottom: 0, left: 0, height: 1, backgroundColor: colors.text },
+  actionIcon: { width: 22, height: 24, alignItems: 'center', justifyContent: 'center' },
+  actionText: { flex: 1, minWidth: 0, gap: 4 },
+  actionTitle: { color: colors.text, fontSize: 14, fontWeight: '400' },
+  actionSubtitle: { color: colors.muted, fontSize: 12, lineHeight: 16 },
+  actionChevron: { color: colors.muted, fontSize: 20, fontWeight: '400' },
+  actionValue: { minWidth: 34, color: colors.muted, fontSize: 12, fontWeight: '600', textAlign: 'right' },
+  actionValueActive: { color: colors.text },
+  disabled: { opacity: .45 },
+  userRow: { flexDirection: 'row', gap: 12, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  userAvatar: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: colors.panelSoft },
+  userAvatarText: { color: colors.text, fontSize: 16, fontWeight: '400' },
+  userMain: { flex: 1, minWidth: 0, gap: 4 },
+  userNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  userName: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
+  userRole: { color: colors.muted, fontSize: 10 },
+  userRoleAdmin: { color: colors.text },
+  userEmail: { color: colors.muted, fontSize: 12 },
+  userDate: { color: colors.muted, fontSize: 12 },
+  userStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 3 },
+  userStat: { color: colors.muted, fontSize: 11 },
 }));

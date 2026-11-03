@@ -1,10 +1,10 @@
 'use client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { HomeRelease } from '../types';
 import { SiteLang } from '../lib/language';
-import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
+import { usePlayerActions, usePlayerTransport, type PlayerTrack } from '../providers/player-provider';
 import './record-archive.css';
 import { normalizeDurationLabel } from '../lib/time';
 import { useAuth } from '../providers/auth-provider';
@@ -16,36 +16,57 @@ import { useCollectionCounts } from './use-collection-counts';
 import { ShelfMixTrack } from './shelf-mix-track';
 import { ArchivePageHeader } from './archive-page-header';
 import { getHomeReleaseDetails, getHomeReleases, getCollectionPlaybackQueue } from '../lib/api';
-import { orderCollectionQueue } from '../lib/collection-playback-queue';
-import { ShelfReleaseEditor } from './shelf-release-editor';
+import { liveCollectionQueue } from '../lib/collection-playback-queue';
+import { ShelfReleaseYear } from './shelf-release-editor';
 import { shelfMobileLayout } from '../lib/shelf-mobile-layout';
 import { COLLECTION_LAYOUT_DURATION, collectionLayoutProgress, mergeVisibleReleaseIndices, extrapolateStackCoverFrame } from '../lib/collection-layout-motion';
 import { CollectionPosition } from './collection-position';
-import { getBackCoverUrl, isBackSidePosition } from '../lib/release-images';
+import { CollectionNavigator } from './collection-navigator';
+import { collectionGridGeometry, gridNavigatorPositions, stackNavigatorState, stackNavigatorTravel } from '../lib/collection-navigator';
+import { getBackCoverUrl, getSecondFrontCoverUrl, isBackSidePosition, vinylDisc } from '../lib/release-images';
+import { collapseReleaseCoverSide, releaseCoverSide, toggleReleaseCoverSide, trackRowCoverSide, type CoverSideOverrides } from '../lib/release-cover-side';
 import { retryCoverImage } from '../lib/retry-cover-image';
 import { warmCoverImages } from '../lib/warm-cover-images';
+import { ShelfDiscTransition } from './shelf-disc-transition';
+import { coverResolutionMedia } from '../lib/cover-sources';
+import { positionStackHoverLabel } from '../lib/stack-hover-position';
 import { getPinnedGenres } from '../lib/pinned-genres';
-const coverFull = (r: HomeRelease) => r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
-const coverMobile = (r: HomeRelease) => r.coverThumbStorageUrl || r.coverMediumStorageUrl || coverFull(r);
+const coverFull = (r: HomeRelease, disc: 1 | 2 = 1) => (disc === 2 ? getSecondFrontCoverUrl(r) : '') || r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
+const coverMobile = (r: HomeRelease, disc: 1 | 2 = 1) => disc === 2 ? getSecondFrontCoverUrl(r, 'thumb') || coverFull(r,disc) : r.coverThumbStorageUrl || r.coverMediumStorageUrl || coverFull(r);
+const coverMedium = (r: HomeRelease, disc: 1 | 2 = 1) => disc === 2 ? getSecondFrontCoverUrl(r, 'medium') || coverFull(r,disc) : r.coverMediumStorageUrl || coverFull(r);
 const cover = coverFull;
 const MAX_SELECTED_STYLES = 5;
 
-function ShelfCoverImage({ release, eager, priority, selected, highQuality }: { release: HomeRelease; eager: boolean; priority: boolean; selected: boolean; highQuality: boolean }) {
-  // The browser chooses the lighter mobile image before fetching the desktop one.
-  // Keep the preview underneath while the expanded mobile cover loads its original.
+function ShelfCoverImage({ release, disc = 1, flipped, eager, priority, selected, highQuality, displaySize, desktopViewport = false, compactPreview = false }: { release: HomeRelease; disc?: 1 | 2; flipped: boolean; eager: boolean; priority: boolean; selected: boolean; highQuality: boolean; displaySize: number; desktopViewport?: boolean; compactPreview?: boolean }) {
+  // Desktop always uses originals. Mobile selects a rendition by the sleeve
+  // size and screen density, then loads the original on full expansion.
   // Off-screen records remain lazy-loaded rather than fetching the whole library.
-  const full = coverFull(release);
-  const back = getBackCoverUrl(release);
-  return <>
+  const full = coverFull(release, disc);
+  const back = getBackCoverUrl(release, disc);
+  const thumb = coverMobile(release, disc);
+  const medium = coverMedium(release, disc);
+  const backThumb = getBackCoverUrl(release, disc, 'thumb');
+  const backMedium = getBackCoverUrl(release, disc, 'medium');
+  const media = coverResolutionMedia(displaySize);
+  const useMedium = !compactPreview && typeof window !== 'undefined' && window.matchMedia(media).matches;
+  const originalPreview = highQuality || (typeof window !== 'undefined' && window.matchMedia('(min-width:701px)').matches);
+  return <ShelfDiscTransition disc={disc} flipped={flipped} sources={[originalPreview ? full : useMedium ? medium : thumb, originalPreview ? back : useMedium ? backMedium : backThumb]}>
     <span className="paper-record-face paper-record-front">
       <picture style={{display:'contents'}}>
-      <source media="(max-width:700px)" srcSet={coverMobile(release)} />
-      <img src={full} alt="" width={900} height={900} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} />
+      <source media="(min-width:701px)" srcSet={full} />
+      {!compactPreview && desktopViewport && <source media="(max-width:700px)" srcSet={thumb} />}
+      {!compactPreview && medium !== thumb && <source media={media} srcSet={medium} />}
+      <img src={thumb} alt="" width={900} height={900} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} />
       </picture>
-      {highQuality && full !== coverMobile(release) ? <img className="paper-record-hires" src={full} alt="" width={900} height={900} loading="eager" fetchPriority="high" decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} /> : null}
+      {highQuality && !desktopViewport && full !== thumb ? <img className="paper-record-hires" src={full} alt="" width={900} height={900} loading="eager" fetchPriority="high" decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} /> : null}
     </span>
-    {back ? <span className="paper-record-face paper-record-back"><img src={back} alt="" width={900} height={900} loading={selected ? 'eager' : 'lazy'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }}/></span> : null}
-  </>;
+    {back ? <span className="paper-record-face paper-record-back"><picture style={{display:'contents'}}>
+      <source media="(min-width:701px)" srcSet={back} />
+      {!compactPreview && desktopViewport && <source media="(max-width:700px)" srcSet={backThumb} />}
+      {!compactPreview && backMedium !== backThumb && <source media={media} srcSet={backMedium} />}
+      <img src={backThumb} alt="" width={900} height={900} loading={selected ? 'eager' : 'lazy'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }}/>
+      </picture>{highQuality && !desktopViewport && back !== backThumb ? <img className="paper-record-hires" src={back} alt="" width={900} height={900} loading="eager" decoding="async" draggable={false} onError={event=>{retryCoverImage(event.currentTarget);}}/> : null}</span> : null}
+  </ShelfDiscTransition>;
 }
 
 function normalizeStyleSelection(values: string[], allowedStyles: Set<string>) {
@@ -73,6 +94,13 @@ function sleeveVariation(id: string) {
 
 export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = false, mixesMode = false, originalsMode = false, collectionCount, mixCount, originalCount, initialSearch = '' }: { releases: HomeRelease[]; lang: SiteLang; favoritesMode?: boolean; mixesMode?: boolean; originalsMode?: boolean; collectionCount?: number; mixCount?: number; originalCount?: number; initialSearch?: string }) {
   const router = useRouter();
+  const routeParams = useSearchParams();
+  const sourceFocus = routeParams.get('focusTrack');
+  const sourceRelease = routeParams.get('focusRelease');
+  const sourcePlaylist = routeParams.get('playlist');
+  const sourceSearch = routeParams.get('search') || '';
+  const handledSourceFocus = useRef<string | null>(null);
+  const [pendingSourceFocus,setPendingSourceFocus] = useState<{trackId:string;releaseId:string|null}|null>(null);
   const [uiLang,setUiLang] = useState<SiteLang>(lang);
   useEffect(() => setUiLang(lang),[lang]);
   useEffect(() => {
@@ -146,6 +174,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const initialRouteApplied = useRef(false);
   const [activePlaylist, setActivePlaylist] = useState<string | null>(null);
   const isTrackCollection = Boolean(activePlaylist) || favoritesMode;
+  const collectionView = !isTrackCollection && !mixesMode && !originalsMode && !favoritesMode && !activePlaylist;
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [mobilePicker, setMobilePicker] = useState<'sections' | 'genres' | 'playlists' | 'music' | null>(null);
   const [pendingSection, setPendingSection] = useState<'collection'|'playlists'|'mixes'|'originals'|'favorites'|null>(null);
@@ -179,6 +208,11 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     const layout = new URLSearchParams(window.location.search).get('layout');
     setStackMode(layout === 'stack');
     setStretch(layout === 'tracks' ? 2 : layout === 'grid' ? 1 : layout === 'stack' || layout === 'shelf' ? 0 : favoritesMode || mixesMode ? 2 : 0);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('reveal')) {
+      url.searchParams.delete('reveal');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    }
   }, []);
   const [stackSpread, setStackSpread] = useState(false);
   const [stackTransitioning, setStackTransitioning] = useState(false);
@@ -233,13 +267,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const columns = viewport.width <= 700 ? 4 : 5;
   const gridGap = viewport.width <= 700 ? 6 : 20;
   const sleeveSize = viewport.width <= 700 ? mobileGeometry.coverSize : Math.max(180, Math.min(280, viewport.width * .18));
-  // Never enlarge a sleeve to fill the grid; leave symmetrical side margins.
-  const gridWidth = viewport.width * (viewport.width <= 700 ? .94 : .8);
-  const gridSize = viewport.width <= 700
-    ? Math.max(24, (gridWidth - gridGap * (columns - 1)) / columns)
-    : Math.min(sleeveSize, Math.max(24, (gridWidth - gridGap * (columns - 1)) / columns));
+  const { size: gridSize, left: gridLeft } = collectionGridGeometry(viewport.width, columns, gridGap, sleeveSize, collectionView);
   const cell = gridSize + gridGap;
-  const gridLeft = (viewport.width - (columns * gridSize + (columns - 1) * gridGap)) / 2;
   const listSize = isTrackCollection ? 40 : viewport.width <= 700 ? 72 : Math.min(sleeveSize, viewport.width * .24);
   const sideSize = gridSize;
   // Reveal almost half of each sleeve, while reserving the expanded cover
@@ -274,7 +303,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     const source: HomeRelease[] = playlist ? [...playlist.items].sort((a,b) => a.sortOrder-b.sortOrder).map(item => ({
       ...item.track.release,
       tracks: [{...item.track, audioUrl: item.track.audioFiles?.find(f => f.storageUrl)?.storageUrl || ''}],
-    })) : (appliedSearch ? searchCatalog || allReleases : mixesMode || favoritesMode ? allReleases : allReleases.filter(r=>!r.isMix)).map(r => releaseDetails[r.id] ? { ...r, ...releaseDetails[r.id] } : r);
+    })) : (appliedSearch ? searchCatalog || allReleases : mixesMode || favoritesMode ? allReleases : allReleases.filter(r=>!r.isMix)).map(r => releaseDetails[r.id] ? { ...r, ...releaseDetails[r.id], tracks: favoritesMode ? r.tracks : releaseDetails[r.id].tracks } : r);
     return source.filter(r => (!activeStyles.length || r.styles.some(style => activeStyles.includes(style))) && words.every(word => `${r.artist} ${r.title} ${r.trackSearchText || r.tracks.map(t => t.title).join(' ')}`.toLocaleLowerCase().includes(word)));
   }, [allReleases, searchCatalog, releaseDetails, activeStyles, appliedSearch, activePlaylist, playlists, mixesMode, favoritesMode]);
   const [mobileCardHeights, setMobileCardHeights] = useState<Record<string, number>>({});
@@ -295,6 +324,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     });
     return { positions, height: y + gridBounds.bottom };
   }, [releases, listSize, gridBounds, isTrackCollection, playlists.length, viewport, mixesMode, originalsMode, openMixComments, mobileCardHeights]);
+  const navigatorPositions = useMemo(() => listMix >= 1 ? listLayout.positions : gridNavigatorPositions(releases.length, columns, gridBounds.top, cell),
+    [listMix, listLayout.positions, releases.length, columns, gridBounds.top, cell]);
   const styleCounts = useMemo(() => {
     const counts = new Map<string, number>();
     allReleases.forEach(r => new Set(r.styles.filter(Boolean)).forEach(style => counts.set(style, (counts.get(style) || 0) + 1)));
@@ -328,9 +359,9 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const sleeves = useMemo(() => baseSleeves.map(sleeve => ({
     ...sleeve, position: sleeve.position * (1 + Math.min(stretch,1) * 2),
   })), [baseSleeves, stretch]);
+  const stackNavigatorPositions = useMemo(() => sleeves.map(sleeve => sleeve.position), [sleeves]);
   const [selected, setSelected] = useState<number | null>(null);
-  const [isCoverFlipped, setIsCoverFlipped] = useState(false);
-  const [flippedListCovers, setFlippedListCovers] = useState<Set<string>>(() => new Set());
+  const [coverSideOverrides, setCoverSideOverrides] = useState<CoverSideOverrides>({});
   const [expanded, setExpanded] = useState(false);
   const stage = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
@@ -360,6 +391,20 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const scrollFrame = useRef(0);
   const wheelLock = useRef(0);
   const [hovered, setHovered] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!stackMode || selected !== null || hovered === null || viewport.width <= 700) return;
+    const root = stage.current;
+    const label = root?.querySelector<HTMLElement>('.paper-stack-hover-label');
+    const sleeve = root?.querySelector<HTMLElement>(`.paper-record[data-index="${hovered}"]`);
+    if (!root || !label || !sleeve) return;
+    let frame = 0;
+    const align = () => {
+      positionStackHoverLabel(root, sleeve, label);
+      frame = requestAnimationFrame(align);
+    };
+    align();
+    return () => cancelAnimationFrame(frame);
+  }, [hovered, selected, stackMode, viewport.width]);
   const trigger = useRef<HTMLButtonElement | null>(null);
   useLayoutEffect(() => {
     if (!pendingShelfCenter.current || !viewport.width || !baseSleeves.length) return;
@@ -386,6 +431,29 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     stage.current?.classList.remove('is-scrolling');
     setWindowTravel(Math.floor(offset / 128) * 128);
     hoverResumeAt.current = performance.now() + 180;
+  }
+  function seekStackCollection(progress: number, smooth: boolean) {
+    stopAutoLayout();
+    settleShelfMotion();
+    setHovered(null);
+    suppressCoverClick.current = performance.now() + 300;
+    const target = stackNavigatorTravel(stackNavigatorPositions, viewport.width, progress);
+    const start = travel.current.current;
+    const started = performance.now();
+    const animate = smooth && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const draw = (now: number) => {
+      const elapsed = animate ? Math.min(1, (now - started) / 360) : 1;
+      const offset = start + (target - start) * (1 - Math.pow(1 - elapsed, 3));
+      travel.current = { current: offset, target: offset };
+      transportOrigin.current = offset;
+      stage.current?.style.setProperty('--travel', `${offset}px`);
+      if (transport.current) transport.current.style.transform = 'none';
+      setWindowTravel(Math.floor(offset / 128) * 128);
+      if (elapsed < 1) scrollFrame.current = requestAnimationFrame(draw);
+      else { scrollFrame.current = 0; stage.current?.classList.remove('is-scrolling'); }
+    };
+    stage.current?.classList.add('is-scrolling');
+    draw(started);
   }
   const coverTransitionFrames = useRef<Map<string, Keyframe> | null>(null);
   const coverTransitionAnimations = useRef<Animation[]>([]);
@@ -419,10 +487,39 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   }
   const { playQueue, togglePlayback, replaceQueuePreservingCurrent } = usePlayerActions();
   const { currentTrack, isPlaying } = usePlayerTransport();
-  const latestPlaybackTrack = useRef(currentTrack);
-  const queueRequest = useRef(0);
-  useEffect(() => {latestPlaybackTrack.current = currentTrack;}, [currentTrack]);
-  useEffect(() => () => {queueRequest.current++;}, []);
+  const [collectionCatalog, setCollectionCatalog] = useState<{ owner: string; tracks: PlayerTrack[] } | null>(null);
+  const catalogOwner = user?.id || 'guest';
+  const collectionPlaying = currentTrack?.playbackSource?.section === 'collection';
+  const replaceCollectionQueueRef = useRef(replaceQueuePreservingCurrent);
+  replaceCollectionQueueRef.current = replaceQueuePreservingCurrent;
+  const collectionReleaseIds = JSON.stringify(releases.map(item => item.id));
+  const [navigatorReveal, setNavigatorReveal] = useState<string | null>(null);
+  useEffect(() => {
+    if (!navigatorReveal) return;
+    const index = releases.findIndex(item => item.id === navigatorReveal);
+    if (index < 0) return;
+    const frame = requestAnimationFrame(() => {
+      stage.current?.querySelector<HTMLElement>('.paper-row')?.scrollTo({top:Math.max(0,listLayout.positions[index]-gridBounds.top),behavior:'smooth'});
+      setNavigatorReveal(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [navigatorReveal, releases, listLayout.positions, gridBounds.top]);
+  useEffect(() => {
+    if (!collectionView || !collectionPlaying || collectionCatalog?.owner === catalogOwner) return;
+    let disposed = false;
+    void getCollectionPlaybackQueue().then(tracks => {
+      if (!disposed) setCollectionCatalog({ owner: catalogOwner, tracks });
+    }).catch(error => console.warn('Unable to load collection playback queue', error));
+    return () => { disposed = true; };
+  }, [collectionView, collectionPlaying, catalogOwner, collectionCatalog]);
+  useEffect(() => {
+    if (!collectionView || !collectionPlaying || !currentTrack || collectionCatalog?.owner !== catalogOwner) return;
+    const origin = new URL('/',window.location.origin);
+    if(activeStyles.length)origin.hash=new URLSearchParams({styles:activeStyles.join(',')}).toString();
+    if(appliedSearch)origin.searchParams.set('search',appliedSearch);
+    const fullQueue = liveCollectionQueue(collectionCatalog.tracks, JSON.parse(collectionReleaseIds), currentTrack,origin.pathname+origin.search+origin.hash);
+    replaceCollectionQueueRef.current(fullQueue, fullQueue.filter(track => track.releaseId === currentTrack.releaseId));
+  }, [collectionView, collectionPlaying, collectionCatalog, catalogOwner, collectionReleaseIds, currentTrack, activeStyles, appliedSearch]);
   useLayoutEffect(() => {
     const element = stage.current;
     if (!element) return;
@@ -435,10 +532,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         const nav = element.querySelector('.paper-sections') as HTMLElement | null;
         const title = element.querySelector('.paper-heading') as HTMLElement | null;
         const sectionButtons = nav?.querySelectorAll<HTMLButtonElement>(':scope > button');
-        const mixesButton = sectionButtons?.[2];
+        const tracksButton = sectionButtons?.[3];
         const favoritesButton = sectionButtons?.[4];
-        const headingGap = mixesButton && favoritesButton
-          ? favoritesButton.offsetTop + favoritesButton.offsetHeight / 2 - mixesButton.offsetTop - mixesButton.offsetHeight / 2
+        const headingGap = tracksButton && favoritesButton
+          ? favoritesButton.offsetTop - tracksButton.offsetTop - tracksButton.offsetHeight
           : undefined;
         const layout = shelfMobileLayout(viewport.width, viewport.height,
           (search?.bottom || 72) - origin, nav?.offsetHeight || 88,
@@ -626,13 +723,24 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     layoutFrame.current = requestAnimationFrame(settle);
   }
   const release = selected === null ? null : releases[selected];
-  const backCoverUrl = getBackCoverUrl(release);
-  const activeReleaseTrackPosition = release?.tracks.find(track => track.id === currentTrack?.id)?.position;
-  useEffect(() => setIsCoverFlipped(false), [release?.id, expanded]);
+  const previousOpenRelease = useRef(release);
+  useLayoutEffect(() => {
+    const previous = previousOpenRelease.current;
+    previousOpenRelease.current = release;
+    if (previous && previous.id !== release?.id) {
+      setCoverSideOverrides(overrides => collapseReleaseCoverSide(overrides, previous, currentTrack, isPlaying, isTrackCollection));
+    }
+  }, [release, currentTrack, isPlaying, isTrackCollection]);
+  const selectedCoverSide = release ? releaseCoverSide(release, currentTrack, coverSideOverrides[release.id], isTrackCollection) : null;
+  const backCoverUrl = getBackCoverUrl(release, selectedCoverSide?.disc);
+  const isCoverFlipped = selectedCoverSide?.back || false;
   useEffect(() => {
-    if (!expanded || !release || !backCoverUrl || !activeReleaseTrackPosition) return;
-    setIsCoverFlipped(isBackSidePosition(activeReleaseTrackPosition));
-  }, [activeReleaseTrackPosition, backCoverUrl, currentTrack?.id, expanded, release?.id]);
+    // Playback starts a new automatic side selection; unrelated manual previews stay put.
+    setCoverSideOverrides(previous => {
+      const idle = Object.entries(previous).filter(([,side]) => !side.playbackKey);
+      return idle.length === Object.keys(previous).length ? previous : Object.fromEntries(idle);
+    });
+  }, [currentTrack?.id, currentTrack?.position]);
   useLayoutEffect(() => {
     const root = stage.current;
     const label = root?.querySelector<HTMLElement>('.is-stack-preview');
@@ -679,6 +787,47 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       initialRouteApplied.current = true;
     }
   }, [favoritesMode, mixesMode, playlists, playlistsLoading, user]);
+  useEffect(() => {
+    if(!sourceFocus){handledSourceFocus.current=null;return;}
+    const key = `${sourceFocus}:${sourcePlaylist || ''}:${sourceRelease || ''}`;
+    if(handledSourceFocus.current===key || (sourcePlaylist && playlistsLoading))return;
+    handledSourceFocus.current=key;
+    initialRouteApplied.current=true;
+    if(filterTimer.current)clearTimeout(filterTimer.current);
+    stopAutoLayout();
+    setFiltering(false);setPlaylistTransition(false);
+    setActivePlaylist(sourcePlaylist);setShowPlaylists(Boolean(sourcePlaylist));
+    const styles = new URLSearchParams(window.location.hash.slice(1)).get('styles')?.split(',').filter(Boolean) || [];
+    activeStylesRef.current=styles;setActiveStyles(styles);
+    setSearch(sourceSearch);setAppliedSearch(sourceSearch);
+    setSelected(null);setExpanded(false);setHovered(null);setStackMode(false);setStretch(2);
+    setPendingSourceFocus({trackId:sourceFocus,releaseId:sourceRelease});
+  }, [sourceFocus, sourceRelease, sourcePlaylist, sourceSearch, playlistsLoading]);
+  useEffect(() => {
+    if(!pendingSourceFocus || !isTrackListInteractive || filtering || playlistTransition)return;
+    const index=releases.findIndex(r=>r.tracks.some(t=>t.id===pendingSourceFocus.trackId) || (!isTrackCollection && r.id===pendingSourceFocus.releaseId));
+    if(index<0){
+      if(!activePlaylist && !favoritesMode && allReleases.some(r=>r.id===pendingSourceFocus.releaseId) && (activeStyles.length || appliedSearch)){
+        activeStylesRef.current=[];setActiveStyles([]);replaceStyleHash([]);setSearch('');setAppliedSearch('');
+      }
+      return;
+    }
+    const row=stage.current?.querySelector<HTMLElement>('.paper-row');
+    if(!row)return;
+    const frame=requestAnimationFrame(()=>{
+      const track=stage.current?.querySelector<HTMLElement>(`[data-track-id="${CSS.escape(pendingSourceFocus.trackId)}"]`);
+      const card=stage.current?.querySelector<HTMLElement>(`.paper-list-tracks[data-index="${index}"]`);
+      const target=track || card;
+      if(!target){row.scrollTo({top:Math.max(0,listLayout.positions[index]-gridBounds.top-24),behavior:'instant'});return;}
+      row.scrollTo({top:Math.max(0,row.scrollTop+target.getBoundingClientRect().top-row.getBoundingClientRect().top-gridBounds.top-24),behavior:'smooth'});
+      if(releases[index].tracksLoaded===false)return;
+      setPendingSourceFocus(null);
+      const url=new URL(window.location.href);
+      url.searchParams.delete('focusTrack');url.searchParams.delete('focusRelease');
+      window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash);
+    });
+    return ()=>cancelAnimationFrame(frame);
+  }, [pendingSourceFocus, isTrackListInteractive, filtering, playlistTransition, releases, listLayout.positions, gridBounds.top, isTrackCollection, windowScroll, activePlaylist, favoritesMode, allReleases, activeStyles, appliedSearch]);
   const playingListRelease = isTrackListInteractive
     ? releases.find(r => r.tracks.some(t => t.id === currentTrack?.id))
     : undefined;
@@ -825,7 +974,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         }
         const next = Math.max(0, Math.min(releases.length - 1, selected + Math.sign(delta)));
         setSelected(next);
-        trigger.current = element.querySelector<HTMLButtonElement>(`.paper-record[data-index="${next}"]`);
+        trigger.current = element.querySelector<HTMLButtonElement>(`.paper-record[data-index="${next}"] > .paper-record-open`);
         return;
       }
       element.classList.add('is-scrolling');
@@ -852,17 +1001,27 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     observer.observe(element);
     return () => observer.disconnect();
   }, [selected, sleeves]);
+  const handledRevealTrack = useRef<string | null>(null);
   useEffect(() => {
+    const consumeReveal = (trackId: string) => {
+      handledRevealTrack.current = trackId;
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('reveal') === trackId) {
+        url.searchParams.delete('reveal');
+        window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+      }
+    };
     const reveal = (event: Event) => {
-      const detail = (event as CustomEvent<{ releaseId?: string; trackId: string }>).detail;
+      const detail = (event as CustomEvent<{ releaseId?: string; trackId: string; layout?: string }>).detail;
       if (!detail) return;
+      if (detail.layout === 'shelf' || detail.layout === 'stack' || detail.layout === 'grid' || detail.layout === 'tracks') changeCollectionLayout(detail.layout);
       stopAutoLayout();
-      setStretch(0);
       stage.current?.querySelector('.paper-row')?.scrollTo(0, 0);
       const index = releases.findIndex(r => r.id === detail.releaseId || r.tracks.some(t => t.id === detail.trackId));
       if (index < 0) {
         const matching = allReleases.find(r => r.id === detail.releaseId || r.tracks.some(t => t.id === detail.trackId));
         if (!matching) return;
+        consumeReveal(detail.trackId);
         event.preventDefault();
         if (filterTimer.current) clearTimeout(filterTimer.current);
         pendingReveal.current = matching.id;
@@ -880,10 +1039,11 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         return;
       }
       event.preventDefault(); // Tell the mini-player the archive handled the click.
+      consumeReveal(detail.trackId);
       setHovered(null);
       setSelected(index);
       setExpanded(true);
-      trigger.current = stage.current?.querySelector<HTMLButtonElement>(`.paper-record[data-index="${index}"]`) || null;
+      trigger.current = stage.current?.querySelector<HTMLButtonElement>(`.paper-record[data-index="${index}"] > .paper-record-open`) || null;
     };
     window.addEventListener('vinyl:reveal-release', reveal);
     return () => window.removeEventListener('vinyl:reveal-release', reveal);
@@ -896,19 +1056,29 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   function play(id: string, source = release) {
     if (performance.now() < suppressTrackClick.current) return;
     if (!source) return;
+    const sourceUrl=new URL(window.location.href);
+    sourceUrl.searchParams.delete('focusTrack');sourceUrl.searchParams.delete('focusRelease');
+    if(activePlaylist)sourceUrl.searchParams.set('playlist',activePlaylist);
+    else sourceUrl.searchParams.delete('playlist');
+    if(appliedSearch)sourceUrl.searchParams.set('search',appliedSearch);
+    else sourceUrl.searchParams.delete('search');
+    const sourceHref=sourceUrl.pathname+sourceUrl.search+sourceUrl.hash;
     const queue = releases.flatMap(r => {
-      const frontCoverUrl = cover(r);
-      const frontCoverFullUrl = r.coverStorageUrl || r.coverImageUrl || frontCoverUrl;
-      const backCoverUrl = getBackCoverUrl(r);
       return r.tracks.filter(t => t.audioUrl).map(t => {
+        const disc = vinylDisc(t.position);
+        const frontCoverUrl = coverMobile(r, disc);
+        const frontCoverFullUrl = coverFull(r, disc);
+        const backCoverUrl = getBackCoverUrl(r, disc);
+        const backCoverMobileUrl = getBackCoverUrl(r, disc, 'thumb');
+        const backCoverMediumUrl = getBackCoverUrl(r, disc, 'medium');
         const backSide = Boolean(backCoverUrl) && isBackSidePosition(t.position);
         return { ...t, waveformData: t.waveformData || [], artist: r.artist,
-          coverUrl: backSide ? backCoverUrl : frontCoverUrl,
+          coverUrl: backSide ? backCoverMobileUrl : frontCoverUrl,
           coverFullUrl: backSide ? backCoverUrl : frontCoverFullUrl,
-          frontCoverUrl, frontCoverFullUrl, frontCoverMobileUrl:coverMobile(r), backCoverUrl,
+          frontCoverUrl, frontCoverFullUrl, frontCoverMobileUrl:coverMobile(r, disc), backCoverUrl, backCoverMobileUrl, backCoverMediumUrl,
           coverSide: backSide ? 'back' as const : 'front' as const,
           releaseId: r.id, isPublic: Boolean(r.isMix), isOriginal: r.isOriginal,
-          playbackSource: { section: favoritesMode ? 'favorites' as const : activePlaylist ? 'playlists' as const : originalsMode ? 'originals' as const : mixesMode ? 'mixes' as const : 'collection' as const, name: activePlaylistName || undefined } };
+          playbackSource: { section: favoritesMode ? 'favorites' as const : activePlaylist ? 'playlists' as const : originalsMode ? 'originals' as const : mixesMode ? 'mixes' as const : 'collection' as const, name: activePlaylistName || undefined, href:sourceHref } };
       });
     });
     if (currentTrack?.id === id) {togglePlayback(); return;}
@@ -916,17 +1086,6 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     if (index >= 0) {
       const display = isTrackCollection || mixesMode ? queue : queue.filter(track => track.releaseId === source.id);
       playQueue(queue, index, display);
-      const request = ++queueRequest.current;
-      if (!isTrackCollection && !mixesMode && releases.some(item => item.tracksLoaded === false)) {
-        const releaseIds = releases.map(item => item.id);
-        void getCollectionPlaybackQueue().then(tracks => {
-          if (queueRequest.current !== request || latestPlaybackTrack.current?.id !== id) return;
-          const fullQueue = orderCollectionQueue(tracks, releaseIds);
-          if (fullQueue.some(track => track.id === id)) {
-            replaceQueuePreservingCurrent(fullQueue, fullQueue.filter(track => track.releaseId === source.id));
-          }
-        }).catch(error => console.warn('Unable to extend collection playback queue', error));
-      }
     }
   }
   async function movePlaylistTrack(from: string, to: string, side: 'before' | 'after' = 'before') {
@@ -1006,7 +1165,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     ? releases.map((r, i) => ({ r, x: sleeves[i].position - sideTravel - sleeveSize * .38 }))
       .filter(({ x }) => x + sleeveSize >= -120 && x <= viewport.width + 120)
       .sort((a, b) => Math.abs(a.x - viewport.width / 2) - Math.abs(b.x - viewport.width / 2))
-      .map(({ r }) => viewport.width <= 700 ? coverMobile(r) : coverFull(r))
+      .map(({ r }) => viewport.width > 700 ? coverFull(r) : coverMobile(r))
     : [];
   const shelfWarmKey = JSON.stringify(shelfWarmUrls);
   useEffect(() => {
@@ -1137,7 +1296,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const coverFlipControl = expanded && backCoverUrl ? <button type="button" className="paper-cover-flip paper-cover-flip--icon" aria-pressed={isCoverFlipped}
     aria-label={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
     title={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
-    onClick={event=>{event.stopPropagation();setIsCoverFlipped(value=>!value);}}><Rotate3D size={17}/></button> : null;
+    onClick={event=>{event.stopPropagation();if(release)setCoverSideOverrides(previous=>toggleReleaseCoverSide(previous,release,currentTrack,isTrackCollection));}}><Rotate3D size={17}/></button> : null;
   return <section ref={stage}
     data-layout={activeLayout}
     data-player-layout={activeLayout === 'stack' ? 'stack' : listMix > 0 ? 'tracks' : 'shelf'}
@@ -1348,13 +1507,15 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       const p = sleeves[i].position / 24;
       const side = selected === null ? 0 : gridMix >= 1 ? (i % columns < Math.ceil(columns / 2) ? -1 : 1) : i < selected ? -1 : 1;
       const isPriorityCover = selected === i || mobilePriorityIndices.has(i) || (visibleRank >= priorityCoverStart && visibleRank < priorityCoverStart + 6);
-      const activeTrack = r.tracks.find(track => track.id === currentTrack?.id);
-      const showBackCover = Boolean(getBackCoverUrl(r)) && (selected === i
-        ? isCoverFlipped
-        : flippedListCovers.has(r.id) || isBackSidePosition(activeTrack?.position) || (isTrackCollection && isBackSidePosition(r.tracks[0]?.position)));
-      return <button type="button" key={`${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} data-index={i} className={`paper-record${selected === i ? ' is-selected' : ''}${showBackCover ? ' is-flipped' : ''}${selected !== null && gridMix === 0 && (i === selected + 1 || i === 0) ? ' is-front-sleeve' : ''}${hovered === i && selected !== i ? ' is-hovered' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`}
+      const recordSide = releaseCoverSide(r, currentTrack, coverSideOverrides[r.id], isTrackCollection);
+      const disc = isTrackCollection && isTrackListInteractive ? vinylDisc(r.tracks[0]?.position) : recordSide.disc;
+      const showBackCover = isTrackCollection && isTrackListInteractive
+        ? trackRowCoverSide(r)
+        : recordSide.back;
+      return <div key={`${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} data-index={i} className={`paper-record${selected === i ? ' is-selected' : ''}${showBackCover ? ' is-flipped' : ''}${selected !== null && gridMix === 0 && (i === selected + 1 || i === 0) ? ' is-front-sleeve' : ''}${hovered === i && selected !== i ? ' is-hovered' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`}
 style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${stackMode && selected === null && hovered !== null ? (i > hovered ? -.12 : i < hovered ? .23 : -.03) : 0})`, '--rise': `${sleeves[i].rise}px`, '--stack-relative': selected === null ? 0 : selected - i, '--stack-side': selected === null ? 0 : Math.sign(selected - i), '--grid-x': `${gridLeft + (i % columns) * cell}px`, '--grid-y': `${gridBounds.top + 12 + Math.floor(i / columns) * cell - (gridMix < 1 ? gridPan : 0)}px`, '--list-y': `${listLayout.positions[i]}px`, '--mix-list-x': `${3 + (i % 2) * 48.5}vw`, '--mix-column': i % 2, '--grid-side-x': `${i % columns < Math.ceil(columns / 2) ? 12 + (i % columns) * sideStep : viewport.width - sideSize - 12 - (columns - 1 - i % columns) * sideStep}px`, '--split': side, zIndex: selected === i ? releases.length + 2 : releases.length - i } as CSSProperties}
-        aria-label={`${r.artist} — ${r.title}`} aria-expanded={selected === i}
+        >
+        <button type="button" className="paper-record-open" aria-label={`${r.artist} — ${r.title}`} aria-expanded={selected === i}
         onFocus={() => {if(!stackMode && !scrollFrame.current && releases.length > 1 && i > 0) setHovered(i);}} onBlur={() => setHovered(null)}
         onClick={e => {
           if (performance.now() < suppressCoverClick.current) return;
@@ -1386,8 +1547,10 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
           setHovered(null);
         }}>
         {/* The same sleeve moves out of the row and unfolds; no duplicate cover. */}
-        <ShelfCoverImage release={r} eager={isPriorityCover || stackTransitioning} priority={isPriorityCover} selected={selected === i} highQuality={viewport.width <= 700 && selected === i && expanded} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
-      </button>;
+        <ShelfCoverImage compactPreview={!stackMode && gridMix < .01 && listMix < .01}
+          release={r} disc={disc} flipped={showBackCover} eager={isPriorityCover || stackTransitioning} priority={isPriorityCover} selected={selected === i} highQuality={selected === i && expanded} desktopViewport={viewport.width>700} displaySize={selected === i ? Math.max(sleeveSize,expandedSize) : stackMode ? (viewport.width<=700 ? Math.min(viewport.width*.62,viewport.height*.32) : Math.min(viewport.width*.34,viewport.height*.4,420)) : listMix>0 ? gridSize*(1-listMix)+listSize*listMix : gridMix>=1 ? gridSize : sleeveSize} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
+      </button>
+      </div>;
     })}
     {listMix > 0 && visibleIndices.map(i => {
       const r = releases[i];
@@ -1395,8 +1558,8 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
         onDragOver={e => {const target=r.tracks[0];if(activePlaylist&&dragTrack&&target){e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:target.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}
         onDrop={e => {const target=r.tracks[0];if(!activePlaylist||!dragTrack||!target)return;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();void movePlaylistTrack(dragTrack,target.id,e.clientY<rect.top+rect.height/2?'before':'after');setDragTrack(null);setDropTarget(null);suppressTrackClick.current=performance.now()+250;}}
         className={`paper-list-tracks${isTrackCollection ? ' is-compact-track' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`} data-release-id={r.id} key={`tracks-${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} style={{ top: (gridBounds.top + 12 + Math.floor(i / columns)*cell)*(1-listMix) + listLayout.positions[i]*listMix, '--release-divider-y': `${((mobileCardHeights[r.id] ?? listSize) + (listLayout.positions[i + 1] ?? listLayout.height - gridBounds.bottom) - listLayout.positions[i]) / 2}px`, opacity:listMix, pointerEvents:isTrackListInteractive ? 'auto':'none' } as CSSProperties}>
-        {!isTrackCollection && <>{!mixesMode && <h2><span>{r.artist} : <span className="paper-release-title-regular">{r.title}</span></span>{r.year ? <time dateTime={String(r.year)}>{r.year}</time> : null}</h2>}{getBackCoverUrl(r) ? <button type="button" className="paper-list-cover-flip" aria-pressed={flippedListCovers.has(r.id)} aria-label={ru?'Перевернуть обложку':'Flip cover'} title={ru?'Перевернуть обложку':'Flip cover'} onClick={event=>{event.stopPropagation();setFlippedListCovers(current=>{const next=new Set(current);if(next.has(r.id))next.delete(r.id);else next.add(r.id);return next;});}}><Rotate3D size={16}/></button> : null}</>}
-        {mixesMode ? <ShelfMixTrack release={r} lang={uiLang} queueReleases={releases} yearInHeading timelineControls actions={null} onCommentsOpenChange={(open,count)=>setOpenMixComments(current=>{const next=new Map(current);if(open)next.set(r.id,count);else next.delete(r.id);return next;})} /> : r.tracks.map(t => <div key={t.id} className={`paper-track-line${dragTrack === t.id ? ' is-dragging' : ''}${dropTarget?.trackId === t.id ? ` is-drop-${dropTarget.side}` : ''}${currentTrack?.id === t.id ? ' is-playing' : ''}`}
+        {!isTrackCollection && <>{!mixesMode && <h2><span>{r.artist} : <span className="paper-release-title-regular">{r.title}</span></span>{r.year ? <time dateTime={String(r.year)}>{r.year}</time> : null}</h2>}{getBackCoverUrl(r, releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).disc) ? <button type="button" className="paper-list-cover-flip" aria-pressed={releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).back} aria-label={ru?'Перевернуть обложку':'Flip cover'} title={ru?'Перевернуть обложку':'Flip cover'} onClick={event=>{event.stopPropagation();setCoverSideOverrides(previous=>toggleReleaseCoverSide(previous,r,currentTrack));}}><Rotate3D size={16}/></button> : null}</>}
+        {mixesMode ? <ShelfMixTrack release={r} lang={uiLang} queueReleases={releases} yearInHeading timelineControls actions={null} onCommentsOpenChange={(open,count)=>setOpenMixComments(current=>{const next=new Map(current);if(open)next.set(r.id,count);else next.delete(r.id);return next;})} /> : r.tracks.map(t => <div key={t.id} data-track-id={t.id} className={`paper-track-line${dragTrack === t.id ? ' is-dragging' : ''}${dropTarget?.trackId === t.id ? ` is-drop-${dropTarget.side}` : ''}${currentTrack?.id === t.id ? ' is-playing' : ''}`}
           draggable={Boolean(activePlaylist) && !savingOrder && isTrackListInteractive}
           onDragStart={e => {if ((e.target as Element).closest('.paper-track-actions')) {e.preventDefault();return;} e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',t.id);setDragTrack(t.id);suppressTrackClick.current=Infinity;}}
           onDragOver={e => {if (activePlaylist && dragTrack) {e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:t.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}
@@ -1408,11 +1571,26 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
           {trackActions(t.id)}<time>{normalizeDurationLabel(t.durationRaw,t.durationSec,'—')}</time>
         </div>)}
         {!r.tracks.length && <p>{r.tracksLoaded === false ? (detailErrors[r.id] ? <button onClick={() => setDetailErrors(current => ({...current,[r.id]:false}))}>{ru ? 'Повторить загрузку' : 'Retry loading'}</button> : (ru ? 'Загрузка треков…' : 'Loading tracks…')) : (ru ? 'Треклист недоступен' : 'Tracklist unavailable')}</p>}
-        {r.isMix && <ShelfReleaseEditor id={r.id} lang={uiLang} className="shelf-mix-edit-corner"/>}
         {!isTrackCollection && !mixesMode && <p className="paper-release-styles" aria-label={ru ? 'Стили релиза' : 'Release styles'}>{r.styles.length ? r.styles.map((style, index) => [index > 0 ? ' · ' : null, <em key={style} className={`paper-release-style${activeStyles.includes(style) ? ' is-active' : ''}`}>{style}</em>]) : (ru ? 'Стиль не указан' : 'Style unavailable')}</p>}
       </article>;
     })}
     </div>{gridMix >= 1 && <div aria-hidden="true" style={{ height: (gridBounds.top + 12 + Math.ceil(releases.length / columns) * cell + Math.max(gridBounds.bottom, viewport.height / 2))*(1-listMix) + listLayout.height*listMix, pointerEvents: 'none' }} />}</div>
+    {collectionView && !isLayoutTransition && (stackMode ? viewport.width <= 700 && selected === null : gridMix >= 1 && (listMix >= 1 || selected === null)) && <CollectionNavigator
+      releases={releases.map(item => ({ id: item.id, artist: item.artist, title: item.title, cover: coverMobile(item) }))}
+      positions={stackMode ? stackNavigatorPositions : navigatorPositions} getScroller={() => stage.current?.querySelector<HTMLElement>('.paper-row') || null}
+      transport={stackMode ? { read: () => stackNavigatorState(stackNavigatorPositions, viewport.width, travel.current.current), seek: seekStackCollection } : undefined}
+      top={gridBounds.top} bottom={gridBounds.bottom} ru={ru}
+      right={listMix < 1 && viewport.width > 700 ? Math.max(0, gridLeft - 52) : undefined}
+      playingReleaseId={currentTrack?.playbackSource?.section === 'collection' ? currentTrack.releaseId : undefined}
+      playing={isPlaying}
+      onRevealOutside={() => {
+        if (!currentTrack?.releaseId) return;
+        if (filterTimer.current) clearTimeout(filterTimer.current);
+        setFiltering(false); activeStylesRef.current = []; setActiveStyles([]); replaceStyleHash([]);
+        setSearch(''); setAppliedSearch(''); setSelected(null); setExpanded(false);
+        setNavigatorReveal(currentTrack.releaseId);
+      }}
+    />}
     {stackMode && selected === null && hovered !== null && releases[hovered] && <div
       className="paper-stack-hover-label"
       key={`stack-label-${releases[hovered].id}`}
@@ -1423,8 +1601,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
       <p className="paper-release-styles" aria-label={ru ? 'Стили релиза' : 'Release styles'}>{releases[hovered].styles.length ? releases[hovered].styles.map((style, index) => [index > 0 ? ' · ' : null, <em key={style} className={`paper-release-style${activeStyles.includes(style) ? ' is-active' : ''}`}>{style}</em>]) : (ru ? 'Стиль не указан' : 'Style unavailable')}</p>
     </div>}
     {release && (expanded || stackMode) && <aside className={`paper-tracklist${stackMode && !expanded ? ' is-stack-preview' : ''}`} aria-label={`${expanded ? 'Tracks' : 'Release'}: ${release.title}`} key={release.id}>
-      {expanded && (release.isMix || (gridMix === 0 && listMix === 0)) && <ShelfReleaseEditor id={release.id} lang={uiLang} className={release.isMix ? 'shelf-mix-edit-corner' : undefined}/>}
-      {release.isMix ? <><p>{release.artist} <span>{release.year}</span></p><h2 className="paper-release-heading"><span>{release.title}</span>{coverFlipControl}</h2></> : <><h2 className="paper-release-heading"><span>{release.artist}</span>{coverFlipControl}</h2><p>{release.title} <span>{release.year}</span></p></>}
+      {release.isMix ? <><p>{release.artist} <ShelfReleaseYear id={release.id} year={release.year} lang={uiLang} editable={expanded}/></p><h2 className="paper-release-heading"><span>{release.title}</span>{coverFlipControl}</h2></> : <><h2 className="paper-release-heading"><span>{release.artist}</span>{coverFlipControl}</h2><p>{release.title} <ShelfReleaseYear id={release.id} year={release.year} lang={uiLang} editable={expanded}/></p></>}
       {expanded && <>
       <ol>{release.tracks.map((t, i) => <li key={t.id} className={`paper-track-line${currentTrack?.id === t.id ? ' is-playing' : ''}`} style={{ '--line-delay': `${.48 + Math.min(i, 12) * .065}s` } as CSSProperties}><button className="paper-track-play" disabled={!t.audioUrl} onClick={() => play(t.id)} aria-label={`${currentTrack?.id === t.id && isPlaying ? 'Pause' : 'Play'}: ${t.title}`}>{mixesMode ? null : <small>{t.position?.trim() || '—'}</small>}<span>{t.title}</span></button>{trackActions(t.id)}<time>{normalizeDurationLabel(t.durationRaw,t.durationSec,'—')}</time></li>)}</ol>
       {!release.tracks.length && <p>{release.tracksLoaded === false ? (detailErrors[release.id] ? <button onClick={() => setDetailErrors(current => ({...current,[release.id]:false}))}>{ru ? 'Повторить загрузку' : 'Retry loading'}</button> : (ru ? 'Загрузка треков…' : 'Loading tracks…')) : (ru ? 'Треклист недоступен' : 'Tracklist unavailable')}</p>}

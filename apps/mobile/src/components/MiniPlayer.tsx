@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Pause, Play, SkipBack, SkipForward } from 'lucide-react-native';
 import { adaptiveStyles, colors } from '../theme';
@@ -33,6 +33,12 @@ export function MiniPlayer({
   onToggle, onFavorite, onOpen, onNext, onPrevious, onSeek,
 }: MiniPlayerProps) {
   const [timelineWidth, setTimelineWidth] = useState(0);
+  const titleEntrance = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    titleEntrance.setValue(0);
+    const animation = Animated.timing(titleEntrance, { toValue: 1, duration: 750, easing: Easing.bezier(.16, 1, .3, 1), useNativeDriver: true });
+    animation.start(); return () => animation.stop();
+  }, [track?.id, titleEntrance]);
   if (!track) return null;
 
   const canSeek = Boolean(onSeek) && Number.isFinite(durationMs) && durationMs > 0;
@@ -56,10 +62,10 @@ export function MiniPlayer({
       )}
       <Pressable style={styles.track} onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open player: ${track.artist}, ${track.title}`}>
         {track.coverUrl ? <Image source={{ uri: track.coverUrl }} style={styles.artwork} cachePolicy="memory-disk" contentFit="cover" /> : <View style={styles.artwork} />}
-        <View style={styles.textBlock}>
+        <Animated.View style={[styles.textBlock, { opacity: titleEntrance, transform: [{ translateX: titleEntrance.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] }]}>
           <Text numberOfLines={1} style={styles.artist}>{track.artist}</Text>
           <Text numberOfLines={1} style={styles.title}>{track.title}</Text>
-        </View>
+        </Animated.View>
       </Pressable>
       <Pressable
         style={styles.timeline}

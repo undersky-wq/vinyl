@@ -4,6 +4,7 @@ const path = require('node:path');
 const version = require('../app.json').expo.version;
 const file = path.resolve(__dirname, '../../..', `reports/shelf-offline-${version}.apk`);
 const host = process.env.APK_HOST || '192.168.1.133';
+const port = Number(process.env.APK_PORT || 8765);
 const route = `/shelf-offline-${version}.apk`;
 http.createServer((request, response) => {
   if (request.url !== route || !['GET', 'HEAD'].includes(request.method)) {
@@ -22,4 +23,4 @@ http.createServer((request, response) => {
   stream.on('error', () => response.destroy());
   response.on('close', () => stream.destroy());
   stream.pipe(response);
-}).listen(8765, host, () => console.log(`APK: http://${host}:8765${route}`));
+}).listen(port, host, () => console.log(`APK: http://${host}:${port}${route}`));

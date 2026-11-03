@@ -7,7 +7,7 @@ import {
   ListOrdered,
   Pause,
   Play,
-  Repeat2,
+  Repeat1,
   Shuffle,
   SkipBack,
   SkipForward,
@@ -26,9 +26,9 @@ import { PlayerVolumeControl } from './player-volume-control';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { PlayerMixActions } from './player-mix-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
-import { usePlayerArtwork, usePlayerBackArtwork } from '../lib/use-player-artwork';
+import { usePlayerArtwork, usePlayerBackArtwork, usePlayerCoverSide } from '../lib/use-player-artwork';
 import { useMiniPlayerLayoutMotion } from './use-mini-player-layout-motion';
-import { isBackSidePosition } from '../lib/release-images';
+import { isDesktopPlayerBackdrop } from '../lib/player-backdrop';
 import { PlayerReleaseDetails } from './player-release-details';
 
 type MiniPlayerProps = {
@@ -83,10 +83,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const fullArtwork = usePlayerArtwork(currentTrack, isFullPlayerOpen);
   const backArtwork = usePlayerBackArtwork(currentTrack, isFullPlayerOpen);
-  const [isCoverFlipped, setIsCoverFlipped] = useState(false);
-  useEffect(() => {
-    setIsCoverFlipped(Boolean(backArtwork) && isBackSidePosition(currentTrack?.position));
-  }, [currentTrack?.id, currentTrack?.position, backArtwork]);
+  const {isCoverFlipped,toggleCoverSide} = usePlayerCoverSide(currentTrack,backArtwork);
   const [overlayDragProgress, setOverlayDragProgress] = useState<number | null>(null);
   const [isOverlayQueueOpen, setIsOverlayQueueOpen] = useState(false);
   const [overlayQueueClosing, setOverlayQueueClosing] = useState(false);
@@ -129,7 +126,8 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
   const overlaySourcePeaks = currentTrack?.waveformData?.length
     ? currentTrack.waveformData
     : buildFallbackWaveform(currentTrackId || 'fallback', 90);
-  const { ref: overlayWaveformRef, peaks: overlayPeaks } = useResponsiveWaveform(overlaySourcePeaks, {
+  const { ref: overlayWaveformRef, peaks: overlayPeaks, barStyle: overlayBarStyle } = useResponsiveWaveform(overlaySourcePeaks, {
+    snapToDevicePixels: true,
     minBars: 48,
     maxBars: 400,
     pixelsPerBar: 4,
@@ -304,6 +302,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <button
           type="button"
           className={`player-icon-button ghost${isShuffleEnabled ? ' active' : ''}`}
+          aria-pressed={isShuffleEnabled}
           onClick={(event) => {
             event.stopPropagation();
             toggleShuffle();
@@ -355,6 +354,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         <button
           type="button"
           className={`player-icon-button ghost${isRepeatEnabled ? ' active' : ''}`}
+          aria-pressed={isRepeatEnabled}
           onClick={(event) => {
             event.stopPropagation();
             toggleRepeat();
@@ -362,7 +362,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
           aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
           data-tooltip={lang === 'ru' ? 'Повтор' : 'Repeat'}
         >
-          <Repeat2 size={17} />
+          <Repeat1 size={17} />
         </button>
       </div>
 
@@ -480,8 +480,8 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       </div>
     </div>
     {isFullPlayerOpen ? (
-      <div className="mobile-player-overlay" role="dialog" aria-modal="true">
-        <section data-playback-source={currentTrack.playbackSource?.section || (currentTrack.isOriginal ? 'originals' : currentTrack.isPublic ? 'mixes' : 'collection')} className={`player-page mobile-player-overlay__panel opening${!isPlaying ? ' is-paused' : ''}`}>
+      <div className="mobile-player-overlay" role="dialog" aria-modal="true" onClick={event=>{if(isDesktopPlayerBackdrop(event,window.innerWidth))setIsFullPlayerOpen(false);}}>
+        <section data-playback-source={currentTrack.playbackSource?.section || (currentTrack.isOriginal ? 'originals' : currentTrack.isPublic ? 'mixes' : 'collection')} className={`player-page mobile-player-overlay__panel opening${!isPlaying ? ' is-paused' : ''}`} onClick={event=>{if(isDesktopPlayerBackdrop(event,window.innerWidth))setIsFullPlayerOpen(false);}}>
           <button
             type="button"
             className="player-page__collapse mobile-player-overlay__collapse"
@@ -505,13 +505,13 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
           <div className={`player-page__meta slide-${trackDirection}`} key={`mobile-meta-${currentTrack.id}`}>
             <div className="player-page__artist-row">
             <h1 className="player-page__artist">{currentTrack.artist}</h1>
-            <PlayerReleaseDetails releaseId={currentTrack.releaseId} backArtwork={backArtwork} flipped={isCoverFlipped} onFlip={()=>setIsCoverFlipped(value=>!value)} lang={lang}/>
+            <PlayerReleaseDetails releaseId={currentTrack.releaseId} backArtwork={backArtwork} flipped={isCoverFlipped} onFlip={toggleCoverSide} lang={lang}/>
             </div>
             <p className="player-page__track-title">{currentTrack.title}</p>
           </div>
 
           <div className={`player-page__timeline slide-${trackDirection}`} key={`mobile-timeline-${currentTrack.id}`}>
-            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(overlayDragProgress === null ? currentTime : duration * overlayDragProgress / 100)}</span>
             <button
               type="button"
               ref={overlayWaveformRef}
@@ -552,7 +552,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
                 <span
                   className={(index / Math.max(overlayPeaks.length - 1, 1)) * 100 <= overlayProgress ? 'active' : ''}
                   key={`mobile-${currentTrack.id}-${index}`}
-                  style={{ height: `${Math.max(10, Math.round(peak * 100))}%` }}
+                  style={{ ...overlayBarStyle(index), height: `${Math.max(2, Math.round(peak * 100))}%` }}
                 />
               ))}
               <TimelineCommentMarkers
@@ -612,11 +612,11 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
               aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
               data-tooltip={lang === 'ru' ? 'Повтор' : 'Repeat'}
             >
-              <Repeat2 size={22} />
+              <Repeat1 size={22} />
             </button>
           </div>
 
-            <PlayerMixActions track={currentTrack} lang={lang} currentTime={currentTime} duration={duration} comments={comments} onComment={(comment) => setComments((items) => [...items, comment].sort((a, b) => a.second - b.second))} seek={seekToPercent}>
+            <PlayerMixActions track={currentTrack} lang={lang} currentTime={overlayDragProgress === null ? currentTime : duration * overlayDragProgress / 100} duration={duration} comments={comments} onComment={(comment) => setComments((items) => [...items, comment].sort((a, b) => a.second - b.second))} seek={seekToPercent}>
             <TrackPlaylistMenu
               trackId={currentTrack.id}
               lang={lang}

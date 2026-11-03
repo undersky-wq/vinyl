@@ -47,6 +47,19 @@
   html[data-visual-variant='shelf'] .paper-archive:is(.is-grid,.is-listing,.is-stack):not(.is-open) .paper-row {
     clip-path:inset(var(--grid-top,160px) 0 var(--grid-bottom,84px) 0)!important;
   }
+  /* The expanded sleeve is fixed to the viewport, not the closed grid window. */
+  html[data-visual-variant='shelf'] .paper-archive.is-grid.is-open .paper-row {
+    clip-path:none!important;
+  }
+  html[data-visual-variant='shelf'] .paper-archive.is-grid.is-expanded {
+    --mobile-grid-expanded-top:max(16vh,96px);
+  }
+  html[data-visual-variant='shelf'] .paper-archive.is-grid.is-expanded .paper-record.is-selected {
+    top:var(--mobile-grid-expanded-top);
+  }
+  html[data-visual-variant='shelf'] .paper-archive.is-grid.is-expanded .paper-tracklist {
+    top:calc(var(--mobile-grid-expanded-top) + var(--enlarged) + 16px);
+  }
 }
 @media(max-width:700px) {
   html[data-visual-variant='shelf'] .paper-archive:not(.is-grid):not(.is-listing):not(.is-stack) .paper-heading-colon {

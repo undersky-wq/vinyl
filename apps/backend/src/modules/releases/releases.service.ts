@@ -3,10 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { ImageType, Prisma, User, UserRole } from '@prisma/client';
 import sanitizeFilename from 'sanitize-filename';
 import sharp from 'sharp';
+import { randomUUID } from 'node:crypto';
 import { AudioService } from '../audio/audio.service';
 import { DiscogsService } from '../discogs/discogs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { ensureCoverVariants } from '../storage/cover-variants';
 import { CreateManualReleaseDto, ManualTrackInput } from './dto/create-manual-release.dto';
 import { CreateReleaseTrackDto } from './dto/create-release-track.dto';
 import { CreateTimelineCommentDto } from './dto/create-timeline-comment.dto';
@@ -14,18 +16,39 @@ import { QueryReleasesDto } from './dto/query-releases.dto';
 import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
 import { UpdateTimelineCommentDto } from './dto/update-timeline-comment.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
-import { musicLinkCopyKey } from './music-link-copy-key';
+import { musicLinkCopyKey, musicPlayKey } from './music-link-copy-key';
+import { signedTrackArtwork } from './release-track-artwork';
+import { signedSideCoverUrls } from './release-back-cover';
 
 @Injectable()
 export class ReleasesService {
   async getMusicEngagement(id: string) {
     await this.requireMusicRelease(id);
-    const [favorites, plays, copies] = await Promise.all([
+    const [favorites, plays, copies, downloads] = await Promise.all([
       this.prisma.favoriteTrack.count({ where: { track: { releaseId: id } } }),
       this.prisma.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM "MusicPlay" WHERE "releaseId" = ${id}`,
       this.prisma.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM "MusicLinkCopy" WHERE "releaseId" = ${id}`,
+      this.prisma.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM "MusicDownload" WHERE "releaseId" = ${id}`,
     ]);
-    return { favorites, plays: Number(plays[0].count), copies: Number(copies[0].count) };
+    return { favorites, plays: Number(plays[0].count), copies: Number(copies[0].count), downloads: Number(downloads[0].count) };
+  }
+
+  async openMusicDownload(releaseId: string, trackId: string, userId: string, count = true) {
+    if (!userId) throw new ForbiddenException('Authentication required for download');
+    const track = await this.prisma.track.findFirst({
+      where: { id: trackId, releaseId, release: { OR: [{ isMix: true }, { isOriginal: true }] } },
+      include: { audioFiles: { orderBy: { createdAt: 'asc' }, take: 1 }, release: { select: { artist: true } } },
+    });
+    const audio = track?.audioFiles[0];
+    if (!track || !audio) throw new NotFoundException('Music audio unavailable');
+    const key = audio.normalizedStorageKey || audio.storageKey;
+    const stream = await this.storageService.openDownload(this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio', key);
+    try {
+      if (count) await this.prisma.$executeRaw`INSERT INTO "MusicDownload" ("releaseId", "userId") VALUES (${releaseId}, ${userId}) ON CONFLICT DO NOTHING`;
+    } catch (error) { stream.destroy(); throw error; }
+    const extension = key.match(/\.[a-zA-Z0-9]{1,8}$/)?.[0] || '.mp3';
+    const filename = sanitizeFilename(`${track.release.artist} - ${track.title}`).slice(0, 150) || 'Music';
+    return { stream, filename: filename + extension, mimeType: audio.normalizedStorageKey ? audio.normalizedMimeType || 'audio/mpeg' : audio.mimeType };
   }
 
   async recordMusicLinkCopy(id: string, requestId: string, userId?: string) {
@@ -40,9 +63,10 @@ export class ReleasesService {
     if (!release) throw new NotFoundException('Music release not found');
   }
 
-  async recordMusicPlay(id: string, sessionId: string) {
+  async recordMusicPlay(id: string, sessionId: string, userId?: string) {
     await this.requireMusicRelease(id);
-    await this.prisma.$executeRaw`INSERT INTO "MusicPlay" ("releaseId", "sessionId") VALUES (${id}, ${sessionId}) ON CONFLICT DO NOTHING`;
+    const key = musicPlayKey(sessionId, userId);
+    await this.prisma.$executeRaw`INSERT INTO "MusicPlay" ("releaseId", "sessionId") VALUES (${id}, ${key}) ON CONFLICT DO NOTHING`;
     return this.getMusicEngagement(id);
   }
 
@@ -215,6 +239,7 @@ export class ReleasesService {
           coverImageUrl: true, coverStorageKey: true, coverStorageUrl: true,
           coverThumbStorageKey: true, coverThumbStorageUrl: true,
           coverMediumStorageKey: true, coverMediumStorageUrl: true,
+          images: { where: { OR: [{ isBackCover: true }, { isSecondFrontCover: true }, { isSecondBackCover: true }] } },
           tracks: { select: { title: true, _count: { select: { audioFiles: true } } } },
         },
         orderBy: { updatedAt: 'desc' },
@@ -250,6 +275,7 @@ export class ReleasesService {
             coverThumbStorageUrl: true,
             coverMediumStorageKey: true,
             coverMediumStorageUrl: true,
+            images: { where: { OR: [{ isBackCover: true }, { isSecondFrontCover: true }, { isSecondBackCover: true }] } },
             tracks: {
               select: {
                 id: true,
@@ -653,10 +679,9 @@ export class ReleasesService {
 
     const tracks = await this.prisma.track.findMany({
       where: trackWhere,
-      take: 1200,
       include: {
         audioFiles: true,
-        release: true,
+        release: { include: { images: { where: { OR: [{ isBackCover: true }, { isSecondFrontCover: true }, { isSecondBackCover: true }] } } } },
       },
       orderBy: [
         {
@@ -681,13 +706,7 @@ export class ReleasesService {
             audioFile.normalizedStorageUrl ||
             audioFile.storageUrl
           : null;
-        const coverUrl = track.release.coverThumbStorageKey
-          ? (await this.storageService.getSignedObjectUrl(coversBucket, track.release.coverThumbStorageKey)) ||
-            track.release.coverThumbStorageUrl
-          : track.release.coverThumbStorageUrl ||
-            track.release.coverMediumStorageUrl ||
-            track.release.coverStorageUrl ||
-            track.release.coverImageUrl;
+        const artwork = await signedTrackArtwork(track.release, track.position, key => this.storageService.getSignedObjectUrl(coversBucket, key));
 
         return {
           id: track.id,
@@ -696,10 +715,11 @@ export class ReleasesService {
           audioUrl,
           isPublic: track.release.isMix,
           isOriginal: track.release.isOriginal,
-          coverUrl,
+          ...artwork,
           releaseId: track.releaseId,
           durationRaw: track.durationRaw,
           durationSec: track.durationSec,
+          position: track.position,
           waveformData: track.waveformData,
         };
       }),
@@ -920,7 +940,7 @@ export class ReleasesService {
       release.coverStorageKey,
       release.coverThumbStorageKey,
       release.coverMediumStorageKey,
-      ...release.images.map((image) => image.storageKey),
+      ...release.images.flatMap((image) => [image.storageKey, image.thumbStorageKey, image.mediumStorageKey]),
     ].filter((key): key is string => Boolean(key));
     const audioKeys = release.tracks.flatMap((track) =>
       track.audioFiles.flatMap((audioFile) =>
@@ -948,6 +968,7 @@ export class ReleasesService {
       coverImageUrl: null, coverStorageKey: null, coverStorageUrl: null,
       coverThumbStorageKey: null, coverThumbStorageUrl: null,
       coverMediumStorageKey: null, coverMediumStorageUrl: null,
+      images: { updateMany: { where: { type: ImageType.COVER }, data: { type: ImageType.GALLERY } } },
     } });
     return { success: true };
   }
@@ -968,23 +989,74 @@ export class ReleasesService {
     return this.findOne(id, true);
   }
 
-  async removeBackCover(id: string) {
-    const images = await this.prisma.image.findMany({
-      where: {
-        releaseId: id,
-        type: ImageType.GALLERY,
-        storageKey: { startsWith: `covers/manual/${id}/back.` },
-      },
+  async selectCover(id: string, imageId: string, side: 'front' | 'back' | 'front2' | 'back2') {
+    if (!['front', 'back', 'front2', 'back2'].includes(side)) throw new BadRequestException('Invalid cover side');
+    const image = await this.prisma.image.findFirst({ where: { id: imageId, releaseId: id }, include: {
+      release: { select: { coverStorageKey: true, coverThumbStorageKey: true, coverMediumStorageKey: true } },
+    } });
+    if (!image) throw new NotFoundException('Release image not found');
+    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    const currentFront = image.release?.coverStorageKey === image.storageKey ? image.release : undefined;
+    const variants = await ensureCoverVariants(this.storageService, bucket, image.storageKey, undefined, {
+      thumbStorageKey: image.thumbStorageKey || currentFront?.coverThumbStorageKey,
+      mediumStorageKey: image.mediumStorageKey || currentFront?.coverMediumStorageKey,
     });
-    const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
-    await Promise.all(images.map((image) => this.deleteStorageObject(coversBucket, image.storageKey)));
-    await this.prisma.image.deleteMany({
-      where: { id: { in: images.map((image) => image.id) } },
+    const [thumbUrl, mediumUrl] = await Promise.all([
+      this.storageService.getSignedObjectUrl(bucket, variants.thumbStorageKey),
+      this.storageService.getSignedObjectUrl(bucket, variants.mediumStorageKey),
+    ]);
+    await this.prisma.$transaction(async tx => {
+      // Updating the release first serializes simultaneous side changes for it.
+      await tx.release.update({ where: { id }, data: side === 'front' ? {
+        coverStorageKey: image.storageKey, coverStorageUrl: image.url, coverImageUrl: image.url,
+        coverThumbStorageKey: variants.thumbStorageKey, coverThumbStorageUrl: thumbUrl,
+        coverMediumStorageKey: variants.mediumStorageKey, coverMediumStorageUrl: mediumUrl,
+      } : { updatedAt: new Date() } });
+      await tx.image.update({ where: { id: image.id }, data: variants });
+      if (side === 'front') {
+        await tx.image.updateMany({ where: { releaseId: id, type: ImageType.COVER }, data: { type: ImageType.GALLERY } });
+        await tx.image.update({ where: { id: image.id }, data: { type: ImageType.COVER } });
+      } else {
+        const flag = side === 'front2' ? 'isSecondFrontCover' : side === 'back2' ? 'isSecondBackCover' : 'isBackCover';
+        await tx.image.updateMany({ where: { releaseId: id, [flag]: true }, data: { [flag]: false } });
+        await tx.image.update({ where: { id: image.id }, data: { [flag]: true } });
+      }
+    });
+    return this.findOne(id, true);
+  }
+
+  async deleteGalleryImage(id: string, imageId: string) {
+    const image = await this.prisma.image.findFirst({ where: { id: imageId, releaseId: id } });
+    if (!image) throw new NotFoundException('Release image not found');
+    const referenced = await this.prisma.release.count({ where: { OR: [
+      { coverStorageKey: image.storageKey }, { coverThumbStorageKey: image.storageKey }, { coverMediumStorageKey: image.storageKey },
+    ] } });
+    if (referenced || image.isBackCover || image.isSecondFrontCover || image.isSecondBackCover) {
+      throw new BadRequestException('Сначала выберите другую лицевую или обратную обложку.');
+    }
+    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    // Do not hide storage failures: the editor must not report a file as removed while it remains on disk.
+    for (const key of new Set([image.thumbStorageKey, image.mediumStorageKey].filter((key): key is string => Boolean(key) && key !== image.storageKey))) {
+      await this.storageService.deleteObject(bucket, key);
+    }
+    await this.storageService.deleteObject(bucket, image.storageKey);
+    await this.prisma.image.delete({ where: { id: image.id } });
+    return this.findOne(id, true);
+  }
+
+  async removeBackCover(id: string, side: string = 'back') {
+    if (!['back', 'front2', 'back2'].includes(side)) throw new BadRequestException('Invalid cover side');
+    const flag = side === 'front2' ? 'isSecondFrontCover' : side === 'back2' ? 'isSecondBackCover' : 'isBackCover';
+    await this.prisma.$transaction(async tx => {
+      await tx.release.update({ where: { id }, data: { updatedAt: new Date() } });
+      await tx.image.updateMany({ where: { releaseId: id, [flag]: true }, data: { [flag]: false } });
     });
     return { success: true };
   }
 
-  async uploadBackCover(id: string, file: Express.Multer.File) {
+  async uploadBackCover(id: string, file: Express.Multer.File, side: string = 'back') {
+    if (!['back', 'front2', 'back2'].includes(side)) throw new BadRequestException('Invalid cover side');
+    const flag = side === 'front2' ? 'isSecondFrontCover' : side === 'back2' ? 'isSecondBackCover' : 'isBackCover';
     if (!file) {
       throw new BadRequestException('Back cover file is required');
     }
@@ -997,7 +1069,7 @@ export class ReleasesService {
     }
 
     const coversBucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
-    const storageKey = `covers/manual/${id}/back.webp`;
+    const storageKey = `covers/manual/${id}/${side}.${randomUUID()}.webp`;
     const buffer = await sharp(file.buffer)
       .rotate()
       .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
@@ -1009,23 +1081,12 @@ export class ReleasesService {
       body: buffer,
       contentType: 'image/webp',
     });
-    const previous = await this.prisma.image.findMany({
-      where: {
-        releaseId: id,
-        type: ImageType.GALLERY,
-        storageKey: { startsWith: `covers/manual/${id}/back.` },
-      },
+    const variants = await ensureCoverVariants(this.storageService, coversBucket, storageKey, buffer);
+    await this.prisma.$transaction(async tx => {
+      await tx.release.update({ where: { id }, data: { updatedAt: new Date() } });
+      await tx.image.updateMany({ where: { releaseId: id, [flag]: true }, data: { [flag]: false } });
+      await tx.image.create({ data: { releaseId: id, type: ImageType.GALLERY, [flag]: true, url: url || '', storageKey, ...variants } });
     });
-    const obsoleteKeys = previous
-      .map((image) => image.storageKey)
-      .filter((key) => key !== storageKey);
-    await Promise.all(obsoleteKeys.map((key) => this.deleteStorageObject(coversBucket, key)));
-    await this.prisma.$transaction([
-      this.prisma.image.deleteMany({ where: { id: { in: previous.map((image) => image.id) } } }),
-      this.prisma.image.create({
-        data: { releaseId: id, type: ImageType.GALLERY, url: url || '', storageKey },
-      }),
-    ]);
     return this.findOne(id, true);
   }
 
@@ -1360,21 +1421,9 @@ export class ReleasesService {
     const safeName =
       sanitizeFilename(file.originalname).replace(/\s+/g, '-').toLowerCase() ||
       `front.${this.getImageExtension(file)}`;
-    const storageKey = `covers/manual/${release.id}/${safeName}`;
-    const thumbStorageKey = `covers/manual/${release.id}/thumb.webp`;
-    const mediumStorageKey = `covers/manual/${release.id}/medium.webp`;
-    const [thumbBuffer, mediumBuffer] = await Promise.all([
-      sharp(file.buffer)
-        .rotate()
-        .resize(320, 320, { fit: 'cover' })
-        .webp({ quality: 78 })
-        .toBuffer(),
-      sharp(file.buffer)
-        .rotate()
-        .resize(900, 900, { fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: 84 })
-        .toBuffer(),
-    ]);
+    const token = randomUUID();
+    const storageKey = `covers/manual/${release.id}/${token}-${safeName}`;
+    const { thumbStorageKey, mediumStorageKey } = await ensureCoverVariants(this.storageService, coversBucket, storageKey, file.buffer);
     const [url, thumbUrl, mediumUrl] = await Promise.all([
       this.storageService.uploadObject({
         bucket: coversBucket,
@@ -1382,31 +1431,9 @@ export class ReleasesService {
         body: file.buffer,
         contentType: file.mimetype,
       }),
-      this.storageService.uploadObject({
-        bucket: coversBucket,
-        key: thumbStorageKey,
-        body: thumbBuffer,
-        contentType: 'image/webp',
-      }),
-      this.storageService.uploadObject({
-        bucket: coversBucket,
-        key: mediumStorageKey,
-        body: mediumBuffer,
-        contentType: 'image/webp',
-      }),
+      this.storageService.getSignedObjectUrl(coversBucket, thumbStorageKey),
+      this.storageService.getSignedObjectUrl(coversBucket, mediumStorageKey),
     ]);
-    const nextKeys = new Set([storageKey, thumbStorageKey, mediumStorageKey]);
-    const previousKeys = [
-      release.coverStorageKey,
-      release.coverThumbStorageKey,
-      release.coverMediumStorageKey,
-      ...release.images
-        .filter((image) => image.type === ImageType.COVER)
-        .map((image) => image.storageKey),
-    ].filter((key): key is string => typeof key === 'string' && key.length > 0 && !nextKeys.has(key));
-
-    await Promise.all([...new Set(previousKeys)].map((key) => this.deleteStorageObject(coversBucket, key)));
-
     await this.prisma.release.update({
       where: {
         id: release.id,
@@ -1420,13 +1447,13 @@ export class ReleasesService {
         coverMediumStorageUrl: mediumUrl,
         coverImageUrl: url,
         images: {
-          deleteMany: {
-            type: ImageType.COVER,
-          },
+          updateMany: { where: { type: ImageType.COVER }, data: { type: ImageType.GALLERY } },
           create: {
             type: ImageType.COVER,
             url: url || '',
             storageKey,
+            thumbStorageKey,
+            mediumStorageKey,
           },
         },
       },
@@ -1449,6 +1476,11 @@ export class ReleasesService {
         storageKey: string;
         url: string;
         type?: ImageType;
+        isBackCover?: boolean;
+        isSecondFrontCover?: boolean;
+        isSecondBackCover?: boolean;
+        thumbStorageKey?: string | null;
+        mediumStorageKey?: string | null;
       }>;
       tracks: Array<{
         audioFiles: Array<{
@@ -1473,18 +1505,14 @@ export class ReleasesService {
             url:
               (await this.storageService.getSignedObjectUrl(coversBucket, image.storageKey)) ||
               image.url,
+            thumbUrl: image.thumbStorageKey ? await this.storageService.getSignedObjectUrl(coversBucket, image.thumbStorageKey) : null,
+            mediumUrl: image.mediumStorageKey ? await this.storageService.getSignedObjectUrl(coversBucket, image.mediumStorageKey) : null,
           })),
         )
       : release.images;
-    const backCoverUrl = signedImages?.find(
-      (image) =>
-        image.type === ImageType.GALLERY &&
-        image.storageKey.startsWith(`covers/manual/${release.id || ''}/back.`),
-    )?.url || null;
-
     return {
       ...release,
-      backCoverUrl,
+      ...await signedSideCoverUrls(release.images, key => this.storageService.getSignedObjectUrl(coversBucket, key)),
       audioComplete: release.audioComplete ?? (
         release.tracks.length > 0 && release.tracks.every((track) => track.audioFiles.length > 0)
       ),

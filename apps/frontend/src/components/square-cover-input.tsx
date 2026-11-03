@@ -71,9 +71,12 @@ export function SquareCoverEditor({ file, lang, onApply, onCancel }: { file: Fil
   </section>;
 }
 
-export function SquareCoverInput({ id, lang, disabled, onChange, currentUrl, onEditingChange }: { id?: string; lang: SiteLang; disabled?: boolean; onChange: (file: File) => void; currentUrl?: string; onEditingChange?: (editing: boolean) => void }) {
+export function SquareCoverInput({ id, lang, disabled, onChange, currentUrl, onEditingChange, showResultPreview = true }: { id?: string; lang: SiteLang; disabled?: boolean; onChange: (file: File) => void; currentUrl?: string; onEditingChange?: (editing: boolean) => void; showResultPreview?: boolean }) {
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
+  const previewRef = useRef('');
+  useEffect(() => () => { if (previewRef.current) URL.revokeObjectURL(previewRef.current); }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => { onEditingChange?.(Boolean(file)); }, [file, onEditingChange]);
@@ -82,7 +85,8 @@ export function SquareCoverInput({ id, lang, disabled, onChange, currentUrl, onE
       const selected = event.currentTarget.files?.[0]; event.currentTarget.value = '';
       if (selected) { setError(''); setFile(selected); }
     }} />
-    {name ? <span className="square-cover-control__name">{name}</span> : null}
+    {showResultPreview && name ? <span className="square-cover-control__name">{name}</span> : null}
+    {showResultPreview && previewUrl ? <figure className="square-cover-control__result"><img src={previewUrl} width={320} height={320} alt={lang === 'ru' ? 'Итоговая обложка после обрезки' : 'Final cropped cover'} /><figcaption>{lang === 'ru' ? 'Эта обложка будет загружена' : 'This cover will be uploaded'}</figcaption></figure> : null}
     {currentUrl ? <button type="button" disabled={disabled || loading} onClick={async () => {
       setLoading(true); setError('');
       try {
@@ -95,7 +99,7 @@ export function SquareCoverInput({ id, lang, disabled, onChange, currentUrl, onE
       } catch { setError(lang === 'ru' ? 'Не удалось открыть текущую обложку. Выберите файл.' : 'Could not open current cover. Choose a file.'); }
       finally { setLoading(false); }
     }}>{loading ? '…' : lang === 'ru' ? 'Настроить текущую обложку' : 'Adjust current cover'}</button> : null}
-    {file ? <SquareCoverEditor key={`${file.name}-${file.lastModified}`} file={file} lang={lang} onCancel={() => setFile(null)} onApply={next => { setName(next.name); setFile(null); onChange(next); }} /> : null}
+    {file ? <SquareCoverEditor key={`${file.name}-${file.lastModified}`} file={file} lang={lang} onCancel={() => setFile(null)} onApply={next => { if (previewRef.current) URL.revokeObjectURL(previewRef.current); previewRef.current = showResultPreview ? URL.createObjectURL(next) : ''; setPreviewUrl(previewRef.current); setName(next.name); setFile(null); onChange(next); }} /> : null}
     {error ? <p role="status">{error}</p> : null}
   </div>;
 }

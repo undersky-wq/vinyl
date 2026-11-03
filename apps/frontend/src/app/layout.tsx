@@ -3,6 +3,7 @@ import '../components/about-page.css';
 import '../components/shelf-theme.css';
 import '../components/shelf-web.css';
 import '../components/shelf-mobile-layout.css';
+import '../components/shelf-typography.css';
 import { cookies } from 'next/headers';
 import { MobileNav } from '../components/mobile-nav';
 import { CollectionTransitions } from '../components/collection-transitions';

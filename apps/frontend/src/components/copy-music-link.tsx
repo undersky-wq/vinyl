@@ -42,7 +42,7 @@ export function CopyMusicLink({ releaseId, lang, className = '', copyCount }: { 
   }
 
   return <>
-    <button type="button" disabled={!path} className={`music-copy-link ${className}`} aria-label={lang === 'ru' ? 'Поделиться — скопировать ссылку' : 'Share — copy link'} title={lang === 'ru' ? 'Скопировать ссылку' : 'Copy link'} onClick={event => { event.stopPropagation(); void copy(); }}>
+    <button type="button" disabled={!path} className={`music-copy-link music-icon-tooltip ${className}`} aria-label={lang === 'ru' ? 'Поделиться — скопировать ссылку' : 'Share — copy link'} data-tooltip={lang === 'ru' ? 'Скопировать ссылку' : 'Copy link'} onClick={event => { event.stopPropagation(); void copy(); }}>
       <Share2 size={18} />
       {copyCount !== undefined && copyCount > 0 ? <sup>{copyCount}</sup> : null}
     </button>

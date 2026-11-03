@@ -1,7 +1,7 @@
 'use client';
 import './player-waveform.css';
 
-import { ChevronDown, ListOrdered, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronDown, ListOrdered, Pause, Play, Repeat1, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -14,9 +14,9 @@ import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
-import { usePlayerArtwork, usePlayerBackArtwork } from '../lib/use-player-artwork';
-import { isBackSidePosition } from '../lib/release-images';
+import { usePlayerArtwork, usePlayerBackArtwork, usePlayerCoverSide } from '../lib/use-player-artwork';
 import { PlayerReleaseDetails } from './player-release-details';
+import { isDesktopPlayerBackdrop } from '../lib/player-backdrop';
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -64,7 +64,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   const [trackDirection, setTrackDirection] = useState<'next' | 'previous'>('next');
   const [comments, setComments] = useState<TimelineComment[]>([]);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
-  const [isCoverFlipped, setIsCoverFlipped] = useState(false);
+  const {isCoverFlipped,toggleCoverSide} = usePlayerCoverSide(currentTrack,backArtwork);
   const lastHapticStepRef = useRef(-1);
   const currentTrackId = currentTrack?.id || '';
   const previousTrackIdRef = useRef(currentTrackId);
@@ -73,7 +73,8 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
   const sourcePeaks = currentTrack?.waveformData?.length
     ? currentTrack.waveformData
     : buildFallbackWaveform(currentTrackId || 'fallback', 160);
-  const { ref: waveformRef, peaks } = useResponsiveWaveform(sourcePeaks, {
+  const { ref: waveformRef, peaks, barStyle } = useResponsiveWaveform(sourcePeaks, {
+    snapToDevicePixels: true,
     minBars: 48,
     maxBars: 400,
     pixelsPerBar: 4,
@@ -125,7 +126,6 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
     setDragProgress(null);
     setActiveCommentId(null);
     lastHapticStepRef.current = -1;
-    setIsCoverFlipped(Boolean(backArtwork) && (currentTrack?.coverSide === 'back' || isBackSidePosition(currentTrack?.position)));
   }, [backArtwork, currentTrack?.coverSide, currentTrack?.position, currentTrackId]);
 
   if (!currentTrack) {
@@ -202,6 +202,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
       className={`player-page${!isPlaying ? ' is-paused' : ''}${pageTransition ? ` ${pageTransition}` : ''}`}
       data-playback-source={currentTrack.playbackSource?.section || (currentTrack.isOriginal ? 'originals' : currentTrack.isPublic ? 'mixes' : 'collection')}
       style={{ '--player-cover-bg': `url("${currentTrack.coverUrl}")` } as CSSProperties}
+      onClick={event=>{if(isDesktopPlayerBackdrop(event,window.innerWidth))collapsePlayer();}}
     >
       <button
         type="button"
@@ -227,13 +228,13 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
       <div className={`player-page__meta slide-${trackDirection}`} key={`meta-${currentTrack.id}`}>
         <div className="player-page__artist-row">
         <h1 className="player-page__artist">{currentTrack.artist}</h1>
-        <PlayerReleaseDetails releaseId={currentTrack.releaseId} backArtwork={backArtwork} flipped={isCoverFlipped} onFlip={()=>setIsCoverFlipped(value=>!value)} lang={lang}/>
+        <PlayerReleaseDetails releaseId={currentTrack.releaseId} backArtwork={backArtwork} flipped={isCoverFlipped} onFlip={toggleCoverSide} lang={lang}/>
         </div>
         <p className="player-page__track-title">{currentTrack.title}</p>
       </div>
 
       <div className={`player-page__timeline slide-${trackDirection}`} key={`timeline-${currentTrack.id}`}>
-        <span>{formatTime(currentTime)}</span>
+        <span>{formatTime(dragProgress === null ? currentTime : duration * dragProgress / 100)}</span>
         <button
           type="button"
           ref={waveformRef}
@@ -274,7 +275,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
             <span
               className={(index / Math.max(peaks.length - 1, 1)) * 100 <= displayedProgress ? 'active' : ''}
               key={`${currentTrack.id}-${index}`}
-              style={{ height: `${Math.max(10, Math.round(peak * 100))}%` }}
+              style={{ ...barStyle(index), height: `${Math.max(2, Math.round(peak * 100))}%` }}
             />
           ))}
           <TimelineCommentMarkers
@@ -349,11 +350,11 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
           aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
           data-tooltip={lang === 'ru' ? 'Повтор' : 'Repeat'}
         >
-          <Repeat2 size={22} />
+          <Repeat1 size={22} />
         </button>
       </div>
 
-        <PlayerMixActions track={currentTrack} lang={lang} currentTime={currentTime} duration={duration} comments={comments} onComment={(comment) => setComments((items) => [...items, comment].sort((a, b) => a.second - b.second))} seek={seekToPercent}>
+        <PlayerMixActions track={currentTrack} lang={lang} currentTime={dragProgress === null ? currentTime : duration * dragProgress / 100} duration={duration} comments={comments} onComment={(comment) => setComments((items) => [...items, comment].sort((a, b) => a.second - b.second))} seek={seekToPercent}>
         <TrackPlaylistMenu trackId={currentTrack.id} lang={lang} className="player-page__playlist-add" align="up" keepOpenAfterAction />
         <div className="player-queue-menu player-page__queue">
           <button

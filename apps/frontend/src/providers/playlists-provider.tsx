@@ -4,11 +4,13 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { addTrackToPlaylist, createPlaylist, getPlaylists, removeTrackFromPlaylist, reorderPlaylist } from '../lib/api';
 import { Playlist } from '../types';
 import { useAuth } from './auth-provider';
+import { playlistMembershipCounts } from '../lib/playlist-membership';
 
 type PlaylistsContextValue = {
   playlists: Playlist[];
   isLoading: boolean;
   isInAnyPlaylist: (trackId: string) => boolean;
+  getTrackPlaylistCount: (trackId: string) => number;
   createPlaylistWithTrack: (input: {
     name: string;
     description?: string;
@@ -61,8 +63,9 @@ export function PlaylistsProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   const value = useMemo<PlaylistsContextValue>(() => {
-    const isInAnyPlaylist = (trackId: string) =>
-      playlists.some((playlist) => playlist.items.some((item) => item.track.id === trackId));
+    const membershipCounts = playlistMembershipCounts(playlists);
+    const getTrackPlaylistCount = (trackId: string) => membershipCounts.get(trackId) || 0;
+    const isInAnyPlaylist = (trackId: string) => getTrackPlaylistCount(trackId) > 0;
 
     const createPlaylistWithTrack = async ({
       name,
@@ -126,6 +129,7 @@ export function PlaylistsProvider({ children }: { children: React.ReactNode }) {
       playlists,
       isLoading,
       isInAnyPlaylist,
+      getTrackPlaylistCount,
       createPlaylistWithTrack,
       toggleTrackInPlaylist,
       refreshPlaylists,

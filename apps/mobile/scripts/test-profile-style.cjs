@@ -1,0 +1,13 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const source = fs.readFileSync(path.join(__dirname, '../src/screens/ProfileScreen.tsx'), 'utf8');
+assert(source.includes('adaptiveStyles(StyleSheet.create('));
+assert(!source.includes('colors.accent'));
+assert(!source.includes('AnimatedLogo'));
+assert(!source.includes('shadowOpacity'));
+assert(source.includes("setLang(isRu ? 'en' : 'ru')"));
+assert(source.includes('borderBottomWidth: StyleSheet.hairlineWidth'));
+assert(source.includes("height: 1, backgroundColor: colors.text"));
+for (const action of ['toggleRegistrationInvite', 'runDiscogsSync', 'runAudioJob', 'handleLogout', 'needsTwoFactor']) assert(source.includes(action));
+console.log('PASS: neutral flat profile theme, single language switch and existing admin/auth actions retained');
