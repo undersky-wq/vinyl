@@ -31,6 +31,7 @@ import { ShelfDiscTransition } from './shelf-disc-transition';
 import { coverResolutionMedia } from '../lib/cover-sources';
 import { positionStackHoverLabel } from '../lib/stack-hover-position';
 import { getPinnedGenres } from '../lib/pinned-genres';
+import { frameMeasurement, observeCardHeights, setLayoutProperties } from '../lib/layout-measurement';
 const coverFull = (r: HomeRelease, disc: 1 | 2 = 1) => (disc === 2 ? getSecondFrontCoverUrl(r) : '') || r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
 const coverMobile = (r: HomeRelease, disc: 1 | 2 = 1) => disc === 2 ? getSecondFrontCoverUrl(r, 'thumb') || coverFull(r,disc) : r.coverThumbStorageUrl || r.coverMediumStorageUrl || coverFull(r);
 const coverMedium = (r: HomeRelease, disc: 1 | 2 = 1) => disc === 2 ? getSecondFrontCoverUrl(r, 'medium') || coverFull(r,disc) : r.coverMediumStorageUrl || coverFull(r);
@@ -364,20 +365,6 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const [coverSideOverrides, setCoverSideOverrides] = useState<CoverSideOverrides>({});
   const [expanded, setExpanded] = useState(false);
   const stage = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    if (viewport.width > 700 || listMix < 1 || isTrackCollection) return;
-    const cards = stage.current?.querySelectorAll<HTMLElement>('.paper-list-tracks[data-release-id]');
-    if (!cards) return;
-    const measure = () => {
-      const heights: Record<string, number> = {};
-      cards.forEach(card => { heights[card.dataset.releaseId!] = Math.max(listSize, card.offsetHeight); });
-      setMobileCardHeights(previous => Object.keys(heights).every(id => previous[id] === heights[id]) ? previous : { ...previous, ...heights });
-    };
-    const observer = new ResizeObserver(measure);
-    cards.forEach(card => observer.observe(card));
-    measure();
-    return () => observer.disconnect();
-  });
   const transport = useRef<HTMLDivElement | null>(null);
   const transportOrigin = useRef(0);
   const hoverResumeAt = useRef(0);
@@ -520,6 +507,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     const fullQueue = liveCollectionQueue(collectionCatalog.tracks, JSON.parse(collectionReleaseIds), currentTrack,origin.pathname+origin.search+origin.hash);
     replaceCollectionQueueRef.current(fullQueue, fullQueue.filter(track => track.releaseId === currentTrack.releaseId));
   }, [collectionView, collectionPlaying, collectionCatalog, catalogOwner, collectionReleaseIds, currentTrack, activeStyles, appliedSearch]);
+  const hasPlayerTrack = Boolean(currentTrack);
+  const geometryLayout = viewport.width <= 700 ? stackMode || stretch >= .5 : activeLayout;
   useLayoutEffect(() => {
     const element = stage.current;
     if (!element) return;
@@ -541,13 +530,15 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
           (search?.bottom || 72) - origin, nav?.offsetHeight || 88,
           title?.offsetHeight || 36, player ? player.top - origin : viewport.height - 24,
           stackMode || stretch >= .5, headingGap);
-        element.style.setProperty('--mobile-nav-top', `${layout.navigationTop}px`);
-        element.style.setProperty('--mobile-heading-top', `${layout.headingTop}px`);
-        element.style.setProperty('--mobile-content-top', `${layout.contentTop}px`);
-        element.style.setProperty('--mobile-content-bottom', `${layout.bottom}px`);
-        element.style.setProperty('--mobile-panel-height', `${layout.panelHeight}px`);
-        element.style.setProperty('--mobile-shelf-floor', `${layout.shelfFloor}px`);
-        element.style.setProperty('--cover', `${layout.coverSize}px`);
+        setLayoutProperties(element, {
+          '--mobile-nav-top': `${layout.navigationTop}px`,
+          '--mobile-heading-top': `${layout.headingTop}px`,
+          '--mobile-content-top': `${layout.contentTop}px`,
+          '--mobile-content-bottom': `${layout.bottom}px`,
+          '--mobile-panel-height': `${layout.panelHeight}px`,
+          '--mobile-shelf-floor': `${layout.shelfFloor}px`,
+          '--cover': `${layout.coverSize}px`,
+        });
         setMobileGeometry(current => current.coverSize === layout.coverSize && current.shelfFloor === layout.shelfFloor ? current : {coverSize:layout.coverSize,shelfFloor:layout.shelfFloor});
         setGridBounds(current => current.top === layout.contentTop && current.bottom === layout.bottom ? current : {top:layout.contentTop,bottom:layout.bottom});
         return;
@@ -558,12 +549,12 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       setGridBounds(current => current.top === nextTop && current.bottom === nextBottom ? current : {top:nextTop,bottom:nextBottom});
     };
     measure();
-    const frame = requestAnimationFrame(measure);
-    const observer = new ResizeObserver(measure);
+    const measurement = frameMeasurement(measure);
+    const observer = new ResizeObserver(measurement.schedule);
     for (const node of [element.querySelector('.paper-search'), element.querySelector('.paper-sections'), element.querySelector('.paper-heading'), document.querySelector('.mini-player')]) if (node) observer.observe(node);
-    window.visualViewport?.addEventListener('resize', measure);
-    return () => { cancelAnimationFrame(frame);observer.disconnect();window.visualViewport?.removeEventListener('resize',measure); };
-  }, [viewport, currentTrack?.id, stretch, stackMode]);
+    window.visualViewport?.addEventListener('resize', measurement.schedule);
+    return () => { measurement.cancel();observer.disconnect();window.visualViewport?.removeEventListener('resize',measurement.schedule); };
+  }, [viewport, hasPlayerTrack, geometryLayout]);
   useLayoutEffect(() => {
     const row = stage.current?.querySelector('.paper-row');
     if (row) row.scrollTop = gridMix >= 1 ? gridPan * (1-listMix) + listPan * listMix : 0;
@@ -1158,6 +1149,15 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     ? mergeVisibleReleaseIndices(shelfVisibleIndices.current, rawVisibleIndices, releases.length)
     : rawVisibleIndices;
   shelfVisibleIndices.current = visibleIndices;
+  const measuredCardKey = visibleIndices.map(index => releases[index].id).join('\0');
+  const measureMobileCards = viewport.width <= 700 && listMix >= 1 && !isTrackCollection;
+  useLayoutEffect(() => {
+    if (!measureMobileCards) return;
+    const cards = Array.from(stage.current?.querySelectorAll<HTMLElement>('.paper-list-tracks[data-release-id]') || []);
+    return observeCardHeights(cards, listSize, heights => {
+      setMobileCardHeights(previous => Object.keys(heights).every(id => previous[id] === heights[id]) ? previous : { ...previous, ...heights });
+    });
+  }, [measureMobileCards, measuredCardKey, listSize]);
   // Stack and Shelf expose different windows. Warm the nearby Shelf edges
   // while Stack is idle, using the same mobile/desktop source as <picture>.
   const warmedCovers = useRef(new Set<string>());

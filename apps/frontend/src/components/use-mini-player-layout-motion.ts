@@ -49,18 +49,21 @@ export function useMiniPlayerLayoutMotion(ref: RefObject<HTMLDivElement | null>,
       const to = parts.map(part => part.getBoundingClientRect());
       const toRoot = root.getBoundingClientRect();
       if ((desktop.matches || aboutTransition) && !reduced.matches) {
-        animations = parts.map((part, index) => {
+        // Finish every layout read before starting any of the animations.
+        const centered = parts.map(part => getComputedStyle(part).justifySelf === 'center');
+        const frames = parts.map((part, index) => {
           // A centered grid item also shifts when its animated width changes.
-          const centering = getComputedStyle(part).justifySelf === 'center'
+          const centering = centered[index]
             ? (from[index].width - to[index].width) / 2 : 0;
-          return part.animate([
+          return [
           {
             transform: `translate(${from[index].x - to[index].x + centering - (aboutTransition ? fromRoot.x - toRoot.x : 0)}px,${from[index].y - to[index].y - (aboutTransition ? fromRoot.y - toRoot.y : 0)}px)`,
             width: `${from[index].width}px`,
           },
           { transform: 'translate(0,0)', width: `${to[index].width}px` },
-        ], { duration: 850, easing: 'cubic-bezier(.16,1,.3,1)' });
+        ];
         });
+        animations = parts.map((part, index) => part.animate(frames[index], { duration: 850, easing: 'cubic-bezier(.16,1,.3,1)' }));
         if (aboutTransition) {
           animations.push(root.animate([
             {left:`${fromRoot.x}px`,right:'auto',width:`${fromRoot.width}px`,top:`${fromRoot.y}px`,bottom:'auto'},
@@ -74,10 +77,14 @@ export function useMiniPlayerLayoutMotion(ref: RefObject<HTMLDivElement | null>,
       }
     };
     const observer = new MutationObserver(records => {
+      const isPage = (node: Node) => node instanceof Element
+        && (node.matches('.paper-archive,.about-page') || Boolean(node.querySelector('.paper-archive,.about-page')));
       if (records.some(record => record.type === 'childList'
-        || (record.target instanceof Element && record.target.matches('.paper-archive')))) update();
+        ? [...record.addedNodes, ...record.removedNodes].some(isPage)
+        : record.target instanceof Element && (record.target.matches('.paper-archive,.about-page')
+          || /\b(?:paper-archive|about-page)\b/.test(record.oldValue || '')))) update();
     });
-    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'data-player-layout'] });
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'data-player-layout'] });
     const reset = () => {
       cancelAnimationFrame(frame);
       animations.forEach(animation => animation.cancel());
