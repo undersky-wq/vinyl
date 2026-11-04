@@ -82,6 +82,7 @@ export function ShelfMixTrack({
   const [audioDuration,setAudioDuration] = useState(0);
   const [status,setStatus] = useState('');
   const isCurrent = currentTrack?.releaseId === release.id;
+  const activeAudioUrl = isCurrent ? currentTrack.audioUrl : null;
   const rawParts = track?.durationRaw?.split(':').map(Number);
   const duration = track?.durationSec || (rawParts && rawParts.length >= 2 && rawParts.length <= 3 && rawParts.every(Number.isFinite) ? rawParts.reduce((total,part)=>total*60+part,0) : 0);
   const totalDuration = isCurrent && audioDuration > 0 ? audioDuration : duration;
@@ -132,9 +133,11 @@ export function ShelfMixTrack({
 
   useEffect(() => {
     const audio=getAudioElement();
-    if(!isCurrent || !audio){setProgress(0);setElapsed(0);setAudioDuration(0);return;}
+    if(!activeAudioUrl || !audio){setProgress(0);setElapsed(0);setAudioDuration(0);return;}
+    const expectedSource = new URL(activeAudioUrl, document.baseURI).href;
     const sync=()=>{
-      if (audio.seeking) return;
+      // The shared audio element may still be switching from the previous track.
+      if (audio.src !== expectedSource || audio.currentSrc !== expectedSource || audio.readyState < 1 || audio.seeking) return;
       const total=Number.isFinite(audio.duration) && audio.duration>0 ? audio.duration : duration;
       setProgress(total ? Math.max(0,Math.min(100,audio.currentTime/total*100)) : 0);
       setElapsed(Math.max(0,audio.currentTime));
@@ -143,7 +146,7 @@ export function ShelfMixTrack({
     sync();
     audio.addEventListener('timeupdate',sync);audio.addEventListener('loadedmetadata',sync);audio.addEventListener('seeked',sync);
     return()=>{audio.removeEventListener('timeupdate',sync);audio.removeEventListener('loadedmetadata',sync);audio.removeEventListener('seeked',sync);};
-  },[duration,getAudioElement,isCurrent]);
+  },[duration,getAudioElement,activeAudioUrl]);
 
   function commitSeek(percent: number, resume = false) {
     if(queueIndex < 0)return;

@@ -172,14 +172,15 @@ function syncMediaPlaybackState(playing: boolean, hasTrack = true) {
   }
 }
 
-function updateMediaSessionPosition(audio: HTMLAudioElement | null) {
+function updateMediaSessionPosition(audio: HTMLAudioElement | null, requestedTime?: number) {
   if (
     typeof navigator === 'undefined' ||
     !('mediaSession' in navigator) ||
     !('setPositionState' in navigator.mediaSession) ||
     !audio ||
     !Number.isFinite(audio.duration) ||
-    audio.duration <= 0
+    audio.duration <= 0 ||
+    (requestedTime === undefined && audio.seeking)
   ) {
     return;
   }
@@ -188,7 +189,7 @@ function updateMediaSessionPosition(audio: HTMLAudioElement | null) {
     navigator.mediaSession.setPositionState({
       duration: audio.duration,
       playbackRate: audio.playbackRate || 1,
-      position: Math.min(audio.currentTime || 0, audio.duration),
+      position: Math.max(0, Math.min(requestedTime ?? (audio.currentTime || 0), audio.duration)),
     });
   } catch {
     // Position state is optional and stricter on some mobile browsers.
@@ -634,7 +635,14 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    const onSeeked = () => {
+      syncPlaybackState();
+      // Update system controls directly, even while React is backgrounded.
+      updateMediaSessionPosition(audio);
+    };
+
     audio.addEventListener('timeupdate', syncPlaybackState);
+    audio.addEventListener('seeked', onSeeked);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('playing', onPlaying);
@@ -653,6 +661,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       stopStallGuard();
       if (pendingRestore) audio.removeEventListener('loadedmetadata', pendingRestore);
       audio.removeEventListener('timeupdate', syncPlaybackState);
+      audio.removeEventListener('seeked', onSeeked);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('playing', onPlaying);
@@ -984,7 +993,7 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
     if (Math.abs(audio.currentTime - nextTime) > 0.001) audio.currentTime = nextTime;
     setCurrentTime(nextTime);
     setProgress(normalizedPercent);
-    updateMediaSessionPosition(audio);
+    updateMediaSessionPosition(audio, nextTime);
   }, []);
 
   const setVolume = useCallback((value: number) => {
@@ -1046,16 +1055,12 @@ function BrowserPlayerProvider({ children }: { children: React.ReactNode }) {
       ? Math.max(0, Math.min(seekTime, audio.duration))
       : Math.max(0, seekTime);
 
-    if (typeof audio.fastSeek === 'function') {
-      audio.fastSeek(nextTime);
-    } else {
-      audio.currentTime = nextTime;
-    }
+    if (Math.abs(audio.currentTime - nextTime) > 0.001) audio.currentTime = nextTime;
     setCurrentTime(nextTime);
     if (Number.isFinite(audio.duration) && audio.duration > 0) {
       setProgress((nextTime / audio.duration) * 100);
     }
-    updateMediaSessionPosition(audio);
+    updateMediaSessionPosition(audio, nextTime);
   };
 
   useEffect(() => {
