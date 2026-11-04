@@ -28,7 +28,7 @@ export function CookieConsent({ lang }: { lang: SiteLang }) {
       {choice === 'all' ? (
         <Script
           src="https://stats.mityadima.ru/script.js"
-          data-website-id="c806c076-3efa-47ff-8d15-f5d913be11be"
+          data-website-id="c1ab09b4-67f8-49ee-983a-079fbc51a3b3"
           strategy="afterInteractive"
         />
       ) : null}
