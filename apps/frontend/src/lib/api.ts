@@ -351,7 +351,9 @@ export async function getHomeReleaseDetails(id: string) {
 }
 
 export async function getSiteSettings() {
-  return fetchJson<SiteSettings>('/auth/site-settings');
+  const settings = await fetchJson<SiteSettings>('/auth/site-settings');
+  // Keep compatibility with stored settings from before the classic UI retired.
+  return { ...settings, siteDesign: 'shelf' as const };
 }
 
 export async function updateAuthSettings(input: Partial<AuthSettings>) {

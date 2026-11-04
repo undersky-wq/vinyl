@@ -1,9 +1,8 @@
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentUser, getSiteSettings, getUsers } from '../../../lib/api';
+import { getCurrentUser, getUsers } from '../../../lib/api';
 import { normalizeSiteLang } from '../../../lib/language';
-import { Topbar } from '../../../components/topbar';
 import '../../../components/record-archive.css';
 import '../profile.css';
 import '../profile-player.css';
@@ -16,21 +15,18 @@ export default async function RegisteredUsersPage() {
   if (!user) redirect('/profile?mode=login');
   if (user.role !== 'ADMIN') notFound();
 
-  const [users, settings] = await Promise.all([
-    getUsers(cookieHeader),
-    getSiteSettings().catch(() => ({ siteDesign: 'classic' as const })),
-  ]);
+  const users = await getUsers(cookieHeader);
   const ru = lang === 'ru';
   const formatDate = (value: string) => new Intl.DateTimeFormat(ru ? 'ru-RU' : 'en-US', {
     day: '2-digit', month: 'short', year: 'numeric',
   }).format(new Date(value));
 
-  return <main className={settings.siteDesign === 'shelf' ? 'paper-profile-page' : 'page-shell'}>
-    {settings.siteDesign === 'shelf' ? <header className="paper-profile-header">
+  return <main className="paper-profile-page">
+    <header className="paper-profile-header">
       <div className="paper-profile-header__brand"><Link href="/">{ru ? 'Коллекция винила' : 'Vinyl collection'}</Link></div>
       <span>{ru ? 'Зарегистрированные аккаунты' : 'Registered accounts'}</span>
       <Link href="/profile">{ru ? 'Назад в профиль' : 'Back to profile'}</Link>
-    </header> : <><Topbar lang={lang} active="profile" /><Link href="/profile">{ru ? 'Назад в профиль' : 'Back to profile'}</Link></>}
+    </header>
     <article className="release-panel profile-panel profile-users-panel">
       <div className="profile-users-header"><h1>{ru ? 'Список зарегистрированных' : 'Registered users'}</h1><strong>{users.length}</strong></div>
       <div className="profile-users-list">

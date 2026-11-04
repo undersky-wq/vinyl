@@ -1,6 +1,6 @@
 import { ReleaseDetail } from '../../../components/release-detail';
 import { Topbar } from '../../../components/topbar';
-import { getRelease, getSiteSettings } from '../../../lib/api';
+import { getRelease } from '../../../lib/api';
 import { SharedMusicEntry } from '../../../components/shared-music-entry';
 import { cookies } from 'next/headers';
 import { normalizeSiteLang } from '../../../lib/language';
@@ -34,8 +34,7 @@ export default async function ReleasePage({ params }: { params: Promise<{ id: st
     .join('; ');
   const { id } = await params;
   const release = await getRelease(id, cookieHeader);
-  const settings = await getSiteSettings().catch(() => ({siteDesign:'classic' as const}));
-  if (release.isMix && (release.isOriginal || settings.siteDesign === 'shelf')) {
+  if (release.isMix) {
     return <SharedMusicEntry release={release} lang={lang}/>;
   }
 

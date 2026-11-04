@@ -1,11 +1,10 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Topbar } from '../../components/topbar';
 import '../../components/record-archive.css';
 import './profile.css';
 import './profile-player.css';
-import { getAuthSettings, getCurrentUser, getProfileStats, getSiteSettings } from '../../lib/api';
+import { getAuthSettings, getCurrentUser, getProfileStats } from '../../lib/api';
 import { normalizeSiteLang } from '../../lib/language';
 import { AuthScreen } from '../../components/auth-screen';
 import { ProfileScreen } from '../../components/profile-screen';
@@ -36,14 +35,13 @@ export default async function ProfilePage({
     .map((cookie) => `${cookie.name}=${cookie.value}`)
     .join('; ');
   const currentUser = await getCurrentUser(cookieHeader);
-  const siteSettings = await getSiteSettings().catch(() => ({ siteDesign: 'classic' as const }));
   const params = await searchParams;
   const mode = typeof params.mode === 'string' ? params.mode : '';
 
   if (!currentUser) {
     return (
-      <main className={siteSettings.siteDesign === 'shelf' ? 'paper-profile-page' : 'page-shell'}>
-        {siteSettings.siteDesign === 'shelf' ? <ProfileHeader lang={lang} /> : <Topbar lang={lang} active="profile" />}
+      <main className="paper-profile-page">
+        <ProfileHeader lang={lang} />
         <AuthScreen lang={lang} mode={mode === 'register' ? 'register' : 'login'} />
       </main>
     );
@@ -56,13 +54,13 @@ export default async function ProfilePage({
   const [stats, authSettings] = await Promise.all([
     getProfileStats(cookieHeader),
     currentUser.role === 'ADMIN'
-      ? getAuthSettings(cookieHeader).catch(() => ({ registrationInviteRequired: false, siteDesign: 'classic' as const }))
-      : Promise.resolve({ registrationInviteRequired: false, siteDesign: 'classic' as const }),
+      ? getAuthSettings(cookieHeader).catch(() => ({ registrationInviteRequired: false, siteDesign: 'shelf' as const }))
+      : Promise.resolve({ registrationInviteRequired: false, siteDesign: 'shelf' as const }),
   ]);
 
   return (
-    <main className={siteSettings.siteDesign === 'shelf' ? 'paper-profile-page' : 'page-shell'}>
-      {siteSettings.siteDesign === 'shelf' ? <ProfileHeader lang={lang} /> : <Topbar lang={lang} active="profile" />}
+    <main className="paper-profile-page">
+      <ProfileHeader lang={lang} />
       <ProfileScreen
         lang={lang}
         user={currentUser}

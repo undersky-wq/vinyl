@@ -26,7 +26,6 @@ import {
   useWebEditMode,
   setWebEditMode,
 } from './admin-edit-mode-sync';
-import { DesignVariantSwitcher } from './design-variant-switcher';
 import { DancerSetting } from './dancer-setting';
 import { TwoFactorSettings } from './two-factor-settings';
 
@@ -560,7 +559,6 @@ export function ProfileScreen({
           </button>
         </div>
 
-        {activeUser.role === 'ADMIN' ? <DesignVariantSwitcher lang={lang} /> : null}
 
         {status ? <p className="muted" role="status">{status}</p> : null}
       </article>

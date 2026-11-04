@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { Topbar } from '../../components/topbar';
+import { PaperSectionShell } from '../../components/paper-section-shell';
 import { PlaylistBrowser } from '../../components/playlist-browser';
-import { getCurrentUser, getPlaylist, getPlaylistSummaries, getSiteSettings } from '../../lib/api';
+import { getCurrentUser, getPlaylist, getPlaylistSummaries } from '../../lib/api';
 import { normalizeSiteLang } from '../../lib/language';
 
 export default async function PlaylistsPage({
@@ -11,8 +11,7 @@ export default async function PlaylistsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const siteSettings = await getSiteSettings().catch(() => ({ siteDesign: 'classic' as const }));
-  if (siteSettings.siteDesign === 'shelf' && params.manage !== '1') {
+  if (params.manage !== '1') {
     const query = new URLSearchParams({ view: 'playlists' });
     if (typeof params.playlist === 'string') query.set('playlist', params.playlist);
     redirect(`/?${query.toString()}`);
@@ -33,14 +32,13 @@ export default async function PlaylistsPage({
     : null;
 
   return (
-    <main className="page-shell">
-      <Topbar lang={lang} active="playlists" />
+    <PaperSectionShell section="playlists" lang={lang}>
       <PlaylistBrowser
         lang={lang}
         playlistSummaries={playlistSummaries}
         initialPlaylist={activePlaylist}
         initialPlaylistId={resolvedActivePlaylistId}
       />
-    </main>
+    </PaperSectionShell>
   );
 }

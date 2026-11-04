@@ -1,8 +1,6 @@
 import { cookies } from 'next/headers';
-import { MixesBrowser } from './mixes-browser';
-import { Topbar } from './topbar';
 import { RecordShelfStage } from './paper-archive';
-import { getLibraryReleasesFeed, getSiteSettings } from '../lib/api';
+import { getLibraryReleasesFeed } from '../lib/api';
 import { normalizeSiteLang } from '../lib/language';
 import { HomeRelease, Release } from '../types';
 
@@ -53,12 +51,10 @@ export async function PublicMusicPage({ originals = false }: { originals?: boole
     getLibraryReleasesFeed(query, cookieHeader),
     getLibraryReleasesFeed(collectionQuery, cookieHeader),
   ]);
-  const siteSettings = await getSiteSettings().catch(() => ({ siteDesign: 'classic' as const }));
-  if (originals || siteSettings.siteDesign === 'shelf') return (
+  return (
     <main className={`page-shell page-shell--home paper-mixes-page${originals ? ' paper-originals-page' : ''}`}>
       <RecordShelfStage lang={lang} releases={feed.releases.map(toShelfRelease)} mixesMode originalsMode={originals} collectionCount={collectionFeed.collectionTotal ?? collectionFeed.total} mixCount={originals ? undefined : feed.collectionTotal ?? feed.total} originalCount={originals ? feed.collectionTotal ?? feed.total : undefined} />
     </main>
   );
 
-  return <main className="page-shell"><Topbar lang={lang} active="mixes" /><MixesBrowser lang={lang} releases={feed.releases} /></main>;
 }

@@ -1,5 +1,4 @@
 import './globals.css';
-import '../components/about-page.css';
 import '../components/shelf-theme.css';
 import '../components/shelf-web.css';
 import '../components/shelf-mobile-layout.css';
@@ -35,15 +34,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const hasSession = Boolean(cookieStore.get('vinyl_session')?.value);
   const [currentUser, siteSettings] = await Promise.all([
     hasSession ? getCurrentUser(cookieHeader) : Promise.resolve(null),
-    getRequestSiteSettings().catch(() => ({ siteDesign: 'classic' as const, playbackRequiresRegistration: true })),
+    getRequestSiteSettings().catch(() => ({ siteDesign: 'shelf' as const, playbackRequiresRegistration: true })),
   ]);
   const favoriteTrackIds = currentUser ? await getFavorites(cookieHeader) : [];
 
   return (
-    <html lang={lang} data-scroll-behavior="smooth" data-visual-variant={siteSettings.siteDesign} suppressHydrationWarning>
+    <html lang={lang} data-scroll-behavior="smooth" data-visual-variant="shelf" suppressHydrationWarning>
       <head>
-        {siteSettings.siteDesign === 'shelf' ? <link rel="stylesheet" href="/shelf.css" /> : null}
-        {siteSettings.siteDesign === 'shelf' ? <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('mityadima-shelf-theme');document.documentElement.dataset.shelfTheme=t==='dark'?'dark':'light';document.documentElement.style.colorScheme=t==='dark'?'dark':'light'}catch(e){}})();` }} /> : null}
+        <link rel="stylesheet" href="/shelf.css" />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('mityadima-shelf-theme');document.documentElement.dataset.shelfTheme=t==='dark'?'dark':'light';document.documentElement.style.colorScheme=t==='dark'?'dark':'light'}catch(e){}})();` }} />
       </head>
       <body>
         <AdminEditModeSync />
@@ -51,9 +50,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <FavoritesProvider initialFavoriteTrackIds={favoriteTrackIds}>
             <PlaylistsProvider>
               <PlayerProvider>
-                <DesignVariantProvider initialVariant={siteSettings.siteDesign}>
+                <DesignVariantProvider>
                   {children}
-                  {siteSettings.siteDesign === 'shelf' ? <CollectionTransitions lang={lang} /> : null}
+                  <CollectionTransitions lang={lang} />
                   <PlayerChrome lang={lang} />
                   <TechnoDancer />
                   <MobileNav lang={lang} />
