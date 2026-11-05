@@ -3,15 +3,19 @@
 .paper-archive .paper-row{isolation:isolate}
 .paper-archive:not(.is-grid) .paper-transport{will-change:transform}
 
-/* Keep mobile text on its own layer while the 3D deck is being dragged.
-   Do not toggle this with is-scrolling: promotion itself can flash glyphs. */
-@media(max-width:700px){
-  .paper-archive>.paper-header>.archive-page-header,
-  .paper-archive>.paper-header>.paper-heading{
-    isolation:isolate;
-    will-change:transform;
-    backface-visibility:hidden;
-  }
+/* Keep chrome on stable layers before, during and after repeated deck morphs.
+   Promoting only while animating makes text flash again when covers settle.
+   Promote the actual identity, never its parent (which would rebase fixed UI). */
+.archive-chrome>.archive-page-header,
+.paper-archive>.paper-header>.archive-page-header,
+.paper-archive>.paper-header>.paper-heading,
+.paper-archive>.paper-sections,
+.paper-archive>.paper-styles,
+.paper-archive>.paper-playlists,
+.paper-archive>.paper-mix-index{
+  isolation:isolate;
+  will-change:transform;
+  backface-visibility:hidden;
 }
 
 /* Commit foreground and background colors together. Otherwise inherited and
