@@ -93,7 +93,8 @@ html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-layout-control
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-layout-controls>button[aria-pressed='true'] { border-bottom-color: #f3f3f1 !important; }
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-layout-controls>button:not([aria-pressed='true']) { border-bottom-color: transparent !important; }
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] :is(.paper-brand-row,.paper-page-brand-row) .language-switch-button { color:#aaa !important;background:none !important; }
-html[data-visual-variant='shelf'][data-shelf-theme='dark'] :is(.paper-brand-row,.paper-page-brand-row) .language-switch-button:is(:hover,:focus-visible) { color:#f3f3f1 !important;border-bottom-color:currentColor !important; }
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] :is(.paper-brand-row,.paper-page-brand-row) .language-switch-button:is(:hover,:focus-visible) { color:#f3f3f1 !important; }
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] :is(.paper-brand-row,.paper-page-brand-row) .language-switch-button:focus-visible { border-bottom-color:currentColor !important; }
 /* In dark mode only the actual current/filter item is bright. Keep every
    inactive sidebar and navigation entry muted, regardless of CSS load order. */
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-styles button:not([aria-pressed='true']),

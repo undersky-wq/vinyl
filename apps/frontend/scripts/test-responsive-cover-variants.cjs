@@ -32,21 +32,21 @@ assert.equal(images.playingCoverImage({position:'D1',coverUrl:url('d-full'),back
   const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH});
   try {
-    for(const [width,dpr,size,expected,serverEstimate,compactPreview]of [[390,3,230,'small',true,true],[390,3,240,'small',false,true],[390,3,320,'small',false,true],[1440,2,320,'full',false,true],[390,3,230,'small',true],[390,3,81,'small'],[390,3,72,'small'],[390,3,240,'medium'],[700,1,320,'small'],[701,3,72,'full'],[1440,1,214,'full'],[1440,1,320,'full'],[1440,2,214,'full'],[1440,1,420,'full']])for(const disc of [1,2]){
+    for(const [width,dpr,size,expected,serverEstimate,compactPreview,deckPreview]of [[390,3,230,'medium',true,true,true],[390,3,240,'medium',false,false,true],[390,1,230,'medium',false,true,true],[390,3,230,'small',true,true],[390,3,240,'small',false,true],[390,3,320,'small',false,true],[1440,2,320,'full',false,true,true],[390,3,230,'small',true],[390,3,81,'small'],[390,3,72,'small'],[390,3,240,'medium'],[700,1,320,'small'],[701,3,72,'full'],[1440,1,214,'full'],[1440,1,320,'full'],[1440,2,214,'full'],[1440,1,420,'full']])for(const disc of [1,2]){
       const page=await browser.newPage({viewport:{width,height:900},deviceScaleFactor:dpr});
       await page.route('http://cover-variants.test/**',route=>{
         const size=route.request().url().includes('small')?320:route.request().url().includes('medium')?900:1400;
         return route.fulfill({contentType:'image/svg+xml',body:`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="100%" height="100%" fill="red"/></svg>`});
       });
       const render=highQuality=>{
-        const html=renderToStaticMarkup(React.createElement(component,{release,disc,compactPreview,flipped:true,eager:true,priority:false,selected:highQuality,highQuality,displaySize:size,desktopViewport:serverEstimate||width>700}));
+        const html=renderToStaticMarkup(React.createElement(component,{release,disc,compactPreview,deckPreview,flipped:true,eager:true,priority:false,selected:highQuality,highQuality,displaySize:size,desktopViewport:serverEstimate||width>700}));
         return `<style>.paper-record-front,.paper-record-back{position:relative;display:block;width:${size}px;height:${size}px}img{width:100%;height:100%;object-fit:cover}.paper-record-hires{position:absolute;inset:0}</style>${html}`;
       };
       await page.setContent(render(false));
       await page.waitForFunction(()=>[...document.querySelectorAll('img')].every(img=>img.complete&&img.naturalWidth));
       const actual=await page.locator('img').evaluateAll(nodes=>nodes.map(node=>new URL(node.currentSrc).pathname));
-      const initialRendition = expected === 'medium' ? 'small' : expected;
-      assert.deepEqual(actual,[`/${disc===1?'a':'c'}-${initialRendition}.svg`,`/${disc===1?'b':'d'}-${initialRendition}.svg`], 'SSR keeps the thumbnail until the client has decoded the upgrade');
+      const initialRendition = expected === 'medium' && !deckPreview ? 'small' : expected;
+      assert.deepEqual(actual,[`/${disc===1?'a':'c'}-${initialRendition}.svg`,`/${disc===1?'b':'d'}-${initialRendition}.svg`], 'Mobile decks start with medium A/B/C/D covers, including the desktop SSR estimate');
       assert.equal(await page.locator('img').first().getAttribute('decoding'),'async');
       await page.setContent(render(true));
       await page.waitForFunction(()=>[...document.querySelectorAll('img')].every(img=>img.complete&&img.naturalWidth));
@@ -56,6 +56,6 @@ assert.equal(images.playingCoverImage({position:'D1',coverUrl:url('d-full'),back
       } else if(!serverEstimate) assert.deepEqual(await page.locator('.paper-record-hires').evaluateAll(nodes=>nodes.map(node=>new URL(node.currentSrc).pathname)),[`/${disc===1?'a':'c'}-full.svg`,`/${disc===1?'b':'d'}-full.svg`]);
       await page.close();
     }
-    console.log('PASS browser: desktop always uses original A/B/C/D artwork at all sizes and densities; mobile keeps 320px/medium selection and originals on expansion');
+    console.log('PASS browser: mobile Shelf/Stack start with medium A/B/C/D artwork, including SSR; other layouts retain responsive sources; desktop originals and expanded artwork unchanged');
   }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

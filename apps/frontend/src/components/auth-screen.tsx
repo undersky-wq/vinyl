@@ -1,17 +1,19 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { loginUser, registerUser } from '../lib/api';
+import { useEffect, useState } from 'react';
+import { getSiteSettings, loginUser, registerUser } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 
 export function AuthScreen({
   lang,
   mode,
+  initialInviteRequired = null,
 }: {
   lang: SiteLang;
   mode: 'login' | 'register';
+  initialInviteRequired?: boolean | null;
 }) {
   const router = useRouter();
   const { setUser } = useAuth();
@@ -20,8 +22,42 @@ export function AuthScreen({
   const [isPending, setIsPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
+  const [inviteRequired, setInviteRequired] = useState(initialInviteRequired);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsFailed, setSettingsFailed] = useState(false);
+  const [settingsAttempt, setSettingsAttempt] = useState(0);
   const isRu = lang === 'ru';
   const isLogin = currentMode === 'login';
+
+  useEffect(() => {
+    if (currentMode !== 'register') return;
+    let active = true;
+    let refreshing = false;
+    const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      setSettingsLoading(true);
+      try {
+        const settings = await getSiteSettings();
+        if (typeof settings.registrationInviteRequired !== 'boolean') throw new Error('Registration settings unavailable');
+        if (active) { setInviteRequired(settings.registrationInviteRequired); setSettingsFailed(false); }
+      } catch {
+        if (active) setSettingsFailed(true);
+      } finally {
+        refreshing = false;
+        if (active) setSettingsLoading(false);
+      }
+    };
+    const visible = () => { if (!document.hidden) void refresh(); };
+    void refresh();
+    window.addEventListener('focus', visible);
+    document.addEventListener('visibilitychange', visible);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', visible);
+      document.removeEventListener('visibilitychange', visible);
+    };
+  }, [currentMode, settingsAttempt]);
 
   const copy = {
     eyebrow: isLogin
@@ -64,12 +100,13 @@ export function AuthScreen({
           className="auth-form"
           onSubmit={async (event) => {
             event.preventDefault();
+            if (!isLogin && (inviteRequired === null || settingsLoading || settingsFailed)) return;
             const form = new FormData(event.currentTarget);
             const payload = {
               email: String(form.get('email') || ''),
               password: String(form.get('password') || ''),
               displayName: String(form.get('displayName') || ''),
-              inviteCode: String(form.get('inviteCode') || '').trim() || undefined,
+              inviteCode: !isLogin && inviteRequired ? String(form.get('inviteCode') || '').trim() || undefined : undefined,
               privacyConsent: form.get('privacyConsent') === 'on',
             };
 
@@ -139,13 +176,14 @@ export function AuthScreen({
             </div>
           </div>
 
-          {currentMode === 'register' ? (
+          {currentMode === 'register' && inviteRequired === true ? (
             <div className="field">
               <label htmlFor="inviteCode">{copy.inviteCode}</label>
               <input
                 id="inviteCode"
                 name="inviteCode"
-                placeholder={isRu ? 'Можно оставить пустым' : 'Optional'}
+                required
+                autoComplete="off"
               />
             </div>
           ) : null}
@@ -166,7 +204,13 @@ export function AuthScreen({
             </p>
           ) : null}
 
-          <button className="primary-button auth-submit-button" type="submit" disabled={isPending}>
+          {!isLogin && settingsFailed ? <div className="field" role="alert">
+            <p className="muted">{isRu ? 'Не удалось загрузить настройки регистрации.' : 'Unable to load registration settings.'}</p>
+            <button type="button" className="auth-mode-switch" disabled={settingsLoading} onClick={() => setSettingsAttempt(value => value + 1)}>
+              {isRu ? 'Повторить' : 'Try again'}
+            </button>
+          </div> : null}
+          <button className="primary-button auth-submit-button" type="submit" disabled={isPending || (!isLogin && (inviteRequired === null || settingsLoading || settingsFailed))}>
             {copy.submit}
           </button>
           {status ? <p className="muted">{status}</p> : null}

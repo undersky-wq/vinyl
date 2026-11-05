@@ -235,6 +235,7 @@ export type AuthSettings = {
 export type SiteDesign = 'classic' | 'shelf';
 
 export type SiteSettings = {
+  registrationInviteRequired?: boolean;
   allowGuestMixPlayback?: boolean;
   playbackRequiresRegistration?: boolean;
   siteDesign: SiteDesign;

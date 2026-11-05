@@ -104,7 +104,7 @@ export class AuthService {
 
   async getSiteSettings() {
     const settings = await this.getAuthSettings();
-    return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration, allowGuestMixPlayback: settings.allowGuestMixPlayback };
+    return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration, allowGuestMixPlayback: settings.allowGuestMixPlayback, registrationInviteRequired: settings.registrationInviteRequired };
   }
 
   async updateAuthSettings(input: {

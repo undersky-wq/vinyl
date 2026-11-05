@@ -6,6 +6,7 @@ import './profile.css';
 import './profile-player.css';
 import { getAuthSettings, getCurrentUser, getProfileStats } from '../../lib/api';
 import { normalizeSiteLang } from '../../lib/language';
+import { getRequestSiteSettings } from '../../lib/server-site-settings';
 import { AuthScreen } from '../../components/auth-screen';
 import { ProfileScreen } from '../../components/profile-screen';
 import { ShelfThemeToggle } from '../../components/shelf-theme-toggle';
@@ -39,10 +40,12 @@ export default async function ProfilePage({
   const mode = typeof params.mode === 'string' ? params.mode : '';
 
   if (!currentUser) {
+    const siteSettings = await getRequestSiteSettings().catch(() => null);
     return (
       <main className="paper-profile-page">
         <ProfileHeader lang={lang} />
-        <AuthScreen lang={lang} mode={mode === 'register' ? 'register' : 'login'} />
+        <AuthScreen lang={lang} mode={mode === 'register' ? 'register' : 'login'}
+          initialInviteRequired={typeof siteSettings?.registrationInviteRequired === 'boolean' ? siteSettings.registrationInviteRequired : null} />
       </main>
     );
   }

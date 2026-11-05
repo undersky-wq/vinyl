@@ -38,11 +38,14 @@ async function resolve(index, ready) { pending[index].resolve(ready); await Prom
   assert.equal(context.useDecodedCover('disc-three-medium', true), false, 'Stale decoded disc cannot replace the current cover');
   await resolve(3, true);
   assert.equal(context.useDecodedCover('disc-three-medium', true), true);
-  assert(source.includes('const prepareMedium = useMedium && !originalPreview && !desktopViewport && (eager || selected)'));
+  assert(source.includes('const prepareMedium = !deckPreview && useMedium && !originalPreview && !desktopViewport && (eager || selected)'));
   assert(source.includes('useDecodedCover(medium, prepareMedium && !flipped'));
   assert(source.includes('useDecodedCover(backMedium, prepareMedium && flipped'));
-  assert(source.includes('frontReady && medium !== thumb && <source media="(max-width:700px)"'));
-  assert(source.includes('backReady && backMedium !== backThumb && <source media="(max-width:700px)"'));
+  assert(source.includes('!deckPreview && frontReady && medium !== thumb && <source media="(max-width:700px)"'));
+  assert(source.includes('!deckPreview && backReady && backMedium !== backThumb && <source media="(max-width:700px)"'));
+  assert(source.includes('deckPreview && <source media="(max-width:700px)" srcSet={medium} />'));
+  assert(source.includes('deckPreview && <source media="(max-width:700px)" srcSet={backMedium} />'));
+  assert(source.includes('deckPreview={gridMix < .01 && listMix < .01}'), 'Both decks use medium sources from their first render');
   assert(source.includes('<source media="(min-width:701px)" srcSet={full} />'), 'Desktop still selects originals');
   const coverSources = fs.readFileSync(path.join(__dirname, '../src/lib/cover-sources.ts'), 'utf8');
   const exports = {};

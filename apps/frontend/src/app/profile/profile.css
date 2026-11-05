@@ -11,7 +11,8 @@ body:has(.paper-profile-page)::before,body:has(.paper-profile-page)::after{displ
 .paper-profile-header__brand>a,.paper-profile-header>a{color:#111;text-decoration:none;width:fit-content;transition:opacity .25s,transform .35s}
 .paper-profile-header__brand :is(.shelf-theme-toggle,.language-switch-button){display:inline-flex!important;flex:0 0 auto;color:#777!important;opacity:1!important;visibility:visible!important}
 html body .paper-profile-header__brand .language-switch-button{align-items:center;justify-content:center;min-width:0;min-height:0;padding:0;border:0;border-bottom:1px solid transparent;border-radius:0;background:none!important;box-shadow:none!important;font:400 calc(var(--profile-type)*.68)/1 Arial,Helvetica,sans-serif;letter-spacing:.02em;cursor:pointer;transform:none;transition:color .2s,border-color .2s}
-html body .paper-profile-header__brand .language-switch-button:is(:hover,:focus-visible){color:var(--shelf-web-ink,#111)!important;border-bottom-color:currentColor;transform:none}
+html body .paper-profile-header__brand .language-switch-button:is(:hover,:focus-visible){color:var(--shelf-web-ink,#111)!important;transform:none}
+html body .paper-profile-header__brand .language-switch-button:focus-visible{border-bottom-color:currentColor}
 html body .paper-profile-header__brand .language-switch-button:disabled{opacity:.45!important;cursor:wait}
 .paper-profile-header__brand svg{display:block;stroke:currentColor}
 .paper-profile-header>a:last-child{justify-self:end;color:#888}
