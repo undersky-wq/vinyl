@@ -88,7 +88,7 @@ assert(source.includes('collapseReleaseCoverSide(overrides, previous, currentTra
 assert(!source.includes('setIsCoverFlipped(false)'));
 assert(!source.includes('flippedListCovers.has'));
 assert(source.includes('const recordSide = releaseCoverSide(r, currentTrack, coverSideOverrides[r.id], isTrackCollection);'));
-assert(source.includes('<ShelfCoverImage release={r} disc={disc}'));
+assert(/<ShelfCoverImage[\s\S]*?\brelease=\{r\} disc=\{disc\}/.test(source),'cover receives the release and active disc even when responsive props precede them');
 assert(source.includes('aria-pressed={releaseCoverSide('));
 assert.equal((source.match(/toggleReleaseCoverSide\(previous/g)||[]).length,2,'both flip controls use the same effective-side toggle');
 console.log('PASS: idle and paused covers return to A on collapse; playing sides, manual toggles, new playback, compact covers and delayed metadata stay correct');
