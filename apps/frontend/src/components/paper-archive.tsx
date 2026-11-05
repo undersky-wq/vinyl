@@ -32,6 +32,8 @@ import { coverResolutionMedia } from '../lib/cover-sources';
 import { positionStackHoverLabel } from '../lib/stack-hover-position';
 import { getPinnedGenres } from '../lib/pinned-genres';
 import { frameMeasurement, observeCardHeights, setLayoutProperties } from '../lib/layout-measurement';
+import { archiveScrollTransform } from '../lib/archive-scroll-transform';
+import { coverCompositorFrames, coverEntryFrame, type CoverEntryScene } from '../lib/cover-compositor-motion';
 const coverFull = (r: HomeRelease, disc: 1 | 2 = 1) => (disc === 2 ? getSecondFrontCoverUrl(r) : '') || r.coverStorageUrl || r.coverImageUrl || r.coverMediumStorageUrl || r.coverThumbStorageUrl || '/icon.png';
 const coverMobile = (r: HomeRelease, disc: 1 | 2 = 1) => disc === 2 ? getSecondFrontCoverUrl(r, 'thumb') || coverFull(r,disc) : r.coverThumbStorageUrl || r.coverMediumStorageUrl || coverFull(r);
 const coverMedium = (r: HomeRelease, disc: 1 | 2 = 1) => disc === 2 ? getSecondFrontCoverUrl(r, 'medium') || coverFull(r,disc) : r.coverMediumStorageUrl || coverFull(r);
@@ -96,6 +98,7 @@ function sleeveVariation(id: string) {
 export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = false, mixesMode = false, originalsMode = false, collectionCount, mixCount, originalCount, initialSearch = '' }: { releases: HomeRelease[]; lang: SiteLang; favoritesMode?: boolean; mixesMode?: boolean; originalsMode?: boolean; collectionCount?: number; mixCount?: number; originalCount?: number; initialSearch?: string }) {
   const router = useRouter();
   const routeParams = useSearchParams();
+  const compositorScroll = true;
   const sourceFocus = routeParams.get('focusTrack');
   const sourceRelease = routeParams.get('focusRelease');
   const sourcePlaylist = routeParams.get('playlist');
@@ -410,14 +413,31 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   function settleShelfMotion() {
     cancelAnimationFrame(scrollFrame.current);
     scrollFrame.current = 0;
+    const root = stage.current;
+    const rebase = compositorScroll && transport.current?.style.transform
+      && transport.current.style.transform !== 'none' && !root?.classList.contains('is-cover-rebasing');
+    if (rebase) root?.classList.add('is-cover-rebasing');
     const offset = travel.current.current;
     travel.current = { current: offset, target: offset };
     transportOrigin.current = offset;
     stage.current?.style.setProperty('--travel', `${offset}px`);
     if (transport.current) transport.current.style.transform = 'none';
+    if (rebase && root) {
+      // Commit once at the interaction boundary, not on each scrolling frame.
+      void root.offsetHeight;
+      root.classList.remove('is-cover-rebasing');
+    }
     stage.current?.classList.remove('is-scrolling');
     setWindowTravel(Math.floor(offset / 128) * 128);
     hoverResumeAt.current = performance.now() + 180;
+  }
+  function drawCompositedTravel(offset: number) {
+    if (!compositorScroll || !transport.current || selected !== null || gridMix > .01
+      || stackTransitioning || autoLayout || middleDrag.current) return false;
+    transport.current.style.transform = archiveScrollTransform(offset, transportOrigin.current, {
+      stack: stackMode, mobile: viewport.width <= 700, width: viewport.width, height: viewport.height,
+    });
+    return true;
   }
   function seekStackCollection(progress: number, smooth: boolean) {
     stopAutoLayout();
@@ -432,9 +452,11 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       const elapsed = animate ? Math.min(1, (now - started) / 360) : 1;
       const offset = start + (target - start) * (1 - Math.pow(1 - elapsed, 3));
       travel.current = { current: offset, target: offset };
-      transportOrigin.current = offset;
-      stage.current?.style.setProperty('--travel', `${offset}px`);
-      if (transport.current) transport.current.style.transform = 'none';
+      if (!drawCompositedTravel(offset)) {
+        transportOrigin.current = offset;
+        stage.current?.style.setProperty('--travel', `${offset}px`);
+        if (transport.current) transport.current.style.transform = 'none';
+      }
       setWindowTravel(Math.floor(offset / 128) * 128);
       if (elapsed < 1) scrollFrame.current = requestAnimationFrame(draw);
       else { scrollFrame.current = 0; stage.current?.classList.remove('is-scrolling'); }
@@ -446,9 +468,13 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const coverTransitionAnimations = useRef<Animation[]>([]);
   const coverTransitionIsLayout = useRef(false);
   const coverTransitionStackStep = useRef<number | null>(null);
+  const coverTransitionSource = useRef<CoverEntryScene>({layout:'shelf',width:1280,height:720});
+  const coverEntryTransition = useRef<{frames:Map<string,Keyframe>;scene:CoverEntryScene;started:number;duration:number;easing:string;animated:WeakSet<HTMLElement>} | null>(null);
   function captureCoverTransition(layout = false) {
     const root = stage.current;
     if (!root) return;
+    coverEntryTransition.current = null;
+    if (compositorScroll) coverTransitionSource.current = {layout:activeLayout,width:viewport.width,height:viewport.height};
     coverTransitionStackStep.current = layout && root.classList.contains('is-stack') && !root.classList.contains('is-open')
       ? 24 * (parseFloat(getComputedStyle(root).getPropertyValue('--stack-distance-scale')) || -1.6)
       : null;
@@ -650,6 +676,24 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     layoutFrame.current = requestAnimationFrame(animate);
   }
   function changeCollectionLayout(target: 'shelf' | 'stack' | 'grid' | 'tracks') {
+    if (compositorScroll) {
+      if (target === activeLayout && selected === null) return;
+      settleShelfMotion();
+      captureCoverTransition(true);
+      stackGridAnimations.current.forEach(animation => animation.cancel());
+      stackGridAnimations.current = []; stackGridFrames.current = null;
+      if (stackTransitionTimer.current) clearTimeout(stackTransitionTimer.current);
+      const animate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      setStackTransitioning(animate);
+      stackTransitionTimer.current = animate
+        ? setTimeout(() => { stackTransitionTimer.current = null; setStackTransitioning(false); }, 1300)
+        : null;
+      setStackMode(target === 'stack');
+      setStackSpread(false);
+      // Commit only the destination layout; do not run the per-frame stretch loop.
+      changeMobileLayout(target === 'grid' ? 1 : target === 'tracks' ? 2 : 0, false);
+      return;
+    }
     if ((target === 'stack' && !stackMode)
       || (stackMode && target === 'shelf')) captureCoverTransition(true);
     const animateToGrid = stackMode && target === 'grid' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -926,7 +970,9 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       const state = travel.current;
       state.current += (state.target - state.current) * (reduced.matches ? 1 : .14);
       const offset = state.current - transportOrigin.current;
-      if (stackMode) {
+      if (drawCompositedTravel(state.current)) {
+        // Geometry stays fixed between commits; only the deck transform moves.
+      } else if (stackMode) {
         element.style.setProperty('--travel', `${state.current}px`);
         if (transport.current) transport.current.style.transform = 'none';
       } else if (transport.current) {
@@ -975,7 +1021,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     };
     element.addEventListener('wheel', wheel, { passive: false });
     return () => {observer.disconnect(); element.removeEventListener('wheel', wheel); cancelAnimationFrame(scrollFrame.current); scrollFrame.current = 0; element.classList.remove('is-scrolling');};
-  }, [releases.length, sleeves, selected, expanded, gridMix, stackMode]);
+  }, [releases.length, sleeves, selected, expanded, gridMix, stackMode, compositorScroll, stackTransitioning, autoLayout, viewport.width, viewport.height]);
   useLayoutEffect(() => {
     if (selected === null || !stage.current) return;
     const element = stage.current;
@@ -1185,7 +1231,40 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   useLayoutEffect(() => {
     const frames = coverTransitionFrames.current;
     const root = stage.current;
-    if (!frames || !root) return;
+    if (!root) return;
+    const playCompositorCards = (context: NonNullable<typeof coverEntryTransition.current>) => {
+      const scrollTop = root.querySelector<HTMLElement>('.paper-row')?.scrollTop ?? 0;
+      const plans = Array.from(root.querySelectorAll<HTMLElement>('.paper-record'))
+        .filter(card => !context.animated.has(card)).map(card => {
+          const style = getComputedStyle(card);
+          const destination: Keyframe = {
+            left: style.left, top: style.top, width: style.width, height: style.height,
+            margin: style.margin, transform: style.transform,
+            transformOrigin: style.transformOrigin, opacity: style.opacity,
+          };
+          const captured = context.frames.get(card.dataset.index!);
+          const previous = captured ?? coverEntryFrame(context.frames, card.dataset.index!, destination, context.scene);
+          const keyframes = coverCompositorFrames(
+            { ...previous, top: `${parseFloat(String(previous.top)) + scrollTop}px` }, destination,
+          );
+          return {card,keyframes,captured};
+        });
+      const duration = Math.max(360, context.duration - (performance.now() - context.started));
+      plans.forEach(({card,keyframes,captured}) => {
+        context.animated.add(card);
+        card.dataset.coverMotion = captured ? 'morph' : 'fly-in';
+        if (keyframes) coverTransitionAnimations.current.push(card.animate(keyframes, {
+          duration, easing: context.easing,
+        }));
+      });
+    };
+    if (!frames) {
+      const context = coverEntryTransition.current;
+      if (compositorScroll && context && (stackTransitioning || shelfTransitioning)
+        && performance.now() - context.started < context.duration) playCompositorCards(context);
+      else if (!stackTransitioning && !shelfTransitioning) coverEntryTransition.current = null;
+      return;
+    }
     coverTransitionFrames.current = null;
     const stackStep = coverTransitionStackStep.current;
     coverTransitionStackStep.current = null;
@@ -1195,6 +1274,25 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     root.classList.add('is-cover-rebasing');
     const row = root.querySelector<HTMLElement>('.paper-row');
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (compositorScroll && (coverTransitionIsLayout.current || (!stackMode && gridMix < .01))) {
+      // Finish all reads before starting animations. Width/top/left are never keyframes.
+      if (!reduced) {
+        const context = {frames,scene:coverTransitionSource.current,started:performance.now(),
+          duration:coverTransitionIsLayout.current ? 1200 : 1050,
+          easing:coverTransitionIsLayout.current ? 'cubic-bezier(.45,0,.2,1)' : 'cubic-bezier(.19,1,.22,1)',
+          animated:new WeakSet<HTMLElement>()};
+        coverEntryTransition.current = context;
+        playCompositorCards(context);
+        if (listMix >= 1) root.querySelectorAll<HTMLElement>('.paper-list-tracks').forEach(article => {
+          coverTransitionAnimations.current.push(article.animate([
+            { opacity: 0, transform: 'translate3d(0,14px,0)' },
+            { opacity: 1, transform: 'translate3d(0,0,0)' },
+          ], { duration: 450, delay: 350, fill: 'backwards', easing: 'cubic-bezier(.16,1,.3,1)' }));
+        });
+      }
+      root.classList.remove('is-cover-rebasing');
+      return;
+    }
     root.querySelectorAll<HTMLElement>('.paper-record').forEach(card => {
       const style = getComputedStyle(card);
       const destination: Keyframe = {
@@ -1298,6 +1396,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     title={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
     onClick={event=>{event.stopPropagation();if(release)setCoverSideOverrides(previous=>toggleReleaseCoverSide(previous,release,currentTrack,isTrackCollection));}}><Rotate3D size={17}/></button> : null;
   return <section ref={stage}
+    data-scroll-motion={compositorScroll ? 'transform' : 'legacy'}
     data-layout={activeLayout}
     data-player-layout={activeLayout === 'stack' ? 'stack' : listMix > 0 ? 'tracks' : 'shelf'}
     style={{ '--drag-shelf': dragLayout === null ? 0 : Math.max(0, 1-dragLayout), '--drag-stack': dragLayout === null ? 0 : Math.max(0, 1-Math.abs(dragLayout-1)), '--drag-grid': dragLayout === null ? 0 : Math.max(0, Math.min(1, dragLayout-1)), '--grid-mix': gridMix, '--list-mix': listMix, '--list-size': `${listSize}px`, '--side-size': `${sideSize}px`, '--grid-size': `${gridSize}px`, '--grid-top': `${gridBounds.top}px`, '--grid-bottom': `${gridBounds.bottom}px` } as CSSProperties} className={`home-stage home-stage--shelf paper-archive${dragLayout !== null && dragLayout < 2 ? ' is-middle-morph' : ''}${motionEnabled ? ' has-motion' : ''}${release ? ' is-open' : ''}${expanded ? ' is-expanded' : ''}${filtering ? ' is-filtering' : ''}${isDragging || autoLayout ? ' is-stretching' : ''}${stackMode ? ' is-stack' : ''}${stackTransitioning ? ' is-stack-transitioning' : ''}${stackMode && stackSpread ? ' is-stack-spread' : ''}${gridMix >= 1 ? ' is-grid' : ''}${listMix > 0 ? ' is-listing' : ''}${isTrackCollection || playlistTransition || (mixesMode && listMix > 0) ? ' is-playlist' : ''}${mixesMode ? ' is-mixes' : ''}${originalsMode ? ' is-originals' : ''}`} aria-label={originalsMode ? 'Tracks' : mixesMode ? 'Mixes' : 'Vinyl collection'} onPointerMoveCapture={e => {
@@ -1405,6 +1504,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
           if (step !== touchDrag.current.step) {
             touchDrag.current.step = step;
             const next = Math.max(0,Math.min(releases.length-1,touchDrag.current.selected + step));
+            if (compositorScroll && !stackMode && gridMix < .01 && next !== selected) {
+              captureCoverTransition();
+              protectShelfTransition();
+            }
             setSelected(next);
             if (!drag.stackScale) setExpanded(false);
             setHovered(null);
@@ -1425,9 +1528,11 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         touchDrag.current.lastOffset = offset;
         touchDrag.current.lastTime = now;
         travel.current = { current: offset, target: offset };
-        transportOrigin.current = offset;
-        stage.current?.style.setProperty('--travel', `${offset}px`);
-        if (transport.current) transport.current.style.transform = 'none';
+        if (!drawCompositedTravel(offset)) {
+          transportOrigin.current = offset;
+          stage.current?.style.setProperty('--travel', `${offset}px`);
+          if (transport.current) transport.current.style.transform = 'none';
+        }
         setWindowTravel(Math.floor(offset / 128) * 128);
         return;
       }
@@ -1483,9 +1588,11 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
             const offset = Math.max(min,Math.min(max,previous + speed * 240 * (1-decay)));
             speed *= decay;
             travel.current = {current:offset,target:offset};
-            transportOrigin.current = offset;
-            stage.current?.style.setProperty('--travel',`${offset}px`);
-            if (transport.current) transport.current.style.transform = 'none';
+            if (!drawCompositedTravel(offset)) {
+              transportOrigin.current = offset;
+              stage.current?.style.setProperty('--travel',`${offset}px`);
+              if (transport.current) transport.current.style.transform = 'none';
+            }
             setWindowTravel(Math.floor(offset / 128) * 128);
             if (Math.abs(speed) > .025 && offset > min && offset < max) scrollFrame.current = requestAnimationFrame(coast);
             else {
