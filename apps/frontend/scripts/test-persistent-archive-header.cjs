@@ -1,6 +1,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
 const read = file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
 const layout = read('app/layout.tsx');
 const header = read('components/archive-page-header.tsx');
@@ -10,7 +12,19 @@ const css = read('components/archive-page-header.css');
 assert(layout.includes('<ArchiveHeaderShell lang={lang}>{children}</ArchiveHeaderShell>'));
 assert(shell.includes('<ArchivePageHeaderView'));
 assert(!shell.includes('key={pathname}'),'navigation must not remount header');
-assert(header.includes('register?.({ pathname, href:location.pathname + location.search + location.hash, props })'));
+assert(header.includes('archiveHeaderLocation(pathname, window.location)'));
+assert(header.includes('if (current) register?.({ ...current, props })'));
+const exportsForTest = {};
+vm.runInNewContext(ts.transpileModule(read('components/archive-header-context.ts'), {
+  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},
+}).outputText,{exports:exportsForTest,require:()=>({createContext:()=>null})});
+const {archiveHeaderLocation} = exportsForTest;
+const collection = {pathname:'/',search:'?layout=tracks',hash:'#styles=House'};
+assert.equal(archiveHeaderLocation('/',collection).href,'/?layout=tracks#styles=House');
+assert.equal(archiveHeaderLocation('/about',{...collection,pathname:'/about'}),null,'cached outgoing archive cannot register itself as About');
+assert.equal(archiveHeaderLocation('/',{...collection,pathname:'/about'}),null,'browser history may change before the outgoing route context');
+assert.equal(archiveHeaderLocation('/mixes',{...collection,pathname:'/'}),null,'ignore stale route contexts during a commit');
+assert.equal(archiveHeaderLocation('/tracks',{pathname:'/tracks',search:'?layout=grid',hash:''}).href,'/tracks?layout=grid');
 assert(header.includes('return register ? null'));
 assert(!about.includes('<LanguageSwitcher') && !about.includes('paper-page-avatar'),'About must not render a second identity');
 assert(shell.includes("router.push(href, {scroll:false})"));

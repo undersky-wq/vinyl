@@ -8,7 +8,7 @@ import { useAuth } from '../providers/auth-provider';
 import { ShelfThemeToggle } from './shelf-theme-toggle';
 import { LanguageSwitcher } from './language-switcher';
 import { ArchiveLayoutIcon } from './archive-layout-icon';
-import { ArchiveHeaderContext } from './archive-header-context';
+import { ArchiveHeaderContext, archiveHeaderLocation } from './archive-header-context';
 import './archive-page-header.css';
 
 export type ArchiveLayout = 'shelf' | 'stack' | 'grid' | 'tracks';
@@ -30,7 +30,8 @@ export function ArchivePageHeader(props: ArchivePageHeaderProps) {
   const register = useContext(ArchiveHeaderContext);
   const pathname = usePathname();
   useLayoutEffect(() => {
-    register?.({ pathname, href:location.pathname + location.search + location.hash, props });
+    const current = archiveHeaderLocation(pathname, window.location);
+    if (current) register?.({ ...current, props });
   }, [register, pathname, props]);
   return register ? null : <ArchivePageHeaderView {...props} />;
 }
