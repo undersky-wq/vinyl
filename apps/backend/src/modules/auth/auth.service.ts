@@ -4,7 +4,6 @@ import { User, UserRole } from '@prisma/client';
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual, createHash } from 'crypto';
 import { promisify } from 'util';
 import sharp from 'sharp';
-import { parseBuffer } from 'music-metadata';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { TwoFactorService } from './two-factor.service';
@@ -33,43 +32,6 @@ export class AuthService {
     private readonly storageService: StorageService,
     private readonly twoFactorService: TwoFactorService,
   ) {}
-
-  async getAboutAudio() {
-    const setting = await this.prisma.appSetting.findUnique({ where: { key: 'aboutAmokkAudio' } });
-    const value = setting?.value;
-    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
-    const key = value && typeof value === 'object' && !Array.isArray(value) ? value.key : null;
-    return {
-      audioUrl: typeof key === 'string' ? await this.storageService.getSignedObjectUrl(bucket, key) : null,
-    };
-  }
-
-  async uploadAboutAudio(file?: Express.Multer.File) {
-    if (!file?.buffer?.length || !/\.mp3$/i.test(file.originalname)) {
-      throw new BadRequestException('Choose an MP3 file (up to 50 MB)');
-    }
-    try {
-      const metadata = await parseBuffer(file.buffer, { mimeType: 'audio/mpeg', size: file.size });
-      if (metadata.format.codec !== 'MPEG 1 Layer 3' && metadata.format.codec !== 'MPEG 2 Layer 3' && metadata.format.codec !== 'MPEG 2.5 Layer 3') {
-        throw new Error('Not MP3');
-      }
-    } catch {
-      throw new BadRequestException('The file is not a valid MP3');
-    }
-    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_AUDIO') || 'audio';
-    const key = `audio/about/amokk-${randomBytes(12).toString('hex')}.mp3`;
-    await this.storageService.uploadObject({ bucket, key, body: file.buffer, contentType: 'audio/mpeg' });
-    try {
-      await this.prisma.appSetting.upsert({
-        where: { key: 'aboutAmokkAudio' }, create: { key: 'aboutAmokkAudio', value: { key } }, update: { value: { key } },
-      });
-    } catch (error) {
-      await this.storageService.deleteObject(bucket, key).catch(() => undefined);
-      throw error;
-    }
-    // Keep prior objects: an already-open player may still be using their URLs.
-    return this.getAboutAudio();
-  }
 
   async register(input: {
     email: string;
@@ -111,7 +73,7 @@ export class AuthService {
         displayName,
         passwordHash: await this.hashPassword(input.password),
         privacyConsentAt: new Date(),
-        privacyPolicyVersion: '2026-09-18',
+        privacyPolicyVersion: 'policy:2026-10-22;consent:2026-10-22',
         role: matchedAdminCode ? UserRole.ADMIN : UserRole.USER,
       },
     });

@@ -26,11 +26,15 @@ for(const width of [320,360,390,430,700,701,1440]) {
   const original=collectionGridGeometry(width,columns,gap,sleeve,false);
   const reserved=collectionGridGeometry(width,columns,gap,sleeve,true);
   if(mobile) {
-    assert.equal(original.size-reserved.size,6,'reserve only the 24px seek target across four covers');
+    assert(reserved.size<original.size,'reserve a narrow navigator lane across four covers');
     assert(Math.abs(reserved.left-width*.03)<.001,'keep the original left margin');
     const edge=reserved.left+columns*reserved.size+(columns-1)*gap;
-    assert(edge<width-24,'covers clear the full seek touch target');
-    assert(Math.abs((width-24-edge)-width*.03)<.001,'do not leave an unused playing-marker lane');
+    assert(Math.abs(width-edge-25)<.001,'content ends at the symmetric inset');
+    for(const [left,size] of [[9,5],[8,7]]){
+      const thumbLeft=width-24+left;
+      const thumbRight=thumbLeft+size;
+      assert(Math.abs(thumbLeft-edge-(width-thumbRight))<.001,'equal visible gaps beside idle and active thumb');
+    }
   } else assert.deepEqual(reserved,original,'desktop geometry is unchanged');
 }
 const positions=[112,412,912,1212];

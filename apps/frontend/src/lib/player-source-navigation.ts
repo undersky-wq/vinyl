@@ -1,6 +1,18 @@
 import type { PlayerTrack } from '../providers/player-provider';
 import type { SiteLang } from './language';
 
+export function requestPlayerSourceNavigation(href: string) {
+  const event = new CustomEvent('vinyl:focus-source-track', {detail:{href},cancelable:true});
+  window.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+export function playerSourceTrack(track: PlayerTrack, queue: PlayerTrack[]) {
+  // The active track keeps its launch context; live queue filters may change.
+  if(track.playbackSource?.section === 'collection')return track;
+  return queue.find(item=>item.id===track.id) || track;
+}
+
 export function playerSourceNavigation(track: PlayerTrack, lang: SiteLang) {
   const source = track.playbackSource;
   const section = source?.section || (track.isOriginal ? 'originals' : track.isPublic ? 'mixes' : 'collection');

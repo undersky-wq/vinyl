@@ -19,7 +19,12 @@ class UploadRequest {
   }
 }
 const api={};
-new Function('exports','process','window','XMLHttpRequest','FormData',code)(api,{env:{}},{},UploadRequest,FormData);
+const uploadModule={};
+const uploadSource=readFileSync(new URL('../src/lib/upload-form-data.ts',import.meta.url),'utf8');
+const uploadCode=ts.transpileModule(uploadSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+new Function('exports','XMLHttpRequest','FormData',uploadCode)(uploadModule,UploadRequest,FormData);
+const dependencies=name=>{assert.equal(name,'./upload-form-data');return uploadModule;};
+new Function('exports','require','process','window','XMLHttpRequest','FormData',code)(api,dependencies,{env:{}},{},UploadRequest,FormData);
 const progress=[];
 assert.deepEqual(await api.uploadTrackAudio('track-1',new File(['audio'],'test.mp3'),value=>progress.push(value)),{id:'audio-1'});
 assert.deepEqual(progress,[60,100]);

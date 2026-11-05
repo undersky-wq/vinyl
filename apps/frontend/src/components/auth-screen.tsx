@@ -46,8 +46,8 @@ export function AuthScreen({
     hidePassword: isRu ? 'Скрыть' : 'Hide',
     inviteCode: isRu ? 'Инвайт-код администратора' : 'Admin invite code',
     privacyConsent: isRu
-      ? 'Я даю согласие на обработку персональных данных и принимаю Политику обработки персональных данных.'
-      : 'I consent to personal data processing and accept the Privacy Policy.',
+      ? 'Я даю согласие на обработку персональных данных.'
+      : 'I consent to personal data processing.',
     submit: isLogin ? (isRu ? 'Войти' : 'Sign in') : isRu ? 'Зарегистрироваться' : 'Register',
     failed: isLogin ? (isRu ? 'Не удалось войти.' : 'Login failed.') : isRu ? 'Не удалось зарегистрироваться.' : 'Registration failed.',
     switchMode: isLogin ? (isRu ? 'Нужен аккаунт?' : 'Need an account?') : isRu ? 'Уже есть аккаунт?' : 'Already have an account?',
@@ -153,8 +153,17 @@ export function AuthScreen({
           {currentMode === 'register' ? (
             <label className="auth-consent">
               <input name="privacyConsent" type="checkbox" required />
-              <span>{copy.privacyConsent} <a href="/privacy" target="_blank" rel="noreferrer">{isRu ? 'Открыть политику' : 'Open policy'}</a></span>
+              <span>{copy.privacyConsent} <a href="/consent" target="_blank" rel="noreferrer">{isRu ? 'Текст согласия' : 'Read consent'}</a></span>
             </label>
+          ) : null}
+
+          {currentMode === 'register' ? (
+            <p className="auth-consent">
+              <span>
+              {isRu ? 'Сведения об обработке данных: ' : 'Information about data processing: '}
+              <a href="/privacy" target="_blank" rel="noreferrer">{isRu ? 'Политика обработки персональных данных' : 'Privacy Policy'}</a>.
+              </span>
+            </p>
           ) : null}
 
           <button className="primary-button auth-submit-button" type="submit" disabled={isPending}>

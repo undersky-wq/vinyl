@@ -6,17 +6,32 @@ import { useEffect, useState } from 'react';
 type ShelfTheme = 'light' | 'dark';
 
 const STORAGE_KEY = 'mityadima-shelf-theme';
+let themePaintFrame = 0;
 
 function applyTheme(theme: ShelfTheme) {
-  document.documentElement.dataset.shelfTheme = theme;
-  document.documentElement.style.colorScheme = theme;
+  const root = document.documentElement;
+  if (root.dataset.shelfTheme !== theme) {
+    if (themePaintFrame) window.cancelAnimationFrame(themePaintFrame);
+    root.dataset.shelfThemeChanging = 'true';
+    // Install the transition guard before changing either theme color.
+    void root.offsetWidth;
+    root.dataset.shelfTheme = theme;
+    themePaintFrame = window.requestAnimationFrame(() => {
+      themePaintFrame = window.requestAnimationFrame(() => {
+        delete root.dataset.shelfThemeChanging;
+        themePaintFrame = 0;
+      });
+    });
+  }
+  root.style.colorScheme = theme;
 }
 
 export function ShelfThemeToggle({ compact = false, iconOnly = false }: { compact?: boolean; iconOnly?: boolean }) {
   const [theme, setTheme] = useState<ShelfTheme>('light');
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    let stored = document.documentElement.dataset.shelfTheme;
+    try { stored = window.localStorage.getItem(STORAGE_KEY) ?? stored; } catch { /* Keep the current page theme. */ }
     const initial = stored === 'dark' ? 'dark' : 'light';
     setTheme(initial);
     applyTheme(initial);
@@ -25,8 +40,8 @@ export function ShelfThemeToggle({ compact = false, iconOnly = false }: { compac
   function toggleTheme() {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
     applyTheme(next);
+    try { window.localStorage.setItem(STORAGE_KEY, next); } catch { /* The theme still applies for this page. */ }
   }
 
   const dark = theme === 'dark';

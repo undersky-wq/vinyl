@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { shelfMobileLayout } from '../src/lib/shelf-mobile-layout.ts';
+import { readFileSync } from 'node:fs';
 for (const [width,height] of [[320,568],[375,667],[390,844],[393,851],[430,932],[700,500]]) {
   for (const compact of [false,true]) {
     const playerTop=height-80;
@@ -29,3 +30,9 @@ const spaced = shelfMobileLayout(390,844,84,120,38,764,false,8);
 assert.ok(Math.abs(spaced.headingTop - spaced.navigationTop - 120 - 8)<1e-8, 'Shelf title matches the gap between Tracks and Favorites');
 assert.equal(shelfMobileLayout(390,844,84,88,38,764,true,48).headingTop,compact.headingTop,'Other layouts ignore Shelf title spacing');
 assert.equal(compact.shelfFloor, compact.contentTop+(844-compact.bottom-compact.contentTop)*.62, 'other layouts keep their existing geometry');
+const css = readFileSync(new URL('../src/components/shelf-mobile-layout.css', import.meta.url), 'utf8');
+const archive = readFileSync(new URL('../src/components/paper-archive.tsx', import.meta.url), 'utf8');
+assert(!css.includes('--stack-size:var(--cover)'));
+assert(!archive.includes('const coverSize = stackMode ? shelfMobileLayout('));
+assert(archive.includes("'--cover': `${layout.coverSize}px`"));
+console.log('PASS: original Shelf/Stack geometry retained; shared quality does not control displayed dimensions');

@@ -1,0 +1,24 @@
+/* Keep the deck's stacking/compositing boundary stable while scrolling starts
+   and stops. Covers must never change the stacking order of the page chrome. */
+.paper-archive .paper-row{isolation:isolate}
+.paper-archive:not(.is-grid) .paper-transport{will-change:transform}
+
+/* Keep mobile text on its own layer while the 3D deck is being dragged.
+   Do not toggle this with is-scrolling: promotion itself can flash glyphs. */
+@media(max-width:700px){
+  .paper-archive>.paper-header>.archive-page-header,
+  .paper-archive>.paper-header>.paper-heading{
+    isolation:isolate;
+    will-change:transform;
+    backface-visibility:hidden;
+  }
+}
+
+/* Commit foreground and background colors together. Otherwise inherited and
+   explicit colors cross-fade independently and briefly lose contrast. */
+html[data-shelf-theme-changing] :is(
+  .paper-archive,.paper-section-page,.paper-profile-page,.mini-player,
+  .paper-header,.paper-header *,.paper-sections,.paper-sections *,
+  .paper-styles,.paper-styles *,.paper-playlists,.paper-playlists *,
+  .paper-mix-index,.paper-mix-index *,.mini-player *
+){transition:none!important}

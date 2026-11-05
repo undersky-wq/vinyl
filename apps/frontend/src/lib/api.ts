@@ -278,24 +278,7 @@ export async function getSearchSuggestions(search: string) {
 }
 
 export async function refreshPlayerTrack(trackId: string) {
-  if (trackId === 'about-amokk') {
-    const { audioUrl } = await getAboutAudio();
-    if (!audioUrl) throw new Error('About audio is not available');
-    return { id: trackId, title: 'Amokk', artist: '666', audioUrl, coverUrl: '/about/amokk.jpg' } satisfies PlayerTrack;
-  }
   return fetchJson<PlayerTrack>(`/tracks/${trackId}/player`);
-}
-
-export function getAboutAudio() {
-  return fetchJson<{ audioUrl: string | null }>('/auth/about-audio');
-}
-
-export async function uploadAboutAudio(file: File) {
-  const form = new FormData();
-  form.append('file', file);
-  const response = await fetch(`${API_URL}/auth/about-audio`, { method: 'POST', credentials: 'include', body: form });
-  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Upload failed'));
-  return parseJsonResponse<{ audioUrl: string | null }>(response);
 }
 
 export async function getPlaylists(cookieHeader?: string) {
@@ -742,7 +725,7 @@ export async function updateReleaseMetadata(
 
 export async function updateTrackMetadata(
   trackId: string,
-  input: { bpm?: number | null; key?: string | null; title?: string; artists?: string[] },
+  input: { position?: string; bpm?: number | null; key?: string | null; title?: string; artists?: string[] },
 ) {
   const response = await fetch(`${API_URL}/releases/tracks/${trackId}/metadata`, {
     method: 'PATCH',

@@ -2,12 +2,13 @@ export const clampNavigator = (value: number, maximum = 1) => Math.max(0, Math.m
 
 export function collectionGridGeometry(width: number, columns: number, gap: number, sleeveSize: number, reserveNavigator: boolean) {
   const mobile = width <= 700;
-  // Mobile only reserves the seek target; its playing-release marker is hidden.
-  const gutter = mobile && reserveNavigator ? 24 : 0;
-  const available = width * (mobile ? .94 : .8) - gutter;
+  // The mobile thumb is centred 11.5px from the right edge: reserve 25px
+  // so the visible gaps on both sides of its 5px (or 7px active) bar match.
+  const rightInset = 25;
+  const available = mobile && reserveNavigator ? width * .97 - rightInset : width * (mobile ? .94 : .8);
   const fitted = Math.max(24, (available - gap * (columns - 1)) / columns);
   const size = mobile ? fitted : Math.min(sleeveSize, fitted);
-  return { size, left: (width - gutter - (columns * size + (columns - 1) * gap)) / 2 };
+  return { size, left: mobile && reserveNavigator ? width * .03 : (width - (columns * size + (columns - 1) * gap)) / 2 };
 }
 
 export function gridNavigatorPositions(count: number, columns: number, top: number, cell: number) {

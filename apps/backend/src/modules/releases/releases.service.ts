@@ -116,6 +116,16 @@ export class ReleasesService {
       }
     }
 
+    // Keep each uploaded file tied to its form row, not the database sort order.
+    const trackRows = tracks.map((track, index) => ({
+      id: randomUUID(),
+      position: track.position?.trim() || `${index + 1}`,
+      title: track.title.trim(),
+      artists: track.artist?.trim() ? [track.artist.trim()] : [],
+      bpm: this.parseOptionalBpm(track.bpm),
+      key: track.key?.trim() || null,
+    }));
+
     const createdRelease = await this.prisma.release.create({
       data: {
         discogsReleaseId,
@@ -132,20 +142,7 @@ export class ReleasesService {
           create: collectionUserIds.map((userId) => ({ userId })),
         },
         tracks: {
-          create: tracks.map((track, index) => ({
-            position: track.position?.trim() || `${index + 1}`,
-            title: track.title.trim(),
-            artists: track.artist?.trim() ? [track.artist.trim()] : [],
-            bpm: this.parseOptionalBpm(track.bpm),
-            key: track.key?.trim() || null,
-          })),
-        },
-      },
-      include: {
-        tracks: {
-          orderBy: {
-            position: 'asc',
-          },
+          create: trackRows,
         },
       },
     });
@@ -158,14 +155,14 @@ export class ReleasesService {
       await this.uploadBackCover(createdRelease.id, backCoverFile);
     }
 
-    for (let index = 0; index < createdRelease.tracks.length; index += 1) {
+    for (const [index, track] of trackRows.entries()) {
       const file = audioFilesByTrackIndex.get(index);
       if (!file) {
         continue;
       }
 
       await this.audioService.uploadAudio(file, {
-        trackId: createdRelease.tracks[index].id,
+        trackId: track.id,
         userId: user.id,
       });
     }
@@ -1175,6 +1172,11 @@ export class ReleasesService {
 
   async updateTrackMetadata(trackId: string, dto: UpdateTrackMetadataDto) {
     const data: Prisma.TrackUpdateInput = {};
+    if (dto.position !== undefined) {
+      const position = typeof dto.position === 'string' ? dto.position.trim() : '';
+      if (!position || position.length > 32) throw new BadRequestException('Track position must contain 1 to 32 characters');
+      data.position = position;
+    }
 
     if (dto.bpm !== undefined) {
       data.bpm = dto.bpm ?? null;
@@ -1204,6 +1206,9 @@ export class ReleasesService {
     return this.prisma.track.update({
       where: { id: trackId },
       data,
+    }).catch(error => {
+      if (dto.position !== undefined && error?.code === 'P2002') throw new BadRequestException('A track with this position and title already exists');
+      throw error;
     });
   }
 

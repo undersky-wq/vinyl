@@ -1,0 +1,26 @@
+const assert=require('node:assert/strict');
+require('reflect-metadata');
+require('ts-node').register({transpileOnly:true});
+const {plainToInstance}=require('class-transformer');
+const {validateSync}=require('class-validator');
+const {UpdateTrackMetadataDto}=require('../src/modules/releases/dto/update-track-metadata.dto.ts');
+const {ReleasesService}=require('../src/modules/releases/releases.service.ts');
+const {signedTrackArtwork}=require('../src/modules/releases/release-track-artwork.ts');
+(async()=>{
+ const dto=plainToInstance(UpdateTrackMetadataDto,{position:' B1 '});
+ assert.equal(dto.position,'B1');assert.equal(validateSync(dto).length,0);
+ for(const position of ['', '   ', 'x'.repeat(33), 123])assert(validateSync(plainToInstance(UpdateTrackMetadataDto,{position})).length);
+ const original={id:'track',releaseId:'fusci',position:'AA1',title:'Track',audioFiles:[{storageKey:'original.mp3'}],favoriteTracks:[{userId:'listener'}],playlistItems:[{playlistId:'list'}]};
+ const service=Object.create(ReleasesService.prototype);
+ let write;
+ service.prisma={track:{update:async query=>{write=query;return {...original,...query.data};}}};
+ const edited=await service.updateTrackMetadata('track',dto);
+ assert.deepEqual(write,{where:{id:'track'},data:{position:'B1'}});
+ for(const field of ['id','releaseId','title','audioFiles','favoriteTracks','playlistItems'])assert.deepEqual(edited[field],original[field]);
+ for(const position of ['', '   ', null, 'x'.repeat(33)])await assert.rejects(()=>service.updateTrackMetadata('track',{position}),/position/);
+ const art=await signedTrackArtwork({id:'fusci',coverStorageKey:'front.jpg',images:[{isBackCover:true,storageKey:'back.jpg',thumbStorageKey:'back-thumb.webp'}]},edited.position,async key=>`/signed/${key}`);
+ assert.equal(art.coverSide,'back');
+ service.prisma.track.update=async()=>{throw Object.assign(Error('conflict'),{code:'P2002'});};
+ await assert.rejects(()=>service.updateTrackMetadata('track',{position:'B1'}),/already exists/);
+ console.log('PASS: AA1 to B1 edit, DTO validation, trim, unchanged ID/audio/favorites/playlists, B-side artwork and duplicate-position error');
+})().catch(e=>{console.error(e);process.exitCode=1});

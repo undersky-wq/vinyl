@@ -7,12 +7,12 @@ type DiscSnapshot = { disc: 1 | 2; flipped: boolean; children: ReactNode };
 type DiscTransition = { current: DiscSnapshot; previous: DiscSnapshot | null; version: number };
 
 const decodedCovers = new Set<string>();
-const loadingCovers = new Map<string, Promise<void>>();
-function decodeCover(url: string) {
-  if (!url || decodedCovers.has(url)) return Promise.resolve();
+const loadingCovers = new Map<string, Promise<boolean>>();
+export function decodeCover(url: string) {
+  if (!url || decodedCovers.has(url)) return Promise.resolve(true);
   const pending = loadingCovers.get(url);
   if (pending) return pending;
-  const ready = new Promise<void>(resolve => {
+  const ready = new Promise<boolean>(resolve => {
     const image = new Image();
     let finished = false;
     const finish = (decoded = false) => {
@@ -22,7 +22,7 @@ function decodeCover(url: string) {
       image.onload = null;
       image.onerror = null;
       if (decoded) decodedCovers.add(url);
-      resolve();
+      resolve(decoded);
     };
     const timer = setTimeout(() => finish(), 4000);
     image.onload = () => {

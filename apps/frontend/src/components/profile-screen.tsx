@@ -28,6 +28,7 @@ import {
 } from './admin-edit-mode-sync';
 import { DancerSetting } from './dancer-setting';
 import { TwoFactorSettings } from './two-factor-settings';
+import { CoverMaintenance } from './cover-maintenance';
 
 function getUserInitial(user: UserProfile) {
   return (user.displayName || user.email || '?').slice(0, 1).toUpperCase();
@@ -450,6 +451,7 @@ export function ProfileScreen({
         <div className="profile-actions">
           <DancerSetting lang={lang} />
           {activeUser.role === 'ADMIN' ? <TwoFactorSettings lang={lang} /> : null}
+          {activeUser.role === 'ADMIN' ? <CoverMaintenance lang={lang} /> : null}
           {activeUser.role === 'ADMIN' ? (
             <>
               <Link href="/profile/users" className="profile-action-button">

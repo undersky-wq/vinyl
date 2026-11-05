@@ -15,6 +15,7 @@ data/
 .g/
 reports/
 .codex-remote-attachments/
+.codex-attachments/
 *.apk
 *.aab
 *.keystore

@@ -14,13 +14,14 @@ export function CookieConsent({ lang }: { lang: SiteLang }) {
   const ru = lang === 'ru';
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(COOKIE_CHOICE_KEY);
+    let saved: string | null = null;
+    try { saved = window.localStorage.getItem(COOKIE_CHOICE_KEY); } catch { /* Default to no analytics consent. */ }
     setChoice(saved === 'all' || saved === 'necessary' ? saved : null);
   }, []);
 
   function saveChoice(nextChoice: CookieChoice) {
-    window.localStorage.setItem(COOKIE_CHOICE_KEY, nextChoice);
     setChoice(nextChoice);
+    try { window.localStorage.setItem(COOKIE_CHOICE_KEY, nextChoice); } catch { /* Keep the choice for this page. */ }
   }
 
   return (

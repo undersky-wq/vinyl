@@ -823,7 +823,7 @@ html[data-visual-variant='shelf'] body:has(.paper-archive) .mix-comment-marker__
   html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player__track{
     display:grid!important;grid-template-columns:40px minmax(0,1fr);align-items:center;min-width:0
   }
-  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player__track>button{
+  html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player__track>button:not(.mini-player-source){
     display:block!important;width:40px;height:40px
   }
   html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player__track img{

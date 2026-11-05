@@ -98,21 +98,6 @@ export class AuthController {
     return this.authService.updateAuthSettings(dto);
   }
 
-  @Get('about-audio')
-  aboutAudio() {
-    return this.authService.getAboutAudio();
-  }
-
-  @Post('about-audio')
-  @UseGuards(AdminGuard)
-  @UseInterceptors(FileInterceptor('file', {
-    storage: memoryStorage(),
-    limits: { fileSize: 50 * 1024 * 1024 },
-  }))
-  uploadAboutAudio(@UploadedFile() file: Express.Multer.File) {
-    return this.authService.uploadAboutAudio(file);
-  }
-
   @Post('avatar')
   @UseGuards(AuthGuard)
   @UseInterceptors(

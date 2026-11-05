@@ -16,6 +16,7 @@ const sources=compile(fs.readFileSync(path.join(root,'lib/cover-sources.ts'),'ut
 const source=fs.readFileSync(path.join(root,'components/paper-archive.tsx'),'utf8');
 const component=compile(source.slice(source.indexOf('const coverFull'),source.indexOf('function normalizeStyleSelection'))+'\nexports.ShelfCoverImage=ShelfCoverImage;',{
   ...images,...sources,window:{matchMedia:()=>({matches:false})},
+  useState:React.useState,useEffect:React.useEffect,decodeCover:()=>Promise.resolve(true),
   ShelfDiscTransition:({children})=>React.createElement(React.Fragment,null,children),retryCoverImage:()=>false,
 }).ShelfCoverImage;
 const url=name=>`http://cover-variants.test/${name}.svg`;
@@ -44,7 +45,8 @@ assert.equal(images.playingCoverImage({position:'D1',coverUrl:url('d-full'),back
       await page.setContent(render(false));
       await page.waitForFunction(()=>[...document.querySelectorAll('img')].every(img=>img.complete&&img.naturalWidth));
       const actual=await page.locator('img').evaluateAll(nodes=>nodes.map(node=>new URL(node.currentSrc).pathname));
-      assert.deepEqual(actual,[`/${disc===1?'a':'c'}-${expected}.svg`,`/${disc===1?'b':'d'}-${expected}.svg`]);
+      const initialRendition = expected === 'medium' ? 'small' : expected;
+      assert.deepEqual(actual,[`/${disc===1?'a':'c'}-${initialRendition}.svg`,`/${disc===1?'b':'d'}-${initialRendition}.svg`], 'SSR keeps the thumbnail until the client has decoded the upgrade');
       assert.equal(await page.locator('img').first().getAttribute('decoding'),'async');
       await page.setContent(render(true));
       await page.waitForFunction(()=>[...document.querySelectorAll('img')].every(img=>img.complete&&img.naturalWidth));

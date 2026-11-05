@@ -8,6 +8,7 @@ import {
   Pause,
   Play,
   Repeat1,
+  Repeat2,
   Shuffle,
   SkipBack,
   SkipForward,
@@ -302,7 +303,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
       <div className="mini-player__controls">
         <button
           type="button"
-          className={`player-icon-button ghost${isShuffleEnabled ? ' active' : ''}`}
+          className={`player-icon-button mini-player__mode mini-player__shuffle${isShuffleEnabled ? ' active' : ''}`}
           aria-pressed={isShuffleEnabled}
           onClick={(event) => {
             event.stopPropagation();
@@ -354,7 +355,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
         </button>
         <button
           type="button"
-          className={`player-icon-button ghost${isRepeatEnabled ? ' active' : ''}`}
+          className={`player-icon-button mini-player__mode mini-player__repeat${isRepeatEnabled ? ' active' : ''}`}
           aria-pressed={isRepeatEnabled}
           onClick={(event) => {
             event.stopPropagation();
@@ -632,7 +633,7 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
               aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
               data-tooltip={lang === 'ru' ? 'Повтор' : 'Repeat'}
             >
-              <Repeat1 size={22} />
+              <Repeat2 size={22} />
             </button>
           </div>
 

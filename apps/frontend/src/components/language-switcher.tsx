@@ -42,7 +42,7 @@ export function LanguageSwitcher({ lang, single = false }: LanguageSwitcherProps
         disabled={isPending}
         aria-label={nextLang === 'ru' ? 'Switch to Russian' : 'Switch to English'}
       >
-        {displayLang === 'ru' ? 'RU' : 'ENG'}
+        {nextLang === 'ru' ? 'RU' : 'ENG'}
       </button>
       <Link className="header-about-link" href="/about">{displayLang === 'ru' ? 'Обо мне' : 'About me'}</Link>
       </>
@@ -54,19 +54,19 @@ export function LanguageSwitcher({ lang, single = false }: LanguageSwitcherProps
     <div className="language-toggle" aria-label="Language switcher">
       <button
         type="button"
-        className={`language-chip${lang === 'ru' ? ' active' : ''}`}
+        className={`language-chip${displayLang === 'ru' ? ' active' : ''}`}
         onClick={() => switchLanguage('ru')}
         disabled={isPending}
-        aria-pressed={lang === 'ru'}
+        aria-pressed={displayLang === 'ru'}
       >
         RU
       </button>
       <button
         type="button"
-        className={`language-chip${lang === 'en' ? ' active' : ''}`}
+        className={`language-chip${displayLang === 'en' ? ' active' : ''}`}
         onClick={() => switchLanguage('en')}
         disabled={isPending}
-        aria-pressed={lang === 'en'}
+        aria-pressed={displayLang === 'en'}
       >
         ENG
       </button>

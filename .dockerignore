@@ -8,3 +8,17 @@ dist
 .env
 coverage
 npm-debug.log*
+.local
+.codex
+.aws
+.codex-attachments
+.codex-remote-attachments
+reports
+backups
+data
+apps/mobile
+*.apk
+*.aab
+*.keystore
+*.jks
+.env.*

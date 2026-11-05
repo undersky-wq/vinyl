@@ -16,6 +16,8 @@ RUN npm run build
 
 FROM node:24-alpine AS runner
 WORKDIR /app/apps/backend
+ARG SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 ENV NODE_ENV=production
 RUN apk add --no-cache ffmpeg
 

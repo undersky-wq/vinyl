@@ -39,7 +39,7 @@ assert.ok(!catalog.includes('waveformData'));
 assert.ok(!catalog.includes('storageUrl: true'), 'catalog does not select audio URLs');
 const page = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
 assert.ok(page.includes("shelfQuery.set('catalog', 'true')"));
-assert.ok(page.includes("siteSettings.siteDesign === 'shelf'"), 'Shelf is separated from the classic catalogue on the server');
+assert.ok(page.includes('<HomeStage') && !page.includes('siteSettings.siteDesign'), 'The page serves Shelf directly without an intermediate classic catalogue');
 const frontendApi = readFileSync(new URL('../src/lib/api.ts', import.meta.url), 'utf8');
 assert.ok(frontendApi.includes('bpm: track.bpm ?? null'), 'Shelf track mapping preserves BPM');
 assert.ok(frontendApi.includes('key: track.key ?? null'), 'Shelf track mapping preserves musical key');

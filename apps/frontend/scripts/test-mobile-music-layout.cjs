@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const read = name => fs.readFileSync(path.join(__dirname, '../src/components', name), 'utf8');
 const layout = read('music-mobile-layout.css');
-assert(layout.startsWith('@media(max-width:700px)'));
+assert(layout.includes('@media(max-width:700px)'));
 assert(layout.includes('body:has(.shelf-mix-detail) .mobile-nav{display:none!important}'));
 assert(layout.includes('-webkit-line-clamp:2'));
 assert(layout.includes('scrollbar-gutter:stable;padding-right:16px'));

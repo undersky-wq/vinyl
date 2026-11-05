@@ -20,6 +20,8 @@ RUN npm run build
 
 FROM node:24-alpine AS runner
 WORKDIR /app/apps/frontend
+ARG SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_API_URL

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import './collection-transitions.css';
 import { SiteLang } from '../lib/language';
+import { installNavigationPrefetch } from '../lib/navigation-prefetch';
 
 // Keep the outgoing frame until the destination has real content, not loading.tsx.
 export function CollectionTransitions({ lang = 'en' }: { lang?: SiteLang }) {
@@ -13,13 +14,7 @@ export function CollectionTransitions({ lang = 'en' }: { lang?: SiteLang }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    router.prefetch('/');
-    router.prefetch('/mixes');
-    router.prefetch('/tracks');
-    router.prefetch('/favorites');
-    router.prefetch('/about');
-  }, [router]);
+  useEffect(() => installNavigationPrefetch(router), [router]);
 
   useEffect(() => {
     setPending(false);

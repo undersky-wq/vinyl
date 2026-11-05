@@ -6,7 +6,7 @@ const css = read('components/mini-player-source.css');
 for (const section of ['collection','playlists','mixes','originals','favorites']) assert(source.includes(section));
 assert(read('lib/player-source-navigation.ts').includes('source?.name'));
 assert(source.includes('<button type="button"'));
-assert(source.includes('router.push(href,{scroll:false})'));
+assert(source.includes('if(!requestPlayerSourceNavigation(href))router.push(href,{scroll:false})'));
 assert(css.includes('@media(min-width:701px)'));
 assert(!css.includes('mini-source-glow') && !css.includes('animation:'));
 assert(read('components/paper-archive.tsx').includes('name: activePlaylistName || undefined'));

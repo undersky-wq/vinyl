@@ -6,6 +6,7 @@ import { HomeRelease } from '../types';
 import { SiteLang } from '../lib/language';
 import { usePlayerActions, usePlayerTransport, type PlayerTrack } from '../providers/player-provider';
 import './record-archive.css';
+import './archive-render-stability.css';
 import { normalizeDurationLabel } from '../lib/time';
 import { useAuth } from '../providers/auth-provider';
 import { usePlaylists } from '../providers/playlists-provider';
@@ -27,8 +28,8 @@ import { getBackCoverUrl, getSecondFrontCoverUrl, isBackSidePosition, vinylDisc 
 import { collapseReleaseCoverSide, releaseCoverSide, toggleReleaseCoverSide, trackRowCoverSide, type CoverSideOverrides } from '../lib/release-cover-side';
 import { retryCoverImage } from '../lib/retry-cover-image';
 import { warmCoverImages } from '../lib/warm-cover-images';
-import { ShelfDiscTransition } from './shelf-disc-transition';
-import { coverResolutionMedia } from '../lib/cover-sources';
+import { ShelfDiscTransition, decodeCover } from './shelf-disc-transition';
+import { coverResolutionMedia, mobileDeckCoverSize } from '../lib/cover-sources';
 import { positionStackHoverLabel } from '../lib/stack-hover-position';
 import { getPinnedGenres } from '../lib/pinned-genres';
 import { frameMeasurement, observeCardHeights, setLayoutProperties } from '../lib/layout-measurement';
@@ -39,6 +40,19 @@ const coverMobile = (r: HomeRelease, disc: 1 | 2 = 1) => disc === 2 ? getSecondF
 const coverMedium = (r: HomeRelease, disc: 1 | 2 = 1) => disc === 2 ? getSecondFrontCoverUrl(r, 'medium') || coverFull(r,disc) : r.coverMediumStorageUrl || coverFull(r);
 const cover = coverFull;
 const MAX_SELECTED_STYLES = 5;
+
+function useDecodedCover(url: string, enabled: boolean) {
+  const [decoded, setDecoded] = useState<string | null>(null);
+  useEffect(() => {
+    if (!enabled || !url || decoded === url) return;
+    let cancelled = false;
+    void decodeCover(url).then(ready => {
+      if (ready && !cancelled) setDecoded(url);
+    });
+    return () => { cancelled = true; };
+  }, [url, enabled, decoded]);
+  return decoded === url;
+}
 
 function ShelfCoverImage({ release, disc = 1, flipped, eager, priority, selected, highQuality, displaySize, desktopViewport = false, compactPreview = false }: { release: HomeRelease; disc?: 1 | 2; flipped: boolean; eager: boolean; priority: boolean; selected: boolean; highQuality: boolean; displaySize: number; desktopViewport?: boolean; compactPreview?: boolean }) {
   // Desktop always uses originals. Mobile selects a rendition by the sleeve
@@ -53,12 +67,17 @@ function ShelfCoverImage({ release, disc = 1, flipped, eager, priority, selected
   const media = coverResolutionMedia(displaySize);
   const useMedium = !compactPreview && typeof window !== 'undefined' && window.matchMedia(media).matches;
   const originalPreview = highQuality || (typeof window !== 'undefined' && window.matchMedia('(min-width:701px)').matches);
-  return <ShelfDiscTransition disc={disc} flipped={flipped} sources={[originalPreview ? full : useMedium ? medium : thumb, originalPreview ? back : useMedium ? backMedium : backThumb]}>
+  const prepareMedium = useMedium && !originalPreview && !desktopViewport && (eager || selected);
+  // Keep the painted thumbnail during layout changes. Upgrade only after decode,
+  // then retain that rendition when returning to Shelf instead of swapping back.
+  const frontReady = useDecodedCover(medium, prepareMedium && !flipped && medium !== thumb);
+  const backReady = useDecodedCover(backMedium, prepareMedium && flipped && backMedium !== backThumb);
+  return <ShelfDiscTransition disc={disc} flipped={flipped} sources={[originalPreview ? full : frontReady ? medium : thumb, originalPreview ? back : backReady ? backMedium : backThumb]}>
     <span className="paper-record-face paper-record-front">
       <picture style={{display:'contents'}}>
       <source media="(min-width:701px)" srcSet={full} />
       {!compactPreview && desktopViewport && <source media="(max-width:700px)" srcSet={thumb} />}
-      {!compactPreview && medium !== thumb && <source media={media} srcSet={medium} />}
+      {frontReady && medium !== thumb && <source media="(max-width:700px)" srcSet={medium} />}
       <img src={thumb} alt="" width={900} height={900} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} />
       </picture>
       {highQuality && !desktopViewport && full !== thumb ? <img className="paper-record-hires" src={full} alt="" width={900} height={900} loading="eager" fetchPriority="high" decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} /> : null}
@@ -66,7 +85,7 @@ function ShelfCoverImage({ release, disc = 1, flipped, eager, priority, selected
     {back ? <span className="paper-record-face paper-record-back"><picture style={{display:'contents'}}>
       <source media="(min-width:701px)" srcSet={back} />
       {!compactPreview && desktopViewport && <source media="(max-width:700px)" srcSet={backThumb} />}
-      {!compactPreview && backMedium !== backThumb && <source media={media} srcSet={backMedium} />}
+      {backReady && backMedium !== backThumb && <source media="(max-width:700px)" srcSet={backMedium} />}
       <img src={backThumb} alt="" width={900} height={900} loading={selected ? 'eager' : 'lazy'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }}/>
       </picture>{highQuality && !desktopViewport && back !== backThumb ? <img className="paper-record-hires" src={back} alt="" width={900} height={900} loading="eager" decoding="async" draggable={false} onError={event=>{retryCoverImage(event.currentTarget);}}/> : null}</span> : null}
   </ShelfDiscTransition>;
@@ -113,13 +132,6 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     return () => window.removeEventListener('vinyl:language-change',update);
   },[]);
   const ru = uiLang === 'ru';
-  useEffect(() => {
-    router.prefetch('/');
-    router.prefetch('/?view=playlists');
-    router.prefetch('/mixes');
-    router.prefetch('/tracks');
-    router.prefetch('/favorites');
-  },[router]);
   const { user } = useAuth();
   const [releaseDetails, setReleaseDetails] = useState<Record<string, HomeRelease>>({});
   const [detailErrors, setDetailErrors] = useState<Record<string, boolean>>({});
@@ -822,22 +834,60 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       initialRouteApplied.current = true;
     }
   }, [favoritesMode, mixesMode, playlists, playlistsLoading, user]);
-  useEffect(() => {
-    if(!sourceFocus){handledSourceFocus.current=null;return;}
-    const key = `${sourceFocus}:${sourcePlaylist || ''}:${sourceRelease || ''}`;
-    if(handledSourceFocus.current===key || (sourcePlaylist && playlistsLoading))return;
+  function applySourceFocus(target: URL) {
+    const trackId=target.searchParams.get('focusTrack');
+    const playlistId=target.searchParams.get('playlist');
+    const releaseId=target.searchParams.get('focusRelease');
+    if(!trackId || (playlistId && playlistsLoading))return;
+    const key = `${trackId}:${playlistId || ''}:${releaseId || ''}`;
     handledSourceFocus.current=key;
     initialRouteApplied.current=true;
     if(filterTimer.current)clearTimeout(filterTimer.current);
     stopAutoLayout();
     setFiltering(false);setPlaylistTransition(false);
-    setActivePlaylist(sourcePlaylist);setShowPlaylists(Boolean(sourcePlaylist));
-    const styles = new URLSearchParams(window.location.hash.slice(1)).get('styles')?.split(',').filter(Boolean) || [];
+    setActivePlaylist(playlistId);setShowPlaylists(Boolean(playlistId));
+    const styles = new URLSearchParams(target.hash.slice(1)).get('styles')?.split(',').filter(Boolean) || [];
     activeStylesRef.current=styles;setActiveStyles(styles);
-    setSearch(sourceSearch);setAppliedSearch(sourceSearch);
+    const search=target.searchParams.get('search')||'';
+    setSearch(search);setAppliedSearch(search);
     setSelected(null);setExpanded(false);setHovered(null);setStackMode(false);setStretch(2);
-    setPendingSourceFocus({trackId:sourceFocus,releaseId:sourceRelease});
+    setPendingSourceFocus({trackId,releaseId});
+  }
+  useEffect(() => {
+    if(!sourceFocus){handledSourceFocus.current=null;return;}
+    const key = `${sourceFocus}:${sourcePlaylist || ''}:${sourceRelease || ''}`;
+    if(handledSourceFocus.current===key || (sourcePlaylist && playlistsLoading))return;
+    applySourceFocus(new URL(window.location.href));
   }, [sourceFocus, sourceRelease, sourcePlaylist, sourceSearch, playlistsLoading]);
+  useEffect(() => {
+    const focus = (event: Event) => {
+      const href=(event as CustomEvent<{href:string}>).detail?.href;
+      if(!href)return;
+      const target=new URL(href,window.location.href);
+      if(target.origin!==window.location.origin || target.pathname!==window.location.pathname)return;
+      const trackId=target.searchParams.get('focusTrack');
+      if(!trackId)return;
+      const styles=new URLSearchParams(target.hash.slice(1)).get('styles')?.split(',').filter(Boolean)||[];
+      const sameFilters=styles.length===activeStyles.length && styles.every(style=>activeStyles.includes(style))
+        && (target.searchParams.get('search')||'')===appliedSearch
+        && target.searchParams.get('playlist')===activePlaylist;
+      const index=releases.findIndex(r=>r.tracks.some(t=>t.id===trackId) || (!isTrackCollection && r.id===target.searchParams.get('focusRelease')));
+      const row=stage.current?.querySelector<HTMLElement>('.paper-row');
+      event.preventDefault();
+      if(isTrackListInteractive && sameFilters && index>=0 && row && selected===null){
+        stopAutoLayout();
+        const line=stage.current?.querySelector<HTMLElement>(`[data-track-id="${CSS.escape(trackId)}"]`);
+        row.scrollTo({top:Math.max(0,line ? row.scrollTop+line.getBoundingClientRect().top-row.getBoundingClientRect().top-gridBounds.top-24 : listLayout.positions[index]-gridBounds.top),behavior:'smooth'});
+        return;
+      }
+      // Collection and playlists share '/'. Apply the context directly, even
+      // when this same URL was already handled before returning to Collection.
+      window.history.pushState(window.history.state,'',target.pathname+target.search+target.hash);
+      applySourceFocus(target);
+    };
+    window.addEventListener('vinyl:focus-source-track',focus);
+    return ()=>window.removeEventListener('vinyl:focus-source-track',focus);
+  }, [activeStyles, appliedSearch, activePlaylist, releases, isTrackListInteractive, isTrackCollection, selected, listLayout.positions, gridBounds.top, playlistsLoading]);
   useEffect(() => {
     if(!pendingSourceFocus || !isTrackListInteractive || filtering || playlistTransition)return;
     const index=releases.findIndex(r=>r.tracks.some(t=>t.id===pendingSourceFocus.trackId) || (!isTrackCollection && r.id===pendingSourceFocus.releaseId));
@@ -853,7 +903,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       const track=stage.current?.querySelector<HTMLElement>(`[data-track-id="${CSS.escape(pendingSourceFocus.trackId)}"]`);
       const card=stage.current?.querySelector<HTMLElement>(`.paper-list-tracks[data-index="${index}"]`);
       const target=track || card;
-      if(!target){row.scrollTo({top:Math.max(0,listLayout.positions[index]-gridBounds.top-24),behavior:'instant'});return;}
+      if(!target){row.scrollTo({top:Math.max(0,listLayout.positions[index]-gridBounds.top-24),behavior:'smooth'});return;}
       row.scrollTo({top:Math.max(0,row.scrollTop+target.getBoundingClientRect().top-row.getBoundingClientRect().top-gridBounds.top-24),behavior:'smooth'});
       if(releases[index].tracksLoaded===false)return;
       setPendingSourceFocus(null);
@@ -1195,7 +1245,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     ? mergeVisibleReleaseIndices(shelfVisibleIndices.current, rawVisibleIndices, releases.length)
     : rawVisibleIndices;
   shelfVisibleIndices.current = visibleIndices;
-  const measuredCardKey = visibleIndices.map(index => releases[index].id).join('\0');
+  // Outgoing covers still need their morph, not off-screen track controls,
+  // waveform mounts, detail requests and synchronous height measurements.
+  const trackVisibleIndices = listMix >= 1 ? rawVisibleIndices : visibleIndices;
+  const measuredCardKey = trackVisibleIndices.map(index => releases[index].id).join('\0');
   const measureMobileCards = viewport.width <= 700 && listMix >= 1 && !isTrackCollection;
   useLayoutEffect(() => {
     if (!measureMobileCards) return;
@@ -1349,7 +1402,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const mobilePriorityIndices = new Set(mobileFirstView.slice(mobilePriorityStart, mobilePriorityStart + 6));
   const detailIds = [...new Set([
     ...(expanded && release?.tracksLoaded === false ? [release.id] : []),
-    ...(listMix > .85 ? visibleIndices.map(i => releases[i]).filter(r => r.tracksLoaded === false).map(r => r.id) : []),
+    ...(listMix > .85 ? trackVisibleIndices.map(i => releases[i]).filter(r => r.tracksLoaded === false).map(r => r.id) : []),
   ])].filter(id => !detailErrors[id]);
   const detailKey = JSON.stringify(detailIds);
   useEffect(() => {
@@ -1654,12 +1707,12 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
           setHovered(null);
         }}>
         {/* The same sleeve moves out of the row and unfolds; no duplicate cover. */}
-        <ShelfCoverImage compactPreview={!stackMode && gridMix < .01 && listMix < .01}
-          release={r} disc={disc} flipped={showBackCover} eager={isPriorityCover || stackTransitioning} priority={isPriorityCover} selected={selected === i} highQuality={selected === i && expanded} desktopViewport={viewport.width>700} displaySize={selected === i ? Math.max(sleeveSize,expandedSize) : stackMode ? (viewport.width<=700 ? Math.min(viewport.width*.62,viewport.height*.32) : Math.min(viewport.width*.34,viewport.height*.4,420)) : listMix>0 ? gridSize*(1-listMix)+listSize*listMix : gridMix>=1 ? gridSize : sleeveSize} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
+        <ShelfCoverImage compactPreview={viewport.width>700 && !stackMode && gridMix < .01 && listMix < .01}
+          release={r} disc={disc} flipped={showBackCover} eager={isPriorityCover || stackTransitioning} priority={isPriorityCover} selected={selected === i} highQuality={selected === i && expanded} desktopViewport={viewport.width>700} displaySize={selected === i ? Math.max(sleeveSize,expandedSize) : viewport.width<=700 && gridMix < .01 && listMix < .01 ? mobileDeckCoverSize(viewport.width,viewport.height) : stackMode ? Math.min(viewport.width*.34,viewport.height*.4,420) : listMix>0 ? gridSize*(1-listMix)+listSize*listMix : gridMix>=1 ? gridSize : sleeveSize} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
       </button>
       </div>;
     })}
-    {listMix > 0 && visibleIndices.map(i => {
+    {listMix > 0 && trackVisibleIndices.map(i => {
       const r = releases[i];
       return <article data-index={i} onFocus={() => setHovered(i)} onBlur={e => {if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHovered(null);}} onClick={() => setHovered(i)}
         onDragOver={e => {const target=r.tracks[0];if(activePlaylist&&dragTrack&&target){e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:target.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}

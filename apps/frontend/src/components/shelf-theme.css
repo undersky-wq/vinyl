@@ -200,11 +200,17 @@ html[data-visual-variant='shelf'] :is(.paper-archive,.paper-section-page,.paper-
   letter-spacing: .04em;
   text-transform: uppercase;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 .shelf-theme-toggle:hover,.shelf-theme-toggle:focus-visible { color: #111; border-bottom-color: currentColor; }
 html[data-shelf-theme='dark'] .shelf-theme-toggle { color: #aaa; }
 html[data-shelf-theme='dark'] .shelf-theme-toggle:hover,
 html[data-shelf-theme='dark'] .shelf-theme-toggle:focus-visible { color: #fff; }
+/* Touch focus/hover must not flash black/white when Sun and Moon swap. */
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+  html body .shelf-theme-toggle:is(:hover,:active,:focus-visible){color:#888}
+  html[data-shelf-theme='dark'] body .shelf-theme-toggle:is(:hover,:active,:focus-visible){color:#aaa}
+}
 
 /* Comment text must follow Shelf's live theme, not the legacy --text palette. */
 html[data-visual-variant='shelf']{--shelf-comment-ink:#111;--shelf-comment-muted:#777;--shelf-comment-bg:#fff;--shelf-comment-line:#1113}

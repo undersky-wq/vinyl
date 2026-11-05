@@ -97,11 +97,6 @@ export class AppController {
             release: {
               include: {
                 images: true,
-                tracks: {
-                  include: {
-                    audioFiles: true,
-                  },
-                },
               },
             },
           },
@@ -114,6 +109,9 @@ export class AppController {
         ...item.track,
         release: {
           ...item.track.release,
+          // A favorite already carries its playable track. Full release details
+          // are fetched separately when opened; don't repeat every album track.
+          tracks: [],
           ...await signedSideCoverUrls(item.track.release.images, key => this.storageService.getSignedObjectUrl(coversBucket, key)),
           coverStorageUrl:
             item.track.release.coverStorageKey

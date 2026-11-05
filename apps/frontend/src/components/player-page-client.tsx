@@ -1,7 +1,7 @@
 'use client';
 import './player-waveform.css';
 
-import { ChevronDown, ListOrdered, Pause, Play, Repeat1, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronDown, ListOrdered, Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -350,7 +350,7 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
           aria-label={lang === 'ru' ? 'Повтор' : 'Repeat'}
           data-tooltip={lang === 'ru' ? 'Повтор' : 'Repeat'}
         >
-          <Repeat1 size={22} />
+          <Repeat2 size={22} />
         </button>
       </div>
 

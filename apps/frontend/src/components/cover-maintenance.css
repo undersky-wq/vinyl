@@ -1,0 +1,9 @@
+.cover-maintenance{width:100%;min-width:0}
+.cover-maintenance>.profile-action-button{width:100%}
+.cover-maintenance__panel{padding:16px 0;border-bottom:1px solid var(--shelf-web-line,#8885);font:inherit;color:inherit}
+.cover-maintenance__panel p{margin:0 0 12px;line-height:1.5}
+.cover-maintenance__actions{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+.cover-maintenance__actions .profile-action-button{flex:1;min-width:150px}
+.cover-maintenance__panel progress{display:block;width:100%;height:6px;margin:12px 0 16px;accent-color:var(--shelf-web-ink,#777)}
+.cover-maintenance__report{font-variant-numeric:tabular-nums}
+.cover-maintenance__report ul{padding-left:20px;overflow-wrap:anywhere;max-height:180px;overflow:auto}

@@ -70,7 +70,7 @@ export function AboutPage({ lang }: { lang: SiteLang }) {
           aria-label={ru ? 'Показать следующую фотографию' : 'Show next photo'}>
           {photos.map((src, index) => <img key={src} src={src} width={1440} height={1440}
             alt={ru ? `Дмитрий за виниловыми проигрывателями — фото ${index + 1}` : `Dmitry playing vinyl — photo ${index + 1}`}
-            className={photo === index ? 'is-active' : ''} aria-hidden={photo !== index} fetchPriority={index === 0 ? 'high' : 'auto'} />)}
+            className={photo === index ? 'is-active' : ''} aria-hidden={photo !== index} fetchPriority={index === 0 ? 'high' : 'low'} />)}
         </button>
       </div>
       <div className="about-story">

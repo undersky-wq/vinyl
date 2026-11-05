@@ -28,6 +28,7 @@ import { UpdateReleaseMetadataDto } from './dto/update-release-metadata.dto';
 import { UpdateReleaseStylesDto } from './dto/update-release-styles.dto';
 import { UpdateTrackMetadataDto } from './dto/update-track-metadata.dto';
 import { ReleasesService } from './releases.service';
+import { CoverMaintenanceService } from './cover-maintenance.service';
 import { SelectReleaseCoverDto } from './dto/select-release-cover.dto';
 import type { Response } from 'express';
 import { pipeline } from 'node:stream/promises';
@@ -39,6 +40,7 @@ export class ReleasesController {
   constructor(
     private readonly releasesService: ReleasesService,
     private readonly authService: AuthService,
+    private readonly coverMaintenance: CoverMaintenanceService,
   ) {}
 
   @Get()
@@ -93,6 +95,24 @@ export class ReleasesController {
     }
 
     return this.releasesService.createManualRelease(request.user, body, files || []);
+  }
+
+  @Get('covers/maintenance/status')
+  @UseGuards(AdminGuard)
+  coverMaintenanceStatus() {
+    return this.coverMaintenance.status();
+  }
+
+  @Post('covers/maintenance/check')
+  @UseGuards(AdminGuard)
+  checkCoverFormats() {
+    return this.coverMaintenance.start('check');
+  }
+
+  @Post('covers/maintenance/convert')
+  @UseGuards(AdminGuard)
+  convertCoverFormats() {
+    return this.coverMaintenance.start('convert');
   }
 
   @Get(':id')

@@ -82,28 +82,35 @@ export class StorageController {
     };
     const contentType = contentTypes[path.extname(filePath).toLowerCase()]
       || 'application/octet-stream';
-    const range = request.headers.range;
+    const range = request.method !== 'HEAD' && fileStat.size > 0 && !request.headers['if-range']
+      ? request.headers.range
+      : undefined;
 
     response.setHeader('Accept-Ranges', 'bytes');
     response.setHeader('Content-Type', contentType);
     response.setHeader('Cache-Control', 'private, max-age=3600');
 
-    if (!range) {
+    if (!range || !/^bytes=/i.test(range) || range.includes(',')) {
       response.setHeader('Content-Length', fileStat.size);
+      if (request.method === 'HEAD' || fileStat.size === 0) {
+        response.end();
+        return;
+      }
       createReadStream(filePath).pipe(response);
       return;
     }
 
-    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    const match = /^bytes=(\d*)-(\d*)$/i.exec(range);
     if (!match) {
       response.status(416).setHeader('Content-Range', `bytes */${fileStat.size}`);
       response.end();
       return;
     }
 
-    const start = match[1] ? Number(match[1]) : 0;
-    const end = match[2] ? Number(match[2]) : fileStat.size - 1;
-    if (start > end || start >= fileStat.size || end >= fileStat.size) {
+    const last = fileStat.size - 1;
+    const start = match[1] ? Number(match[1]) : Math.max(0, fileStat.size - Number(match[2]));
+    const end = match[1] && match[2] ? Math.min(last, Number(match[2])) : last;
+    if (start > end || start >= fileStat.size) {
       response.status(416).setHeader('Content-Range', `bytes */${fileStat.size}`);
       response.end();
       return;

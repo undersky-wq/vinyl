@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { configureMusicAudioSession } from '../src/lib/music-audio-session.ts';
+import { createShuffleCycle } from '../src/lib/shuffle-cycle.ts';
 
 assert.equal(configureMusicAudioSession({}), false);
 assert.equal(configureMusicAudioSession({ audioSession: { type: 'auto' } }), true);
@@ -20,17 +21,17 @@ const source = readFileSync(new URL('../src/providers/player-provider.tsx', impo
 const ast = ts.createSourceFile('player.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 let handler;
 const eventHandlers = {};
-let randomNextSource;
 let startQueuedSource;
 function visit(node) {
   if (ts.isFunctionDeclaration(node) && node.name?.text === 'startQueuedTrack') startQueuedSource = node.getText(ast);
-  if (ts.isFunctionDeclaration(node) && node.name?.text === 'getRandomNextIndex') randomNextSource = node.getText(ast);
+  if (ts.isVariableDeclaration(node) && node.name.getText(ast) === 'startQueuedTrack') startQueuedSource = `const startQueuedTrack = ${node.initializer.getText(ast)};`;
   if (ts.isVariableDeclaration(node) && node.name.getText(ast) === 'onEnded') handler = node.initializer.getText(ast);
   if (ts.isVariableDeclaration(node) && ['onPause', 'onCanPlay', 'onPlaying', 'playNext'].includes(node.name.getText(ast))) eventHandlers[node.name.getText(ast)] = node.initializer.getText(ast);
   ts.forEachChild(node, visit);
 }
 visit(ast);
 assert.ok(handler);
+assert.ok(startQueuedSource);
 const tracks = [{ id: 'first', audioUrl: 'first.mp3' }, { id: 'second', audioUrl: 'second.mp3' }];
 function fixture(index, repeat = false, shuffle = false, next = handler) {
   const calls = [];
@@ -43,7 +44,10 @@ function fixture(index, repeat = false, shuffle = false, next = handler) {
     automaticStartRef: { current: null },
     syncMediaPlaybackState: playing => { context.mediaPlaying = playing; },
     getNextDisplayQueue: queue => queue,
-    getRandomNextIndex: vm.runInNewContext(`${ts.transpile(randomNextSource)}; getRandomNextIndex`),
+    useCallback: callback => callback,
+    shuffleCycleRef: {current:createShuffleCycle(()=>0)},
+    releaseArtworkCache: {current:new Map()},
+    cachedTrackArtwork: track => track,
     safelyPlay: audio => { calls.push(audio.src); return Promise.resolve(true); },
   };
   for (const name of ['setIsPlaying', 'setCurrentTime', 'setProgress', 'setDuration', 'setCurrentIndex', 'setCurrentTrack', 'setDisplayQueue']) context[name] = () => {};
