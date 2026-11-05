@@ -1,17 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import type { SiteLang } from '../lib/language';
 import { useAuth } from '../providers/auth-provider';
 import { ShelfThemeToggle } from './shelf-theme-toggle';
 import { LanguageSwitcher } from './language-switcher';
 import { ArchiveLayoutIcon } from './archive-layout-icon';
+import { ArchiveHeaderContext } from './archive-header-context';
 import './archive-page-header.css';
 
 export type ArchiveLayout = 'shelf' | 'stack' | 'grid' | 'tracks';
 
-export function ArchivePageHeader({ lang, search, onSearchChange, onSearchSubmit, onHome, activeLayout, onLayoutChange, searchStatus }: {
+export type ArchivePageHeaderProps = {
   lang: SiteLang;
   search: string;
   onSearchChange: (search: string) => void;
@@ -20,7 +22,20 @@ export function ArchivePageHeader({ lang, search, onSearchChange, onSearchSubmit
   activeLayout: ArchiveLayout | null;
   onLayoutChange: (layout: ArchiveLayout) => void;
   searchStatus?: string;
-}) {
+};
+
+// Route content supplies controls, while the layout owns the actual DOM nodes.
+// Do not clear on unmount: the same header remains visible while About loads.
+export function ArchivePageHeader(props: ArchivePageHeaderProps) {
+  const register = useContext(ArchiveHeaderContext);
+  const pathname = usePathname();
+  useLayoutEffect(() => {
+    register?.({ pathname, href:location.pathname + location.search + location.hash, props });
+  }, [register, pathname, props]);
+  return register ? null : <ArchivePageHeaderView {...props} />;
+}
+
+export function ArchivePageHeaderView({ lang, search, onSearchChange, onSearchSubmit, onHome, activeLayout, onLayoutChange, searchStatus }: ArchivePageHeaderProps) {
   const { user } = useAuth();
   const [avatarFailed, setAvatarFailed] = useState(false);
   useEffect(() => setAvatarFailed(false), [user?.avatarStorageUrl]);

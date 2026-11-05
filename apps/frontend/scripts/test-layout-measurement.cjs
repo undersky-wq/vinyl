@@ -7,8 +7,9 @@ const root = path.join(__dirname, '../src');
 const frames = new Map();
 let nextFrame = 0;
 let observed;
+const observers = [];
 class Observer {
-  constructor(callback) { this.callback = callback; observed = this; this.nodes = []; }
+  constructor(callback) { this.callback = callback; observed = this; this.nodes = []; observers.push(this); }
   observe(node) { this.nodes.push(node); }
   disconnect() { this.disconnected = true; }
 }
@@ -60,10 +61,11 @@ const log = [];
 let layout = 'shelf', about = false, cleanup;
 const rect = { x: 0, y: 0, width: 100, height: 40 };
 const parts = Array.from({ length: 3 }, (_, index) => ({
-  getBoundingClientRect: () => { log.push(`rect${index}`); return rect; },
-  animate: (_frames, options) => { assert.equal(options.duration, 850); log.push(`animate${index}`); return { playState: 'finished', cancel() {} }; },
+  offsetWidth:100,offsetHeight:40,
+  getBoundingClientRect: () => { log.push(`rect${index}`); return {...rect}; },
+  animate: (keyframes, options) => { assert.equal(options.duration, 850);assert.deepEqual(Object.keys(keyframes[0]),['transform']);assert(!/NaN|Infinity/.test(keyframes[0].transform)); log.push(`animate${index}`); return { playState: 'finished', cancel() {} }; },
 }));
-const player = { querySelectorAll: () => parts, getBoundingClientRect: () => { log.push('root'); return rect; }, animate: () => ({ cancel() {} }) };
+const player = { offsetWidth:100,offsetHeight:40, querySelectorAll: () => parts, getBoundingClientRect: () => { log.push('root'); return {...rect}; }, animate: () => ({ cancel() {} }) };
 let signatureReads = 0;
 class Node { matches() { return false; } querySelector() { return null; } }
 const archive = new Node();
@@ -78,17 +80,33 @@ load('components/use-mini-player-layout-motion.ts', { react: { useLayoutEffect: 
   matchMedia: query => ({ matches: query.includes('min-width'), addEventListener() {}, removeEventListener() {} }),
   getComputedStyle: () => { log.push('style'); return { justifySelf: 'center' }; },
 }).useMiniPlayerLayoutMotion({ current: player }, true);
+const mutationObserver = observers.at(-2);
+const resizeObserver = observers.at(-1);
+function flushFrame() {
+  const pending = [...frames.values()];frames.clear();pending.forEach(callback=>callback());
+}
 const readsBefore = signatureReads;
-observed.callback([{ type: 'attributes', target: new Node(), oldValue: 'waveform-bar' }]);
+mutationObserver.callback([{ type: 'attributes', target: new Node(), oldValue: 'waveform-bar' }]);
 assert.equal(signatureReads, readsBefore, 'Ignore waveform class changes');
 log.length = 0;
 layout = 'tracks';
-observed.callback([{ type: 'attributes', target: archive, oldValue: '' }]);
-assert.equal(log.filter(item => item === 'style').length, 3);
-assert.ok(log.lastIndexOf('style') < log.findIndex(item => item.startsWith('animate')), 'Batch all reads before writes');
+mutationObserver.callback([{ type: 'attributes', target: archive, oldValue: '' }]);
+flushFrame();
+assert.equal(log.filter(item => item.startsWith('animate')).length,3);
+assert.ok(log.lastIndexOf('root') < log.findIndex(item => item.startsWith('animate')), 'Batch all reads before writes');
 about = true;
-observed.callback([{ type: 'childList', addedNodes: [archive], removedNodes: [] }]);
+mutationObserver.callback([{ type: 'childList', addedNodes: [archive], removedNodes: [] }]);
+flushFrame();
 assert.equal(log.filter(item => item.startsWith('animate')).length, 6, 'About transitions still animate');
+player.offsetWidth=200;
+resizeObserver.callback([{target:player}]);
+flushFrame();
+assert.equal(log.filter(item => item.startsWith('animate')).length,9,'late route CSS triggers layout motion too');
+rect.width=0;player.offsetWidth=0;
+resizeObserver.callback([{target:player}]);flushFrame();
+rect.width=100;player.offsetWidth=100;
+resizeObserver.callback([{target:player}]);flushFrame();
+assert.equal(log.filter(item => item.startsWith('animate')).length,9,'hide/show around the full player must not animate zero-size boxes');
 cleanup();
 const archiveSource = fs.readFileSync(path.join(root, 'components/paper-archive.tsx'), 'utf8');
 assert.match(archiveSource, /\[measureMobileCards, measuredCardKey, listSize\]/);

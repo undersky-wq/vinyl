@@ -18,6 +18,7 @@ import { PlaylistsProvider } from '../providers/playlists-provider';
 import { normalizeSiteLang } from '../lib/language';
 import { DesignVariantProvider } from '../components/design-variant-switcher';
 import { CookieConsent } from '../components/cookie-consent';
+import { ArchiveHeaderShell } from '../components/archive-header-shell';
 
 export const metadata = {
   title: 'MityaDima — Vinyl & Mixes',
@@ -51,7 +52,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <PlaylistsProvider>
               <PlayerProvider>
                 <DesignVariantProvider>
-                  {children}
+                  <ArchiveHeaderShell lang={lang}>{children}</ArchiveHeaderShell>
                   <CollectionTransitions lang={lang} />
                   <PlayerChrome lang={lang} />
                   <TechnoDancer />

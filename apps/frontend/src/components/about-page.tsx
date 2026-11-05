@@ -1,13 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { Instagram, Mail, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { SiteLang } from '../lib/language';
-import { useAuth } from '../providers/auth-provider';
-import { LanguageSwitcher } from './language-switcher';
-import { ShelfThemeToggle } from './shelf-theme-toggle';
-import { useDesignVariant } from './design-variant-switcher';
 import './about-page.css';
 import './paper-sections.css';
 import './record-archive.css';
@@ -17,13 +12,9 @@ const photos = ['/about/dmitry-01.webp', '/about/dmitry-02.webp', '/about/dmitry
 
 export function AboutPage({ lang }: { lang: SiteLang }) {
   const ru = lang === 'ru';
-  const { user } = useAuth();
-  const { variant } = useDesignVariant();
   const [photo, setPhoto] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [visible, setVisible] = useState(true);
-  const [search, setSearch] = useState('');
-  const [avatarFailed, setAvatarFailed] = useState(false);
 
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -46,24 +37,7 @@ export function AboutPage({ lang }: { lang: SiteLang }) {
   }, [photo, reducedMotion, visible]);
 
   return <main className="paper-section-page about-page">
-    <header className="paper-page-header about-header">
-      <div className="paper-page-identity">
-        <Link href="/profile" className="paper-page-avatar" aria-label={ru ? 'Настройки профиля' : 'Profile settings'}>
-          {user?.avatarStorageUrl && !avatarFailed ? <img src={user.avatarStorageUrl} alt="" onError={() => setAvatarFailed(true)} /> : <span>{user?.displayName?.slice(0, 1).toUpperCase() || '○'}</span>}
-        </Link>
-        <div className="paper-page-identity-text">
-          <nav className="paper-page-brand-row" aria-label={ru ? 'Настройки страницы' : 'Page settings'}>
-            <Link href="/">{ru ? 'Коллекция винила' : 'Vinyl collection'}</Link>
-            {variant === 'shelf' && <ShelfThemeToggle compact iconOnly />}
-            <LanguageSwitcher lang={lang} single />
-          </nav>
-          <form action="/" method="get" role="search">
-            <input type="search" name="search" value={search} onChange={event => setSearch(event.target.value)}
-              placeholder={ru ? 'Поиск' : 'Search'} aria-label={ru ? 'Поиск релизов и миксов' : 'Search releases and mixes'} />
-          </form>
-        </div>
-      </div>
-    </header>
+    <div className="about-header-space" aria-hidden="true" />
     <section className="about-layout" aria-labelledby="about-title">
       <div className="about-gallery">
         <button type="button" className="about-photos" onClick={() => setPhoto(value => (value + 1) % photos.length)}

@@ -466,7 +466,7 @@ html[data-shelf-theme='dark'] .paper-sections .paper-section-originals{--section
 @media(prefers-reduced-motion:reduce){.paper-archive .paper-playlists{transition:none}.paper-sections svg{transition:none}}
 .paper-archive{--list-left:29vw}
 .paper-archive.is-playlist .paper-playlists{max-width:22vw}
-html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player{transition:width 1s cubic-bezier(.16,1,.3,1),right 1s cubic-bezier(.16,1,.3,1)}
+html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player{transition:background-color .35s ease,color .35s ease}
 /* Desktop geometry is animated as three continuous pieces by the layout hook.
    A competing container transition would move them twice on Stack changes. */
 @media(min-width:701px){

@@ -552,7 +552,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     if (!element) return;
     const measure = () => {
       const origin = element.getBoundingClientRect().top;
-      const search = element.querySelector('.paper-search')?.getBoundingClientRect();
+      const search = document.querySelector('.archive-page-header .paper-search')?.getBoundingClientRect();
       const player = document.querySelector('.mini-player')?.getBoundingClientRect();
       const heading = element.querySelector('.paper-heading')?.getBoundingClientRect();
       if (viewport.width <= 700) {
@@ -589,7 +589,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     measure();
     const measurement = frameMeasurement(measure);
     const observer = new ResizeObserver(measurement.schedule);
-    for (const node of [element.querySelector('.paper-search'), element.querySelector('.paper-sections'), element.querySelector('.paper-heading'), document.querySelector('.mini-player')]) if (node) observer.observe(node);
+    for (const node of [document.querySelector('.archive-page-header .paper-search'), element.querySelector('.paper-sections'), element.querySelector('.paper-heading'), document.querySelector('.mini-player')]) if (node) observer.observe(node);
     window.visualViewport?.addEventListener('resize', measurement.schedule);
     return () => { measurement.cancel();observer.disconnect();window.visualViewport?.removeEventListener('resize',measurement.schedule); };
   }, [viewport, hasPlayerTrack, geometryLayout]);

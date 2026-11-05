@@ -1,0 +1,2 @@
+/* Shared by every route; the FLIP offsets are relative to each box's origin. */
+.mini-player,.mini-player__track,.mini-player__controls,.mini-player__timeline{transform-origin:0 0}

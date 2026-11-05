@@ -104,6 +104,15 @@ html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-sections :is(a
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-page-nav a:not([aria-current='page']) {
   color: #96989d !important;
 }
+@media(hover:hover){
+  html[data-visual-variant='shelf'][data-shelf-theme='dark'] body .paper-archive :is(
+    .paper-styles button:not([aria-pressed='true']),
+    .paper-sections :is(a,button):not([aria-current='page']):not([aria-expanded='true']),
+    .paper-playlists button:not([aria-pressed='true']),
+    .paper-playlists a,
+    .paper-mix-index button:not([aria-pressed='true'])
+  ):is(:hover,:focus-visible){color:#f3f3f1!important}
+}
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-styles button[aria-pressed='true'],
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-playlists button[aria-pressed='true'],
 html[data-visual-variant='shelf'][data-shelf-theme='dark'] .paper-mix-index button[aria-pressed='true'],

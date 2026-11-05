@@ -18,9 +18,10 @@ export function useMiniPlayerLayoutMotion(ref: RefObject<HTMLDivElement | null>,
     let wasAbout = Boolean(document.querySelector('.about-page'));
     let animations: Animation[] = [];
     let frame = 0;
+    let layoutFrame = 0;
     const signature = () => {
       const archive = document.querySelector('.paper-archive');
-      return `${!!archive}:${archive?.getAttribute('data-player-layout') ?? ''}:${!!document.querySelector('.about-page')}`;
+      return `${!!archive}:${archive?.getAttribute('data-player-layout') ?? ''}:${!!document.querySelector('.about-page')}:${root.offsetWidth}:${root.offsetHeight}:${parts.map(part => `${part.offsetWidth},${part.offsetHeight}`).join(':')}`;
     };
     let layout = signature();
     const sample = () => {
@@ -48,27 +49,25 @@ export function useMiniPlayerLayoutMotion(ref: RefObject<HTMLDivElement | null>,
       animations = [];
       const to = parts.map(part => part.getBoundingClientRect());
       const toRoot = root.getBoundingClientRect();
-      if ((desktop.matches || aboutTransition) && !reduced.matches) {
-        // Finish every layout read before starting any of the animations.
-        const centered = parts.map(part => getComputedStyle(part).justifySelf === 'center');
+      if ((desktop.matches || aboutTransition) && !reduced.matches
+        && fromRoot.width > 0 && fromRoot.height > 0 && toRoot.width > 0 && toRoot.height > 0) {
+        const scaleX = aboutTransition && toRoot.width ? fromRoot.width / toRoot.width : 1;
+        const scaleY = aboutTransition && toRoot.height ? fromRoot.height / toRoot.height : 1;
         const frames = parts.map((part, index) => {
-          // A centered grid item also shifts when its animated width changes.
-          const centering = centered[index]
-            ? (from[index].width - to[index].width) / 2 : 0;
-          return [
-          {
-            transform: `translate(${from[index].x - to[index].x + centering - (aboutTransition ? fromRoot.x - toRoot.x : 0)}px,${from[index].y - to[index].y - (aboutTransition ? fromRoot.y - toRoot.y : 0)}px)`,
-            width: `${from[index].width}px`,
-          },
-          { transform: 'translate(0,0)', width: `${to[index].width}px` },
-        ];
+          const x = aboutTransition ? (from[index].x - fromRoot.x) / scaleX - (to[index].x - toRoot.x) : from[index].x - to[index].x;
+          const y = aboutTransition ? (from[index].y - fromRoot.y) / scaleY - (to[index].y - toRoot.y) : from[index].y - to[index].y;
+          // Compensate the parent scale when mapping each child's previous box.
+          const sx = to[index].width ? from[index].width / to[index].width / scaleX : 1;
+          const sy = to[index].height ? from[index].height / to[index].height / scaleY : 1;
+          return [{transform:`translate(${x}px,${y}px) scale(${sx},${sy})`}, {transform:'none'}];
         });
-        animations = parts.map((part, index) => part.animate(frames[index], { duration: 850, easing: 'cubic-bezier(.16,1,.3,1)' }));
+        const timing = {duration:850,easing:'cubic-bezier(.16,1,.3,1)'};
+        animations = parts.map((part, index) => part.animate(frames[index], timing));
         if (aboutTransition) {
           animations.push(root.animate([
-            {left:`${fromRoot.x}px`,right:'auto',width:`${fromRoot.width}px`,top:`${fromRoot.y}px`,bottom:'auto'},
-            {left:`${toRoot.x}px`,right:'auto',width:`${toRoot.width}px`,top:`${toRoot.y}px`,bottom:'auto'},
-          ], {duration:850,easing:'cubic-bezier(.16,1,.3,1)'}));
+            {transform:`translate(${fromRoot.x-toRoot.x}px,${fromRoot.y-toRoot.y}px) scale(${scaleX},${scaleY})`},
+            {transform:'none'},
+          ], timing));
         }
         frame = requestAnimationFrame(sample);
       } else {
@@ -76,26 +75,37 @@ export function useMiniPlayerLayoutMotion(ref: RefObject<HTMLDivElement | null>,
         previousRoot = toRoot;
       }
     };
+    const schedule = () => {
+      if (layoutFrame) return;
+      layoutFrame = requestAnimationFrame(() => { layoutFrame = 0; update(); });
+    };
     const observer = new MutationObserver(records => {
       const isPage = (node: Node) => node instanceof Element
         && (node.matches('.paper-archive,.about-page') || Boolean(node.querySelector('.paper-archive,.about-page')));
       if (records.some(record => record.type === 'childList'
         ? [...record.addedNodes, ...record.removedNodes].some(isPage)
         : record.target instanceof Element && (record.target.matches('.paper-archive,.about-page')
-          || /\b(?:paper-archive|about-page)\b/.test(record.oldValue || '')))) update();
+          || /\b(?:paper-archive|about-page)\b/.test(record.oldValue || '')))) schedule();
     });
     observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'data-player-layout'] });
+    // Route CSS can arrive after the DOM. Observe the final layout as well;
+    // transform-only animations never resize these boxes or retrigger this.
+    const resizeObserver = new ResizeObserver(schedule);
+    [root, ...parts].forEach(part => resizeObserver.observe(part));
     const reset = () => {
       cancelAnimationFrame(frame);
       animations.forEach(animation => animation.cancel());
       animations = [];
       previous = parts.map(part => part.getBoundingClientRect());
       previousRoot = root.getBoundingClientRect();
+      layout = signature();
     };
     window.addEventListener('resize', reset);
     reduced.addEventListener('change', reset);
     return () => {
       observer.disconnect();
+      resizeObserver.disconnect();
+      cancelAnimationFrame(layoutFrame);
       window.removeEventListener('resize', reset);
       reduced.removeEventListener('change', reset);
       reset();

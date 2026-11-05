@@ -18,7 +18,7 @@
    explicit colors cross-fade independently and briefly lose contrast. */
 html[data-shelf-theme-changing] :is(
   .paper-archive,.paper-section-page,.paper-profile-page,.mini-player,
-  .paper-header,.paper-header *,.paper-sections,.paper-sections *,
+  .paper-header,.paper-header *,.archive-chrome,.archive-chrome *,.paper-sections,.paper-sections *,
   .paper-styles,.paper-styles *,.paper-playlists,.paper-playlists *,
   .paper-mix-index,.paper-mix-index *,.mini-player *
 ){transition:none!important}
