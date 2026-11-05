@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { SiteLang } from '../lib/language';
-import { ArchiveHeaderContext, type ArchiveHeaderRegistration } from './archive-header-context';
+import { ArchiveHeaderContext, cancelArchiveNavigation, type ArchiveHeaderRegistration } from './archive-header-context';
 import { ArchivePageHeaderView } from './archive-page-header';
 
 export function ArchiveHeaderShell({ children, lang }: { children: ReactNode; lang: SiteLang }) {
@@ -17,12 +17,12 @@ export function ArchiveHeaderShell({ children, lang }: { children: ReactNode; la
     || /^\/(mixes|tracks)\/[^/]+$/.test(pathname);
   const props = registration?.props;
   const search = about ? aboutSearch ?? props?.search ?? '' : props?.search ?? '';
-  useEffect(() => {
+  useLayoutEffect(() => {
     delete document.documentElement.dataset.aboutLeaving;
     if (!about) setAboutSearch(null);
-    if (navigationTimer.current) clearTimeout(navigationTimer.current);
+    cancelArchiveNavigation(navigationTimer);
   }, [pathname, about]);
-  useEffect(() => () => { if (navigationTimer.current) clearTimeout(navigationTimer.current); }, []);
+  useEffect(() => () => cancelArchiveNavigation(navigationTimer), []);
   const leaveAbout = (href: string) => {
     if (navigationTimer.current) return;
     document.documentElement.dataset.aboutLeaving = 'true';

@@ -15,9 +15,10 @@ assert(!shell.includes('key={pathname}'),'navigation must not remount header');
 assert(header.includes('archiveHeaderLocation(pathname, window.location)'));
 assert(header.includes('if (current) register?.({ ...current, props })'));
 const exportsForTest = {};
+const cancelled = [];
 vm.runInNewContext(ts.transpileModule(read('components/archive-header-context.ts'), {
   compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},
-}).outputText,{exports:exportsForTest,require:()=>({createContext:()=>null})});
+}).outputText,{exports:exportsForTest,clearTimeout:id=>cancelled.push(id),require:()=>({createContext:()=>null})});
 const {archiveHeaderLocation} = exportsForTest;
 const collection = {pathname:'/',search:'?layout=tracks',hash:'#styles=House'};
 assert.equal(archiveHeaderLocation('/',collection).href,'/?layout=tracks#styles=House');
@@ -25,6 +26,11 @@ assert.equal(archiveHeaderLocation('/about',{...collection,pathname:'/about'}),n
 assert.equal(archiveHeaderLocation('/',{...collection,pathname:'/about'}),null,'browser history may change before the outgoing route context');
 assert.equal(archiveHeaderLocation('/mixes',{...collection,pathname:'/'}),null,'ignore stale route contexts during a commit');
 assert.equal(archiveHeaderLocation('/tracks',{pathname:'/tracks',search:'?layout=grid',hash:''}).href,'/tracks?layout=grid');
+const pendingNavigation = {current:42};
+exportsForTest.cancelArchiveNavigation(pendingNavigation);
+assert.equal(pendingNavigation.current,null,'a cancelled route timer must not keep blocking later clicks');
+assert.deepEqual(cancelled,[42]);
+assert(shell.includes('useLayoutEffect(() => {'),'route cleanup must finish before the new page is interactive');
 assert(header.includes('return register ? null'));
 assert(!about.includes('<LanguageSwitcher') && !about.includes('paper-page-avatar'),'About must not render a second identity');
 assert(shell.includes("router.push(href, {scroll:false})"));

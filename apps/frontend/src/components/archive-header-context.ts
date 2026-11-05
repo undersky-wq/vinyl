@@ -12,3 +12,8 @@ export function archiveHeaderLocation(pathname: string, location: Pick<Location,
   if (pathname === '/about' || pathname !== location.pathname) return null;
   return { pathname, href: location.pathname + location.search + location.hash };
 }
+
+export function cancelArchiveNavigation(timer: { current: ReturnType<typeof setTimeout> | null }) {
+  if (timer.current !== null) clearTimeout(timer.current);
+  timer.current = null;
+}
