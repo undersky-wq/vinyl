@@ -1,6 +1,6 @@
 /* Keep the deck's stacking/compositing boundary stable while scrolling starts
    and stops. Covers must never change the stacking order of the page chrome. */
-.paper-archive .paper-row{isolation:isolate}
+.paper-archive .paper-row{isolation:isolate;contain:paint}
 .paper-archive:not(.is-grid) .paper-transport{will-change:transform}
 /* Only virtualized, mounted sleeves get a stable layer, not the full library. */
 .paper-archive .paper-record{will-change:transform}
@@ -17,7 +17,9 @@
 .paper-archive>.paper-mix-index{
   isolation:isolate;
   will-change:transform;
-  backface-visibility:hidden;
+  /* These are 2D text/scroller layers, not rotating sleeve faces. Culling their
+     backfaces can discard clipped text after interrupted 3D deck morphs. */
+  backface-visibility:visible;
 }
 
 /* Commit foreground and background colors together. Otherwise inherited and

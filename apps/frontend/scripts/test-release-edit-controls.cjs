@@ -30,7 +30,7 @@ const base = process.env.EDIT_CONTROLS_BASE_URL;
           assert.equal(await page.locator('button button').count(), 0, 'no nested action buttons');
           if (mode === 'tracks' && section === '/') {
             await page.locator('.paper-list-tracks').first().waitFor();
-            assert.equal(await page.locator('.paper-list-tracks .shelf-release-edit-trigger').count(), 0, 'plain collection listing is not expanded');
+            assert(await page.locator('.paper-list-tracks h2>.shelf-release-year>.shelf-release-edit-trigger').count()>0, 'collection Tracks exposes admin editing before the year');
             continue;
           }
           if (mode !== 'tracks') {

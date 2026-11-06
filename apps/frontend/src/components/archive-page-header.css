@@ -36,7 +36,7 @@ html[data-shelf-theme='dark'] .archive-chrome .paper-brand-row .shelf-theme-togg
 .archive-chrome .paper-search::placeholder{color:var(--shelf-web-muted,#999);font-weight:400}
 .archive-chrome .paper-search:focus{outline:none;border-bottom-color:var(--shelf-web-ink,#111)}
 /* The persistent header sits above the archive, but never above the player. */
-html body:has(.mobile-player-overlay,.mini-release-preview) .archive-chrome{visibility:hidden;pointer-events:none}
+html body:has(.mobile-player-overlay,.mini-release-preview) :is(.archive-chrome,.archive-chrome *){visibility:hidden!important;pointer-events:none!important;transition:none!important}
 html body :is(.paper-brand-row,.paper-page-brand-row) :is(.language-switch-button,.shelf-theme-toggle){transition:color .2s ease,border-color .2s ease}
 html body :is(.paper-brand-row,.paper-page-brand-row) .language-switch-button:is(:hover,:focus-visible){color:var(--shelf-web-ink,#111)}
 html body :is(.paper-brand-row,.paper-page-brand-row) .language-switch-button:focus-visible{border-bottom-color:currentColor}
@@ -46,7 +46,7 @@ html body :is(.paper-brand-row,.paper-page-brand-row) :is(.paper-brand,.header-a
   html body :is(.paper-brand-row,.paper-page-brand-row) :is(.paper-brand,.header-about-link):hover{transform:translateY(-1px) scale(1.035);opacity:.65;text-decoration:none}
 }
 @media(max-width:700px){
-  html body .archive-chrome .archive-page-header{top:20px;width:94vw;backface-visibility:hidden;will-change:transform}
+  html body .archive-chrome .archive-page-header{top:20px;width:94vw;will-change:transform}
   .archive-chrome .paper-brand-row{gap:8px}
   .archive-chrome .paper-search-row{gap:10px}
   .archive-chrome .paper-layout-controls{gap:8px}

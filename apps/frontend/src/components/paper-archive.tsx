@@ -1217,12 +1217,12 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     ? (sleeves[selected]?.position || 0) - viewport.width / 2
     : isDragging || autoLayout ? travel.current.current : windowTravel;
   const rawVisibleIndices = releases.flatMap((r, i) => {
-    if (stackMode) {
-      if (selected !== null) return Math.abs(i - selected) <= 8 ? [i] : [];
-      const distance = sleeves[i].position - sideTravel - viewport.width / 2;
-      if (viewport.width <= 700) return Math.abs(distance * 4) < viewport.height / 2 + 300 ? [i] : [];
-      return Math.abs(distance) < viewport.height / 2 + 220 ? [i] : [];
-    }
+    const deckLayout = gridMix < .01 && listMix < .01;
+    const stackDistance = sleeves[i].position - sideTravel - viewport.width / 2;
+    const nearStack = viewport.width <= 700
+      ? Math.abs(stackDistance * 4) < viewport.height / 2 + 300
+      : Math.abs(stackDistance) < viewport.height / 2 + 220;
+    if (stackMode && selected !== null) return Math.abs(i - selected) <= 8 ? [i] : [];
     if (selected === i || hovered === i || r.tracks.some(t => t.id === dragTrack)) return [i];
     const split = selected === null ? 0 : i < selected ? -1 : 1;
     const along = sleeves[i].position - sideTravel + split * (expanded ? 420 : 220);
@@ -1238,7 +1238,9 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     const height = listMix > 0 ? Math.max(listSize, viewport.width <= 700 ? 92 + (r.trackCount ?? r.tracks.length) * 24 : 114 + (r.trackCount ?? r.tracks.length) * 36) : sleeveSize * 1.5;
     const nearY = y + height >= -overscan && y <= viewport.height + overscan;
     const nearX = gridMix >= 1 || x + sleeveSize >= -overscan && x <= viewport.width + overscan;
-    return nearY && nearX ? [i] : [];
+    // Retain both nearby deck windows even after the morph settles. Otherwise
+    // returning to Shelf remounts cached images and uploads their textures again.
+    return (nearY && nearX) || (deckLayout && selected === null && nearStack) ? [i] : [];
   });
   const shelfVisibleIndices = useRef<number[]>([]);
   const visibleCatalogKey = useMemo(() => releases.map(item => item.id).join('\0'), [releases]);
@@ -1737,7 +1739,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
         onDragOver={e => {const target=r.tracks[0];if(activePlaylist&&dragTrack&&target){e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:target.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}
         onDrop={e => {const target=r.tracks[0];if(!activePlaylist||!dragTrack||!target)return;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();void movePlaylistTrack(dragTrack,target.id,e.clientY<rect.top+rect.height/2?'before':'after');setDragTrack(null);setDropTarget(null);suppressTrackClick.current=performance.now()+250;}}
         className={`paper-list-tracks${isTrackCollection ? ' is-compact-track' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`} data-release-id={r.id} key={`tracks-${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} style={{ top: (gridBounds.top + 12 + Math.floor(i / columns)*cell)*(1-listMix) + listLayout.positions[i]*listMix, '--release-divider-y': `${((mobileCardHeights[r.id] ?? listSize) + (listLayout.positions[i + 1] ?? listLayout.height - gridBounds.bottom) - listLayout.positions[i]) / 2}px`, opacity:listMix, pointerEvents:isTrackListInteractive ? 'auto':'none' } as CSSProperties}>
-        {!isTrackCollection && <>{!mixesMode && <h2><span>{r.artist} : <span className="paper-release-title-regular">{r.title}</span></span>{r.year ? <time dateTime={String(r.year)}>{r.year}</time> : null}</h2>}{getBackCoverUrl(r, releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).disc) ? <button type="button" className="paper-list-cover-flip" aria-pressed={releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).back} aria-label={ru?'Перевернуть обложку':'Flip cover'} title={ru?'Перевернуть обложку':'Flip cover'} onClick={event=>{event.stopPropagation();setCoverSideOverrides(previous=>toggleReleaseCoverSide(previous,r,currentTrack));}}><Rotate3D size={16}/></button> : null}</>}
+        {!isTrackCollection && <>{!mixesMode && <h2><span>{r.artist} : <span className="paper-release-title-regular">{r.title}</span></span><ShelfReleaseYear id={r.id} year={r.year} lang={uiLang} editable={isTrackListInteractive}/></h2>}{getBackCoverUrl(r, releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).disc) ? <button type="button" className="paper-list-cover-flip" aria-pressed={releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).back} aria-label={ru?'Перевернуть обложку':'Flip cover'} title={ru?'Перевернуть обложку':'Flip cover'} onClick={event=>{event.stopPropagation();setCoverSideOverrides(previous=>toggleReleaseCoverSide(previous,r,currentTrack));}}><Rotate3D size={16}/></button> : null}</>}
         {mixesMode ? <ShelfMixTrack release={r} lang={uiLang} queueReleases={releases} yearInHeading timelineControls actions={null} onCommentsOpenChange={(open,count)=>setOpenMixComments(current=>{const next=new Map(current);if(open)next.set(r.id,count);else next.delete(r.id);return next;})} /> : r.tracks.map(t => <div key={t.id} data-track-id={t.id} className={`paper-track-line${dragTrack === t.id ? ' is-dragging' : ''}${dropTarget?.trackId === t.id ? ` is-drop-${dropTarget.side}` : ''}${currentTrack?.id === t.id ? ' is-playing' : ''}`}
           draggable={Boolean(activePlaylist) && !savingOrder && isTrackListInteractive}
           onDragStart={e => {if ((e.target as Element).closest('.paper-track-actions')) {e.preventDefault();return;} e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',t.id);setDragTrack(t.id);suppressTrackClick.current=Infinity;}}

@@ -11,6 +11,7 @@ const previewCss = fs.readFileSync(path.join(__dirname, '../src/components/mini-
     for (const width of [390, 1440]) for (const theme of ['light', 'dark']) for (const preview of [false, true]) {
       const page = await browser.newPage({ viewport: { width, height: 844 } });
       await page.setContent(`<html data-shelf-theme="${theme}"><style>${css}${previewCss}
+        @media(max-width:700px){.paper-layout-controls{transition:transform .8s,opacity .4s,visibility 0s linear .8s}}
         .mobile-player-overlay{position:fixed;inset:0;z-index:220;background:#888}
         .mobile-player-overlay__collapse{position:absolute;left:3vw;top:20px;width:100px;height:64px}
         </style><body><div class="archive-chrome" data-about>
@@ -27,6 +28,9 @@ const previewCss = fs.readFileSync(path.join(__dirname, '../src/components/mini-
       assert(await header.isVisible(), 'Header visible before opening');
       const before = await header.boundingBox();
       await page.locator('#open').evaluate(button => button.click());
+      const immediate = await page.locator('.paper-layout-controls').evaluate(node=>({visibility:getComputedStyle(node).visibility,transition:getComputedStyle(node).transitionDuration}));
+      assert.equal(immediate.visibility,'hidden','Icons hide immediately, without the inherited mobile visibility delay');
+      assert.equal(immediate.transition,'0s','Overlay cancels delayed header transitions');
       assert.equal(await header.isVisible(), false, 'Player hides the persistent header in both themes');
       assert.equal(await page.locator('.paper-search').isVisible(), false);
       assert.equal(await page.locator('.paper-layout-controls').isVisible(), false);

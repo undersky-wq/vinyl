@@ -240,7 +240,7 @@ body:has(.mini-player) .paper-archive .paper-footer{bottom:28px}
 /* Stable cover-to-divider block; only the timeline consumes added width. */
 html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player,
 html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive.is-playlist.is-listing) .mini-player{
-  grid-template-columns:calc(clamp(110px,16vw,240px)*2 - 50px) auto minmax(0,1fr);gap:14px;
+  grid-template-columns:min(calc(clamp(110px,16vw,240px)*2 - 50px),40%) auto minmax(0,1fr);gap:14px;
 }
 html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(:is(.paper-archive,.paper-profile-page,.paper-section-page)) .mini-player__timeline,
 html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.paper-archive.is-playlist.is-listing) .mini-player__timeline{
@@ -961,9 +961,9 @@ html[data-visual-variant='shelf'] body:has(.paper-archive) .mix-comment-marker__
 
 .paper-list-tracks h2{display:flex;justify-content:space-between;align-items:baseline;gap:18px}
 .paper-list-tracks h2>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.paper-list-tracks h2>time{flex:none;color:#888;font:400 .75em/1 Arial,Helvetica,sans-serif;font-variant-numeric:tabular-nums}
+.paper-list-tracks h2>time,.paper-list-tracks h2>.shelf-release-year{flex:none;color:#888;font:400 .75em/1 Arial,Helvetica,sans-serif;font-variant-numeric:tabular-nums}
 @media(max-width:700px){
-  html body .paper-archive.is-listing:not(.is-playlist):not(.is-mixes) .paper-list-tracks h2>time{
+  html body .paper-archive.is-listing:not(.is-playlist):not(.is-mixes) .paper-list-tracks h2>:is(time,.shelf-release-year){
     font-size:clamp(12px,1vw,17px);
   }
 }
