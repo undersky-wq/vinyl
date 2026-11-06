@@ -1,6 +1,9 @@
 /* Keep the deck's stacking/compositing boundary stable while scrolling starts
    and stops. Covers must never change the stacking order of the page chrome. */
-.paper-archive .paper-row{isolation:isolate;contain:paint}
+.paper-archive .paper-row{isolation:isolate}
+/* Grid expands a sleeve with position:fixed; paint containment would rebase it
+   into the scrolled row and clip the artwork. Only the decks need this bound. */
+.paper-archive:not(.is-grid) .paper-row{contain:paint}
 .paper-archive:not(.is-grid) .paper-transport{will-change:transform}
 /* Only virtualized, mounted sleeves get a stable layer, not the full library. */
 .paper-archive .paper-record{will-change:transform}
