@@ -484,6 +484,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const coverTransitionStackStep = useRef<number | null>(null);
   const coverTransitionSource = useRef<CoverEntryScene>({layout:'shelf',width:1280,height:720});
   const coverEntryTransition = useRef<{frames:Map<string,Keyframe>;scene:CoverEntryScene;started:number;duration:number;easing:string;animated:WeakSet<HTMLElement>} | null>(null);
+  const genreTransitionFrame = useRef<{left:number;top:number} | null>(null);
   function captureCoverTransition(layout = false) {
     const root = stage.current;
     if (!root) return;
@@ -495,6 +496,9 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     const matrix = new DOMMatrixReadOnly(transport.current ? getComputedStyle(transport.current).transform : undefined);
     const row = root.querySelector<HTMLElement>('.paper-row');
     const frames = new Map<string, Keyframe>();
+    const genres = root.querySelector<HTMLElement>('.paper-styles');
+    const genreRect = layout && viewport.width > 700 && genres ? genres.getBoundingClientRect() : null;
+    genreTransitionFrame.current = genreRect ? {left:genreRect.left,top:genreRect.top} : null;
     root.querySelectorAll<HTMLElement>('.paper-record').forEach(card => {
       const style = getComputedStyle(card);
       frames.set(card.dataset.index!, {
@@ -1321,6 +1325,19 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       return;
     }
     coverTransitionFrames.current = null;
+    const genreFrame = genreTransitionFrame.current;
+    genreTransitionFrame.current = null;
+    const genres = root.querySelector<HTMLElement>('.paper-styles');
+    if (genreFrame && genres && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const destination = genres.getBoundingClientRect();
+      const transform = getComputedStyle(genres).transform;
+      // Commit the new panel height once; move its text without laying out
+      // the genre scroller on every animation frame.
+      coverTransitionAnimations.current.push(genres.animate([
+        {transform:`translate3d(${genreFrame.left-destination.left}px,${genreFrame.top-destination.top}px,0) ${transform === 'none' ? '' : transform}`},
+        {transform},
+      ], {duration:800,easing:'cubic-bezier(.16,1,.3,1)'}));
+    }
     const stackStep = coverTransitionStackStep.current;
     coverTransitionStackStep.current = null;
     // React replaces className during the commit. Reapply the guard here so

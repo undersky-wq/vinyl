@@ -35,6 +35,8 @@ html[data-shelf-theme='dark'] .archive-chrome .paper-brand-row .shelf-theme-togg
 .archive-chrome .paper-brand-row .language-switch-button{padding:0;border:0;border-bottom:1px solid transparent;border-radius:0;background:none;box-shadow:none;color:#888;font:400 calc(var(--type)*.68)/1 Arial,Helvetica,sans-serif;letter-spacing:.02em;cursor:pointer}
 .archive-chrome .paper-search::placeholder{color:var(--shelf-web-muted,#999);font-weight:400}
 .archive-chrome .paper-search:focus{outline:none;border-bottom-color:var(--shelf-web-ink,#111)}
+/* The persistent header sits above the archive, but never above the player. */
+html body:has(.mobile-player-overlay,.mini-release-preview) .archive-chrome{visibility:hidden;pointer-events:none}
 html body :is(.paper-brand-row,.paper-page-brand-row) :is(.language-switch-button,.shelf-theme-toggle){transition:color .2s ease,border-color .2s ease}
 html body :is(.paper-brand-row,.paper-page-brand-row) .language-switch-button:is(:hover,:focus-visible){color:var(--shelf-web-ink,#111)}
 html body :is(.paper-brand-row,.paper-page-brand-row) .language-switch-button:focus-visible{border-bottom-color:currentColor}
