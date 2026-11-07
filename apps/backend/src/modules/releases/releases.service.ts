@@ -278,6 +278,7 @@ export class ReleasesService {
                 id: true,
                 title: true,
                 position: true,
+                artists: true,
                 waveformData: true,
                 durationRaw: true,
                 durationSec: true,

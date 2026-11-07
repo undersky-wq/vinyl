@@ -164,6 +164,7 @@ function mapHomeRelease(release: HomeReleaseApi): HomeRelease {
     tracks: orderedTracks.map((track) => ({
       id: track.id,
       title: track.title,
+      artists: track.artists || [],
       bpm: track.bpm ?? null,
       key: track.key ?? null,
       position: track.position,

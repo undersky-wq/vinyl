@@ -7,6 +7,7 @@ import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayerActions } from '../providers/player-provider';
 import { HomeRelease } from '../types';
 import { useDesignVariant } from './design-variant-switcher';
+import { trackArtist } from '../lib/track-artist';
 
 type ReleaseCardProps = {
   release: HomeRelease;
@@ -24,7 +25,7 @@ export function ReleaseCard({ release, onOpenRelease, priority = false, index = 
     .map((track): PlayerTrack | null => track.audioUrl ? ({
       id: track.id,
       title: track.title,
-      artist: release.artist,
+      artist: trackArtist(track, release.artist),
       audioUrl: track.audioUrl,
       coverUrl: coverSrc,
       releaseId: release.id,

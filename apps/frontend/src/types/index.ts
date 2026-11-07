@@ -98,6 +98,7 @@ export type HomeRelease = ReleaseCoverVariants & {
     id: string;
     title: string;
     audioUrl: string;
+    artists?: string[];
     bpm?: number | null;
     key?: string | null;
     position?: string | null;
@@ -141,6 +142,7 @@ export type HomeReleaseApi = ReleaseCoverVariants & {
     id: string;
     title: string;
     bpm?: number | null;
+    artists?: string[];
     key?: string | null;
     waveformData?: number[] | null;
     audioFiles: AudioFile[];

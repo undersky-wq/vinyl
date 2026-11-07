@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AudioLines, Disc3, Heart, Library, ListMusic } from 'lucide-react';
 import { SiteLang } from '../lib/language';
+import { trackArtist } from '../lib/track-artist';
 import { HomeRelease, Release } from '../types';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { ShelfMixTrack } from './shelf-mix-track';
@@ -39,7 +40,7 @@ export function ShelfMixDetail({ release, lang }: { release: Release; lang: Site
   function play() {
     if (!track?.audioUrl) return;
     if (currentTrack?.id === track.id) { togglePlayback(); return; }
-    playQueue([{ ...track, artist:release.artist, coverUrl:smallCover, coverFullUrl:cover, frontCoverMobileUrl:smallCover, frontCoverUrl:smallCover, frontCoverFullUrl:cover,
+    playQueue([{ ...track, artist:trackArtist(track,release.artist), coverUrl:smallCover, coverFullUrl:cover, frontCoverMobileUrl:smallCover, frontCoverUrl:smallCover, frontCoverFullUrl:cover,
       waveformData:track.waveformData || [], releaseId:release.id, isPublic:true, isOriginal:release.isOriginal }],0);
   }
   return <main className="shelf-mix-detail paper-section-page" data-music-section={release.isOriginal ? 'originals' : 'mixes'}>

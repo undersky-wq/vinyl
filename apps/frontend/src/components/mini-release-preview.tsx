@@ -5,6 +5,7 @@ import { usePlayerActions, usePlayerTransport, type PlayerTrack } from '../provi
 import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { normalizeDurationLabel } from '../lib/time';
+import { trackArtist } from '../lib/track-artist';
 import type { HomeRelease } from '../types';
 import type { SiteLang } from '../lib/language';
 import './mini-release-preview.css';
@@ -46,7 +47,7 @@ export function MiniReleasePreview({track,lang,onClose}:{track:PlayerTrack;lang:
           event.stopPropagation();if(item.id===currentTrack?.id){togglePlayback();return;}
           const index=queue.findIndex(candidate=>candidate.id===item.id);
           if(index>=0){playQueue(queue,index);return;}
-          const tracks=release.tracks.filter(candidate=>candidate.audioUrl).map(candidate=>({...candidate,artist:release.artist,coverUrl:release.coverMediumStorageUrl || track.coverUrl,releaseId:release.id,isPublic:release.isMix,isOriginal:release.isOriginal,playbackSource:track.playbackSource}));
+          const tracks=release.tracks.filter(candidate=>candidate.audioUrl).map(candidate=>({...candidate,artist:trackArtist(candidate,release.artist),coverUrl:release.coverMediumStorageUrl || track.coverUrl,releaseId:release.id,isPublic:release.isMix,isOriginal:release.isOriginal,playbackSource:track.playbackSource}));
           playQueue(tracks.map(candidate=>({...candidate,waveformData:candidate.waveformData || []})),tracks.findIndex(candidate=>candidate.id===item.id));
         }}><small>{item.position || '—'}</small><span>{item.title}</span></button><span className="paper-track-actions"><FavoriteButton trackId={item.id} lang={lang}/><TrackPlaylistMenu trackId={item.id} lang={lang}/></span><time>{normalizeDurationLabel(item.durationRaw,item.durationSec,'—')}</time></li>)}</ol>
         <p className="paper-release-styles">{release?.styles.join(' · ')}</p>

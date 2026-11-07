@@ -8,6 +8,7 @@ import { usePlayerActions, usePlayerTransport, type PlayerTrack } from '../provi
 import './record-archive.css';
 import './archive-render-stability.css';
 import { normalizeDurationLabel } from '../lib/time';
+import { trackArtist } from '../lib/track-artist';
 import { useAuth } from '../providers/auth-provider';
 import { usePlaylists } from '../providers/playlists-provider';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
@@ -1165,7 +1166,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         const backCoverMobileUrl = getBackCoverUrl(r, disc, 'thumb');
         const backCoverMediumUrl = getBackCoverUrl(r, disc, 'medium');
         const backSide = Boolean(backCoverUrl) && isBackSidePosition(t.position);
-        return { ...t, waveformData: t.waveformData || [], artist: r.artist,
+        return { ...t, waveformData: t.waveformData || [], artist: trackArtist(t, r.artist),
           coverUrl: backSide ? backCoverMobileUrl : frontCoverUrl,
           coverFullUrl: backSide ? backCoverUrl : frontCoverFullUrl,
           frontCoverUrl, frontCoverFullUrl, frontCoverMobileUrl:coverMobile(r, disc), backCoverUrl, backCoverMobileUrl, backCoverMediumUrl,

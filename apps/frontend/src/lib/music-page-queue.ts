@@ -1,11 +1,12 @@
 import type { HomeRelease } from '../types';
 import type { PlayerTrack } from '../providers/player-provider';
+import { trackArtist } from './track-artist';
 
 export function musicPageQueue(releases: HomeRelease[]): PlayerTrack[] {
   return releases.flatMap(release => release.tracks.filter(track => track.audioUrl).map(track => ({
     ...track,
     waveformData: track.waveformData || [],
-    artist: release.artist,
+    artist: trackArtist(track, release.artist),
     coverUrl: release.coverThumbStorageUrl || release.coverMediumStorageUrl || release.coverStorageUrl || release.coverImageUrl || '/icon.png',
     frontCoverMobileUrl: release.coverThumbStorageUrl || release.coverMediumStorageUrl || release.coverStorageUrl || release.coverImageUrl || '/icon.png',
     coverFullUrl: release.coverStorageUrl || release.coverImageUrl || release.coverMediumStorageUrl || '/icon.png',

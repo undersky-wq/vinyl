@@ -14,6 +14,7 @@ import {
   uploadTrackAudio,
 } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { trackArtist } from '../lib/track-artist';
 import { formatSecondsAsClock, normalizeDurationLabel } from '../lib/time';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { useAuth } from '../providers/auth-provider';
@@ -64,7 +65,7 @@ function getCoverUrl(release: Release) {
 }
 
 function getTrackArtist(track: Track, release: Release) {
-  return track.artists.length ? track.artists.join(', ') : release.artist;
+  return trackArtist(track, release.artist);
 }
 
 function parseStyles(input: string) {

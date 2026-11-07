@@ -5,10 +5,17 @@ const vm = require('node:vm');
 const ts = require('typescript');
 const root = path.join(__dirname, '..', 'src');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+const artistExports = {};
+vm.runInNewContext(ts.transpileModule(read('lib/track-artist.ts'), {
+  compilerOptions: {module:ts.ModuleKind.CommonJS},
+}).outputText, {exports:artistExports});
 const exportsObject = {};
 vm.runInNewContext(ts.transpileModule(read('lib/music-page-queue.ts'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS },
-}).outputText, { exports: exportsObject });
+}).outputText, { exports: exportsObject, require: name => {
+  assert.equal(name,'./track-artist');
+  return artistExports;
+} });
 const release = (id, audioUrl, isOriginal = false) => ({
   id, artist: `Artist ${id}`, title: id, isMix: true, isOriginal,
   coverStorageUrl: `${id}.jpg`, tracks: [{ id: `track-${id}`, title: id, audioUrl }],

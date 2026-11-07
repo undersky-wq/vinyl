@@ -19,6 +19,7 @@ import {
   uploadReleaseCover,
 } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { trackArtist as getTrackArtist } from '../lib/track-artist';
 import { formatSecondsAsClock, normalizeDurationLabel } from '../lib/time';
 import { useAuth } from '../providers/auth-provider';
 import { PlayerTrack, usePlayer } from '../providers/player-provider';
@@ -44,10 +45,6 @@ type ReleasePlayerTrack = PlayerTrack & {
 
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
   return normalizeDurationLabel(durationRaw, durationSec, '-');
-}
-
-function getTrackArtist(track: { artists?: string[] }, releaseArtist: string) {
-  return track.artists?.length ? track.artists.join(', ') : releaseArtist;
 }
 
 const KEY_COLORS: Record<string, string> = {

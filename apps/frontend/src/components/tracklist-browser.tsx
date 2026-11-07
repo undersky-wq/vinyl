@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPlaylist, getLibraryReleasesFeed } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { trackArtist } from '../lib/track-artist';
 import { normalizeDurationLabel } from '../lib/time';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { useAuth } from '../providers/auth-provider';
@@ -114,7 +115,7 @@ function buildFeed(releases: Release[]): FeedTrack[] {
       .map((track) => ({
         id: track.id,
         title: track.title,
-        artist: track.artists?.length ? track.artists.join(', ') : release.artist,
+        artist: trackArtist(track, release.artist),
         audioUrl: track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '',
         coverUrl:
           release.coverThumbStorageUrl ||

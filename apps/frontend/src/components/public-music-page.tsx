@@ -23,6 +23,7 @@ function toShelfRelease(release: Release): HomeRelease {
     tracks: release.tracks.map(track => ({
       id: track.id,
       title: track.title,
+      artists: track.artists,
       position: track.position,
       bpm: track.bpm,
       key: track.key,

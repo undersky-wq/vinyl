@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { SiteLang } from '../lib/language';
+import { trackArtist } from '../lib/track-artist';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Release, Track } from '../types';
@@ -143,7 +144,7 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
       id: track.id,
       playbackSource: {section:'favorites' as const},
       title: track.title,
-      artist: track.artists?.length ? track.artists.join(', ') : track.release.artist,
+      artist: trackArtist(track, track.release.artist),
       audioUrl: track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '',
       coverUrl: getCoverUrl(track.release),
       releaseId: track.release.id,
@@ -188,7 +189,7 @@ export function FavoritesBrowser({ lang, tracks, isLoggedIn }: FavoritesBrowserP
       <div className="playlist-feed">
         <div className="playlist-tracklist favorites-tracklist">
           {visibleTracks.map((track, index) => {
-            const artist = track.artists?.length ? track.artists.join(', ') : track.release.artist;
+            const artist = trackArtist(track, track.release.artist);
             const audioUrl = track.audioFiles.find((file) => file.storageUrl)?.storageUrl || '';
             const coverUrl = getCoverUrl(track.release);
             const isCurrentTrack = currentTrack?.id === track.id;

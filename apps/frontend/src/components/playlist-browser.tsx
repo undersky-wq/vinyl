@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getPlaylist, reorderPlaylist, reorderPlaylists, updatePlaylist } from '../lib/api';
 import { SiteLang } from '../lib/language';
+import { trackArtist } from '../lib/track-artist';
 import { normalizeDurationLabel } from '../lib/time';
 import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
@@ -277,7 +278,7 @@ export function PlaylistBrowser({
           id: item.track.id,
           playbackSource: {section:'playlists' as const, name:activePlaylist.name},
           title: item.track.title,
-          artist: item.track.artists?.length ? item.track.artists.join(', ') : release.artist,
+          artist: trackArtist(item.track, release.artist),
           audioUrl,
           coverUrl,
           releaseId: release.id,
