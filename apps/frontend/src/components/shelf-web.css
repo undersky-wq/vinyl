@@ -408,6 +408,12 @@ html[data-visual-variant='shelf'] .paper-archive .paper-track-line.is-playing::a
 html[data-visual-variant='shelf'] .paper-archive .paper-track-line.is-playing {
   box-shadow:inset 0 -1px 0 var(--shelf-web-ink);
 }
+html[data-visual-variant='shelf'] .paper-archive .paper-track-line.is-playing.is-drop-before {
+  box-shadow:0 -2px var(--shelf-web-ink),inset 0 -1px var(--shelf-web-ink);
+}
+html[data-visual-variant='shelf'] .paper-archive .paper-track-line.is-playing.is-drop-after {
+  box-shadow:0 2px var(--shelf-web-ink),inset 0 -1px var(--shelf-web-ink);
+}
 @media(min-width:701px) {
   html[data-visual-variant='shelf'] body .mini-player__title { font-weight:400!important; }
 }
