@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { twoFactorRequest } from '../lib/api';
 import { SiteLang } from '../lib/language';
 import './two-factor-settings.css';
+import { ProfileSwitchTrack } from './profile-toggle';
 
 type Status = { enabled: boolean; recoveryCodesRemaining: number };
 type Setup = { secret: string; qrDataUrl: string; expiresAt: string };
@@ -57,7 +58,7 @@ export function TwoFactorSettings({ lang }: { lang: SiteLang }) {
 
   return <div className="two-factor-settings">
     <button type="button" className="profile-action-button profile-action-button--switch" aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      <span>{ru ? 'Двухфакторная защита' : 'Two-factor authentication'}</span><strong>{status ? status.enabled ? 'ON' : 'OFF' : '…'}</strong>
+      <span>{ru ? 'Двухфакторная защита' : 'Two-factor authentication'}<span className="sr-only">{status ? status.enabled ? ru ? ': включена' : ': enabled' : ru ? ': выключена' : ': disabled' : ru ? ': загрузка' : ': loading'}</span></span>{status ? <ProfileSwitchTrack checked={status.enabled}/> : <span aria-hidden="true">…</span>}
     </button>
     {open ? <div className="two-factor-settings__body">
       <p>{ru ? 'Код из приложения-аутентификатора после пароля. Для обычных пользователей вход не меняется.' : 'An authenticator code after your password. Other members keep their usual sign-in.'}</p>

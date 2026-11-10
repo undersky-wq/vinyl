@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter,useSearchParams } from 'next/navigation';
 import { Upload,UserRound,ShieldCheck,Palette,Wrench,LibraryBig,Users,RefreshCw,AudioLines,FileAudio } from 'lucide-react';
 import { ShelfDesignSettings } from './shelf-design-settings';
+import { ProfileToggle } from './profile-toggle';
 import './profile-admin-sections.css';
 import {
   AudioBackfillStatus,
@@ -413,15 +414,8 @@ export function ProfileScreen({
     window.dispatchEvent(new Event(ADMIN_EDIT_MODE_EVENT));
   }
 
-  return (
-    <section className="profile-grid">
-      <article className={`release-panel profile-panel${activeUser.role==='ADMIN'?' profile-panel--admin':''}`}>
-        {activeUser.role==='ADMIN'&&<>
-          <nav className="profile-admin-nav" aria-label={lang==='ru'?'Разделы администрирования':'Administration sections'}>{adminSections.map(({key,ru,en,Icon})=><button key={key} type="button" aria-pressed={adminSection===key} onClick={()=>{setAdminSection(key);setStatus('');}}><Icon size={20}/><span>{lang==='ru'?ru:en}</span></button>)}</nav>
-          <header className="profile-admin-heading"><h1>{adminSections.find(item=>item.key===adminSection)?.[lang==='ru'?'ru':'en']}</h1><p>{lang==='ru'?({profile:'Ваш профиль и обзор коллекции.',security:'Защита аккаунта, регистрация и правила доступа к музыке.',design:'Внешний вид и движения интерфейса.',maintenance:'Фоновые операции с аудио, обложками и данными Discogs.',content:'Загрузка музыки и способы редактирования коллекции.',users:'Зарегистрированные слушатели и управление доступом.'})[adminSection]:({profile:'Your profile and collection overview.',security:'Account security, registration and music access.',design:'Appearance and motion of the website.',maintenance:'Background jobs for audio, artwork and Discogs data.',content:'Music uploads and collection editing.',users:'Registered listeners and access management.'})[adminSection]}</p></header>
-        </>}
-        <div className="profile-admin-overview" hidden={activeUser.role==='ADMIN'&&adminSection!=='profile'}>
-        <div className="profile-hero">
+  const profileHero = (
+    <div className={`profile-hero${activeUser.role==='ADMIN'?' profile-admin-identity':''}`}>
           <label className="profile-avatar">
             {avatarPreviewUrl ? (
               <img src={avatarPreviewUrl} alt={activeUser.displayName} />
@@ -438,6 +432,18 @@ export function ProfileScreen({
             <p className="muted">{activeUser.email}</p>
           </div>
         </div>
+  );
+
+  return (
+    <section className="profile-grid">
+      <article className={`release-panel profile-panel${activeUser.role==='ADMIN'?' profile-panel--admin':''}`}>
+        {activeUser.role==='ADMIN'&&<>
+          {profileHero}
+          <nav className="profile-admin-nav" aria-label={lang==='ru'?'Разделы администрирования':'Administration sections'}>{adminSections.map(({key,ru,en,Icon})=><button key={key} type="button" aria-pressed={adminSection===key} onClick={()=>{setAdminSection(key);setStatus('');}}><Icon size={20}/><span>{lang==='ru'?ru:en}</span></button>)}</nav>
+          <header className="profile-admin-heading"><h1>{adminSections.find(item=>item.key===adminSection)?.[lang==='ru'?'ru':'en']}</h1><p>{lang==='ru'?({profile:'Ваш профиль и обзор коллекции.',security:'Защита аккаунта, регистрация и правила доступа к музыке.',design:'Внешний вид и движения интерфейса.',maintenance:'Фоновые операции с аудио, обложками и данными Discogs.',content:'Загрузка музыки и способы редактирования коллекции.',users:'Зарегистрированные слушатели и управление доступом.'})[adminSection]:({profile:'Your profile and collection overview.',security:'Account security, registration and music access.',design:'Appearance and motion of the website.',maintenance:'Background jobs for audio, artwork and Discogs data.',content:'Music uploads and collection editing.',users:'Registered listeners and access management.'})[adminSection]}</p></header>
+        </>}
+        <div className="profile-admin-overview" hidden={activeUser.role==='ADMIN'&&adminSection!=='profile'}>
+        {activeUser.role!=='ADMIN'&&profileHero}
 
         {activeUser.role === 'ADMIN' ? (
           <div className="profile-stats">
@@ -466,10 +472,10 @@ export function ProfileScreen({
           {activeUser.role==='ADMIN'&&<>
             <section hidden={adminSection!=='security'} aria-label={lang==='ru'?'Настройки безопасности':'Security settings'}>
               <TwoFactorSettings lang={lang}/>
-              <button type="button" className={`profile-action-button profile-action-button--switch${isRegistrationInviteRequired?' active':''}`} aria-pressed={isRegistrationInviteRequired} onClick={handleRegistrationInviteToggle} disabled={isSavingAuthSettings}><span>{lang==='ru'?'Пароль для регистрации':'Registration invite'}</span><strong>{isRegistrationInviteRequired?'ON':'OFF'}</strong></button>
+              <ProfileToggle checked={isRegistrationInviteRequired} label={lang==='ru'?'Пароль для регистрации':'Registration invite'} onChange={handleRegistrationInviteToggle} disabled={isSavingAuthSettings}>{lang==='ru'?'Пароль для регистрации':'Registration invite'}</ProfileToggle>
               <h2>{lang==='ru'?'Доступ к музыке':'Music access'}</h2>
-              <button type="button" className={`profile-action-button profile-action-button--switch${playbackRequiresRegistration?' active':''}`} aria-pressed={playbackRequiresRegistration} disabled={isSavingPlayback} onClick={handlePlaybackToggle}><span>{lang==='ru'?'Треки только для зарегистрированных':'Playback requires registration'}</span><strong>{playbackRequiresRegistration?'ON':'OFF'}</strong></button>
-              <button type="button" className={`profile-action-button profile-action-button--switch${allowGuestMixPlayback?' active':''}`} aria-pressed={allowGuestMixPlayback} disabled={isSavingGuestMixPlayback} onClick={handleGuestMixPlaybackToggle}><span>{lang==='ru'?'Миксы без регистрации':'Mixes without registration'}</span><strong>{allowGuestMixPlayback?'ON':'OFF'}</strong></button>
+              <ProfileToggle checked={playbackRequiresRegistration} label={lang==='ru'?'Треки только для зарегистрированных':'Playback requires registration'} onChange={handlePlaybackToggle} disabled={isSavingPlayback}>{lang==='ru'?'Треки только для зарегистрированных':'Playback requires registration'}</ProfileToggle>
+              <ProfileToggle checked={allowGuestMixPlayback} label={lang==='ru'?'Миксы без регистрации':'Mixes without registration'} onChange={handleGuestMixPlaybackToggle} disabled={isSavingGuestMixPlayback}>{lang==='ru'?'Миксы без регистрации':'Mixes without registration'}</ProfileToggle>
             </section>
             <section hidden={adminSection!=='design'} aria-label={lang==='ru'?'Настройки дизайна сайта':'Site design settings'}><ShelfDesignSettings ru={lang==='ru'}/></section>
             <section hidden={adminSection!=='maintenance'} aria-label={lang==='ru'?'Обслуживание медиатеки':'Library maintenance'}>
@@ -480,8 +486,8 @@ export function ProfileScreen({
             </section>
             <section hidden={adminSection!=='content'} aria-label={lang==='ru'?'Управление контентом':'Content management'}>
               <Link href="/upload" className="profile-action-button"><Upload size={19}/><span>{lang==='ru'?'Загрузить музыку':'Upload music'}</span></Link>
-              <button type="button" className={`profile-action-button profile-action-button--switch${isAdminEditModeEnabled?' active':''}`} aria-pressed={isAdminEditModeEnabled} onClick={handleAdminEditModeToggle}><span>{lang==='ru'?'Редактирование с телефона':'Mobile editing'}</span><strong>{isAdminEditModeEnabled?'ON':'OFF'}</strong></button>
-              <button type="button" className={`profile-action-button profile-action-button--switch${webEditMode?' active':''}`} aria-pressed={webEditMode} onClick={()=>setWebEditMode(!webEditMode)}><span>{lang==='ru'?'Веб-редактирование релизов и миксов':'Web release and mix editing'}</span><strong>{webEditMode?'ON':'OFF'}</strong></button>
+              <ProfileToggle checked={isAdminEditModeEnabled} label={lang==='ru'?'Редактирование с телефона':'Mobile editing'} onChange={handleAdminEditModeToggle}>{lang==='ru'?'Редактирование с телефона':'Mobile editing'}</ProfileToggle>
+              <ProfileToggle checked={webEditMode} label={lang==='ru'?'Веб-редактирование релизов и миксов':'Web release and mix editing'} onChange={()=>setWebEditMode(!webEditMode)}>{lang==='ru'?'Веб-редактирование релизов и миксов':'Web release and mix editing'}</ProfileToggle>
             </section>
             <section hidden={adminSection!=='users'}><Link href="/profile/users" className="profile-action-button"><Users size={19}/><span>{lang==='ru'?'Список зарегистрированных':'Registered users'}</span><span aria-hidden="true">→</span></Link></section>
           </>}

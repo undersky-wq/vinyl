@@ -11,8 +11,13 @@ html body .profile-panel--admin .profile-admin-actions{width:100%;max-width:760p
 .profile-admin-actions section{width:100%}.profile-admin-actions h2{font-size:17px;margin:27px 0 12px}.profile-admin-actions .profile-action-button{display:flex;align-items:center;gap:12px;width:100%;transition:color .28s,border-color .28s,background-color .28s,font-size .28s}.profile-admin-actions .profile-action-button>span{flex:1}
 .admin-setting-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:16px;padding:20px 0;border-bottom:1px solid var(--shelf-web-line,#ddd)}
 .admin-setting-row>svg{color:var(--shelf-web-muted,#777)}.admin-setting-row strong{font-size:16px;font-weight:600}.admin-setting-row p{font-size:13px;line-height:1.5;color:var(--shelf-web-muted,#777);margin:5px 0 0}
-.admin-setting-row button[role=switch]{position:relative;width:54px;height:29px;flex:none;border:0;border-radius:20px;background:#d4d4d4;transition:background-color .28s}
-.admin-setting-row button[role=switch]::after{content:'';position:absolute;left:4px;top:4px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0002;transition:translate .28s cubic-bezier(.22,1,.36,1)}.admin-setting-row button[aria-checked=true]{background:#3478db}.admin-setting-row button[aria-checked=true]::after{translate:25px 0}.admin-setting-row button span{font-size:0}
-.profile-admin-actions{animation:admin-section-arrive .35s ease both}@keyframes admin-section-arrive{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
+.profile-admin-actions{color:var(--shelf-web-ink,#111);animation:admin-section-arrive .35s ease both}@keyframes admin-section-arrive{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
 @media(max-width:700px){.profile-admin-nav{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:26px}.profile-admin-nav button{font-size:11px;min-height:75px;padding:12px 5px;gap:7px}.profile-admin-overview{display:flex;flex-direction:column;gap:24px}.admin-setting-row{gap:10px;grid-template-columns:22px minmax(0,1fr) 54px}.admin-setting-row strong{font-size:14px}.admin-setting-row p{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.profile-admin-nav button,.admin-setting-row button,.admin-setting-row button::after,.profile-admin-actions{transition:none;animation:none}}
+html body .paper-profile-page .profile-panel--admin>.profile-admin-identity{display:flex;flex-direction:row;align-items:center;gap:22px;margin:0 0 32px;grid-column:auto;grid-row:auto}
+html body .paper-profile-page .profile-admin-identity .profile-avatar{width:88px;height:88px;flex:none;font-size:32px}
+html body .paper-profile-page .profile-admin-identity .profile-title{font-size:28px;letter-spacing:-.6px;margin:5px 0}
+html body .paper-profile-page .profile-admin-identity .paper-profile-avatar-hint{display:none}
+html body .paper-profile-page .profile-admin-identity .muted{font-size:13px;margin:0}
+.profile-panel--admin .profile-admin-overview{display:block}
+@media(max-width:700px){html body .paper-profile-page .profile-panel--admin>.profile-admin-identity{gap:16px;margin-bottom:26px}html body .paper-profile-page .profile-admin-identity .profile-avatar{width:72px;height:72px}html body .paper-profile-page .profile-admin-identity .profile-title{font-size:23px}}
