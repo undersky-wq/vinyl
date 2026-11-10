@@ -67,7 +67,10 @@ export function useShelfMotionPreview(rootRef: RefObject<HTMLElement | null>, en
       let settling=false;
       for (const sleeve of sleeves.values()) {
         const held = grip?.sleeve === sleeve;
-        if (!sleeve.visible && !held) { sleeve.x = sleeve.y = 0; continue; }
+        // Expanded Grid covers use position:fixed and can be clipped by the
+        // observer root. Visibility must never interrupt a released rotation.
+        const returning = sleeve.squared || turn(sleeve.spinX) !== 0 || turn(sleeve.spinY) !== 0 || sleeve.x !== 0 || sleeve.y !== 0;
+        if (!sleeve.visible && !held && !returning) { sleeve.x = sleeve.y = 0; continue; }
         const targetX=sleeve === hovered && !scrolling ? sleeve.hoverX : 0,targetY=sleeve === hovered && !scrolling ? sleeve.hoverY : 0;
         sleeve.x += (targetX - sleeve.x) * ease;
         sleeve.y += (targetY - sleeve.y) * ease;

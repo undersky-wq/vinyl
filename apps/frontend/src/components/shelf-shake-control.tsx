@@ -1,25 +1,38 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { Shuffle, Smartphone } from 'lucide-react';
-import { ShelfShakeDetector } from '../lib/shelf-shake';
+import { ShelfShakeDetector, motionAcceleration } from '../lib/shelf-shake';
 
 export function ShelfShakeControl({onShuffle,ru,disabled=false}:{onShuffle:()=>void;ru:boolean;disabled?:boolean}) {
   const callback=useRef(onShuffle);callback.current=onShuffle;
   const [enabled,setEnabled]=useState(false),[status,setStatus]=useState('');
   const localControls=process.env.NODE_ENV!=='production';
-  useEffect(()=>{if(!localControls&&window.isSecureContext&&window.DeviceMotionEvent&&!(window.DeviceMotionEvent as typeof DeviceMotionEvent&{requestPermission?:unknown}).requestPermission)setEnabled(true);},[localControls]);
+  useEffect(()=>{
+    if(localControls||!window.isSecureContext||!window.DeviceMotionEvent)return;
+    const Motion=window.DeviceMotionEvent as typeof DeviceMotionEvent&{requestPermission?:()=>Promise<string>};
+    setEnabled(true);
+    // Browsers that require a gesture can request sensor access on the first
+    // real interaction, without restoring the production Shuffle button.
+    if(!Motion.requestPermission)return;
+    const activate=(event:Event)=>{
+      if(!event.isTrusted)return;
+      window.removeEventListener('pointerup',activate);
+      void Motion.requestPermission!().then(permission=>setEnabled(permission==='granted')).catch(()=>setEnabled(false));
+    };
+    window.addEventListener('pointerup',activate);
+    return()=>window.removeEventListener('pointerup',activate);
+  },[localControls]);
   useEffect(()=>{
     if(!enabled)return;
     const detector=new ShelfShakeDetector();
     const motion=(event:DeviceMotionEvent)=>{
-      if(document.hidden)return;
-      const a=event.accelerationIncludingGravity;
-      if(a?.x==null||a.y==null||a.z==null)return;
-      if(detector.sample(a.x,a.y,a.z,performance.now()))callback.current();
+      if(document.hidden||disabled)return;
+      const a=motionAcceleration(event);
+      if(a&&detector.sample(...a,performance.now()))callback.current();
     };
     window.addEventListener('devicemotion',motion);
     return()=>window.removeEventListener('devicemotion',motion);
-  },[enabled]);
+  },[enabled,disabled]);
   async function toggle(){
     if(enabled){setEnabled(false);setStatus('');return;}
     if(!window.isSecureContext){setStatus(ru?'Для встряхивания открой сайт по HTTPS. Кнопка перемешивания работает и здесь.':'Shake needs HTTPS. You can still use Shuffle.');return;}
