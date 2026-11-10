@@ -28,11 +28,32 @@ assert.equal(images.getBackCoverUrl(release,2,'thumb'),url('d-small'));
 assert.equal(images.getSecondFrontCoverUrl(release,'medium'),url('c-medium'));
 assert.equal(images.playingCoverImage({position:'D1',coverUrl:url('d-full'),backCoverUrl:url('d-full'),backCoverMobileUrl:url('d-small')}).src,url('d-small'));
 
+// Server-rendered markup must choose medium mobile artwork even before
+// hydration knows the viewport, and must not request originals for closed rows.
+for (const disc of [1,2]) for (const desktopViewport of [false,true]) for (const selected of [false,true]) {
+  const html=renderToStaticMarkup(React.createElement(component,{release,disc,flipped:true,eager:selected,priority:false,selected,highQuality:false,desktopViewport}));
+  const mobileSources=[...html.matchAll(/<source media="\(max-width:700px\)" srcSet="([^"]+)"/g)].map(match=>match[1]);
+  assert.deepEqual(mobileSources,[url(`${disc===1?'a':'c'}-medium`),url(`${disc===1?'b':'d'}-medium`)]);
+  assert(!html.includes('-small.svg'), 'No thumbnail downloads or swaps in collection covers');
+  assert(!html.includes('paper-record-hires'), 'Opening the track list alone does not request an original');
+  if(!desktopViewport){
+    const expanded=renderToStaticMarkup(React.createElement(component,{release,disc,flipped:true,eager:true,priority:true,selected:true,highQuality:true,desktopViewport}));
+    assert.equal((expanded.match(/class="paper-record-hires"/g)||[]).length,2,'Fully expanded mobile release includes original front and back');
+  }
+}
+const missingVariants={...release,coverMediumStorageUrl:null,backCoverMediumUrl:null,secondCoverMediumUrl:null,secondBackCoverMediumUrl:null};
+for(const disc of [1,2]){
+  const fallback=renderToStaticMarkup(React.createElement(component,{release:missingVariants,disc,flipped:false,eager:false,priority:false,selected:false,highQuality:false}));
+  assert(fallback.includes(url(`${disc===1?'a':'c'}-full`))&&fallback.includes(url(`${disc===1?'b':'d'}-full`)),'Missing variants retain working originals');
+}
+console.log('PASS markup: uniform medium mobile A/B/C/D covers, SSR, opened/closed rows, full expansion and missing-variant fallback');
+if(process.argv.includes('--markup-only'))process.exit(0);
+
 (async()=>{
   const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH});
   try {
-    for(const [width,dpr,size,expected,serverEstimate,compactPreview,deckPreview]of [[390,3,230,'medium',true,true,true],[390,3,240,'medium',false,false,true],[390,1,230,'medium',false,true,true],[390,3,230,'small',true,true],[390,3,240,'small',false,true],[390,3,320,'small',false,true],[1440,2,320,'full',false,true,true],[390,3,230,'small',true],[390,3,81,'small'],[390,3,72,'small'],[390,3,240,'medium'],[700,1,320,'small'],[701,3,72,'full'],[1440,1,214,'full'],[1440,1,320,'full'],[1440,2,214,'full'],[1440,1,420,'full']])for(const disc of [1,2]){
+    for(const [width,dpr,size,expected,serverEstimate,compactPreview,deckPreview]of [[320,1,72,'medium'],[390,3,72,'medium'],[390,3,240,'medium'],[390,3,230,'medium',true,true,true],[390,1,81,'medium'],[700,1,320,'medium'],[701,3,72,'full'],[1440,1,214,'full'],[1440,2,420,'full']])for(const disc of [1,2]){
       const page=await browser.newPage({viewport:{width,height:900},deviceScaleFactor:dpr});
       await page.route('http://cover-variants.test/**',route=>{
         const size=route.request().url().includes('small')?320:route.request().url().includes('medium')?900:1400;
@@ -45,8 +66,8 @@ assert.equal(images.playingCoverImage({position:'D1',coverUrl:url('d-full'),back
       await page.setContent(render(false));
       await page.waitForFunction(()=>[...document.querySelectorAll('img')].every(img=>img.complete&&img.naturalWidth));
       const actual=await page.locator('img').evaluateAll(nodes=>nodes.map(node=>new URL(node.currentSrc).pathname));
-      const initialRendition = expected === 'medium' && !deckPreview ? 'small' : expected;
-      assert.deepEqual(actual,[`/${disc===1?'a':'c'}-${initialRendition}.svg`,`/${disc===1?'b':'d'}-${initialRendition}.svg`], 'Mobile decks start with medium A/B/C/D covers, including the desktop SSR estimate');
+      const initialRendition = expected;
+      assert.deepEqual(actual,[`/${disc===1?'a':'c'}-${initialRendition}.svg`,`/${disc===1?'b':'d'}-${initialRendition}.svg`], 'All mobile layouts start with medium A/B/C/D covers, including the desktop SSR estimate');
       assert.equal(await page.locator('img').first().getAttribute('decoding'),'async');
       await page.setContent(render(true));
       await page.waitForFunction(()=>[...document.querySelectorAll('img')].every(img=>img.complete&&img.naturalWidth));
@@ -56,6 +77,6 @@ assert.equal(images.playingCoverImage({position:'D1',coverUrl:url('d-full'),back
       } else if(!serverEstimate) assert.deepEqual(await page.locator('.paper-record-hires').evaluateAll(nodes=>nodes.map(node=>new URL(node.currentSrc).pathname)),[`/${disc===1?'a':'c'}-full.svg`,`/${disc===1?'b':'d'}-full.svg`]);
       await page.close();
     }
-    console.log('PASS browser: mobile Shelf/Stack start with medium A/B/C/D artwork, including SSR; other layouts retain responsive sources; desktop originals and expanded artwork unchanged');
+    console.log('PASS browser: all mobile layouts start with medium A/B/C/D artwork, including SSR; desktop originals and expanded artwork unchanged');
   }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

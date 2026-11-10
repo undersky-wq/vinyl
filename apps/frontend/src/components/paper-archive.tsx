@@ -29,8 +29,7 @@ import { getBackCoverUrl, getSecondFrontCoverUrl, isBackSidePosition, vinylDisc 
 import { collapseReleaseCoverSide, releaseCoverSide, toggleReleaseCoverSide, trackRowCoverSide, type CoverSideOverrides } from '../lib/release-cover-side';
 import { retryCoverImage } from '../lib/retry-cover-image';
 import { warmCoverImages } from '../lib/warm-cover-images';
-import { ShelfDiscTransition, decodeCover } from './shelf-disc-transition';
-import { coverResolutionMedia, mobileDeckCoverSize } from '../lib/cover-sources';
+import { ShelfDiscTransition } from './shelf-disc-transition';
 import { positionStackHoverLabel } from '../lib/stack-hover-position';
 import { getPinnedGenres } from '../lib/pinned-genres';
 import { frameMeasurement, observeCardHeights, setLayoutProperties } from '../lib/layout-measurement';
@@ -48,55 +47,29 @@ const coverMedium = (r: HomeRelease, disc: 1 | 2 = 1) => disc === 2 ? getSecondF
 const cover = coverFull;
 const MAX_SELECTED_STYLES = 5;
 
-function useDecodedCover(url: string, enabled: boolean) {
-  const [decoded, setDecoded] = useState<string | null>(null);
-  useEffect(() => {
-    if (!enabled || !url || decoded === url) return;
-    let cancelled = false;
-    void decodeCover(url).then(ready => {
-      if (ready && !cancelled) setDecoded(url);
-    });
-    return () => { cancelled = true; };
-  }, [url, enabled, decoded]);
-  return decoded === url;
-}
-
-function ShelfCoverImage({ release, disc = 1, flipped, eager, priority, selected, highQuality, displaySize, desktopViewport = false, compactPreview = false, deckPreview = false }: { release: HomeRelease; disc?: 1 | 2; flipped: boolean; eager: boolean; priority: boolean; selected: boolean; highQuality: boolean; displaySize: number; desktopViewport?: boolean; compactPreview?: boolean; deckPreview?: boolean }) {
-  // Desktop always uses originals. Mobile selects a rendition by the sleeve
-  // size and screen density, then loads the original on full expansion.
+function ShelfCoverImage({ release, disc = 1, flipped, eager, priority, selected, highQuality, desktopViewport = false }: { release: HomeRelease; disc?: 1 | 2; flipped: boolean; eager: boolean; priority: boolean; selected: boolean; highQuality: boolean; desktopViewport?: boolean }) {
+  // Every mobile layout starts with the same medium artwork, including SSR.
+  // Only full expansion loads originals on mobile; desktop always uses them.
   // Off-screen records remain lazy-loaded rather than fetching the whole library.
   const full = coverFull(release, disc);
   const back = getBackCoverUrl(release, disc);
-  const thumb = coverMobile(release, disc);
   const medium = coverMedium(release, disc);
-  const backThumb = getBackCoverUrl(release, disc, 'thumb');
   const backMedium = getBackCoverUrl(release, disc, 'medium');
-  const media = coverResolutionMedia(displaySize);
-  const useMedium = !compactPreview && typeof window !== 'undefined' && window.matchMedia(media).matches;
   const originalPreview = highQuality || (typeof window !== 'undefined' && window.matchMedia('(min-width:701px)').matches);
-  const prepareMedium = !deckPreview && useMedium && !originalPreview && !desktopViewport && (eager || selected);
-  // Mobile decks start with the same quality in Shelf and Stack, including SSR.
-  // There is no thumbnail-to-medium source replacement while moving the deck.
-  const frontReady = useDecodedCover(medium, prepareMedium && !flipped && medium !== thumb);
-  const backReady = useDecodedCover(backMedium, prepareMedium && flipped && backMedium !== backThumb);
-  return <ShelfDiscTransition disc={disc} flipped={flipped} sources={[originalPreview ? full : deckPreview || frontReady ? medium : thumb, originalPreview ? back : deckPreview || backReady ? backMedium : backThumb]}>
+  return <ShelfDiscTransition disc={disc} flipped={flipped} sources={[originalPreview ? full : medium, originalPreview ? back : backMedium]}>
     <span className="paper-record-face paper-record-front">
       <picture style={{display:'contents'}}>
       <source media="(min-width:701px)" srcSet={full} />
-      {deckPreview && <source media="(max-width:700px)" srcSet={medium} />}
-      {!compactPreview && desktopViewport && <source media="(max-width:700px)" srcSet={thumb} />}
-      {!deckPreview && frontReady && medium !== thumb && <source media="(max-width:700px)" srcSet={medium} />}
-      <img src={thumb} alt="" width={900} height={900} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} />
+      <source media="(max-width:700px)" srcSet={medium} />
+      <img src={medium} alt="" width={900} height={900} loading={eager ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} />
       </picture>
-      {highQuality && !desktopViewport && full !== thumb ? <img className="paper-record-hires" src={full} alt="" width={900} height={900} loading="eager" fetchPriority="high" decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} /> : null}
+      {highQuality && !desktopViewport && full !== medium ? <img className="paper-record-hires" src={full} alt="" width={900} height={900} loading="eager" fetchPriority="high" decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }} /> : null}
     </span>
     {back ? <span className="paper-record-face paper-record-back"><picture style={{display:'contents'}}>
       <source media="(min-width:701px)" srcSet={back} />
-      {deckPreview && <source media="(max-width:700px)" srcSet={backMedium} />}
-      {!compactPreview && desktopViewport && <source media="(max-width:700px)" srcSet={backThumb} />}
-      {!deckPreview && backReady && backMedium !== backThumb && <source media="(max-width:700px)" srcSet={backMedium} />}
-      <img src={backThumb} alt="" width={900} height={900} loading={selected ? 'eager' : 'lazy'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }}/>
-      </picture>{highQuality && !desktopViewport && back !== backThumb ? <img className="paper-record-hires" src={back} alt="" width={900} height={900} loading="eager" decoding="async" draggable={false} onError={event=>{retryCoverImage(event.currentTarget);}}/> : null}</span> : <span className="paper-record-face paper-record-back shelf-motion-back-placeholder"><b>B</b><small>Обратная обложка не выбрана</small></span>}
+      <source media="(max-width:700px)" srcSet={backMedium} />
+      <img src={backMedium} alt="" width={900} height={900} loading={selected ? 'eager' : 'lazy'} decoding="async" draggable={false} onError={event => { retryCoverImage(event.currentTarget); }}/>
+      </picture>{highQuality && !desktopViewport && back !== backMedium ? <img className="paper-record-hires" src={back} alt="" width={900} height={900} loading="eager" decoding="async" draggable={false} onError={event=>{retryCoverImage(event.currentTarget);}}/> : null}</span> : <span className="paper-record-face paper-record-back shelf-motion-back-placeholder"><b>B</b><small>Обратная обложка не выбрана</small></span>}
   </ShelfDiscTransition>;
 }
 
@@ -1771,8 +1744,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
         }}>
         <span className="shelf-motion-surface">
         {/* The same sleeve moves out of the row and unfolds; no duplicate cover. */}
-        <ShelfCoverImage deckPreview={gridMix < .01 && listMix < .01} compactPreview={viewport.width>700 && !stackMode && gridMix < .01 && listMix < .01}
-          release={r} disc={disc} flipped={showBackCover} eager={isPriorityCover || stackTransitioning} priority={isPriorityCover} selected={selected === i} highQuality={selected === i && expanded} desktopViewport={viewport.width>700} displaySize={selected === i ? Math.max(sleeveSize,expandedSize) : viewport.width<=700 && gridMix < .01 && listMix < .01 ? mobileDeckCoverSize(viewport.width,viewport.height) : stackMode ? Math.min(viewport.width*.34,viewport.height*.4,420) : listMix>0 ? gridSize*(1-listMix)+listSize*listMix : gridMix>=1 ? gridSize : sleeveSize} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
+        <ShelfCoverImage release={r} disc={disc} flipped={showBackCover} eager={isPriorityCover || stackTransitioning} priority={isPriorityCover} selected={selected === i} highQuality={selected === i && expanded} desktopViewport={viewport.width>700} /><span className="paper-record-edge" aria-hidden="true" /><span className="paper-record-caption"><b>{r.title}</b>{r.year ? <small>{r.year}</small> : null}</span>
         </span>
       </button>
       </div>;
