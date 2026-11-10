@@ -1514,7 +1514,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
         </>}
       </h1>}
     </header>
-    {collectionView&&motionSettings.shuffleEnabled&&<ShelfShakeControl ru={ru} disabled={shuffling} onShuffle={shuffleCollection}/>}
+    {collectionView&&motionSettings.shuffleEnabled&&<ShelfShakeControl ru={ru} disabled={shuffling} sensitivity={motionSettings.shakeSensitivity} onShuffle={shuffleCollection}/>}
     <MobileCollectionPicker kind={mobilePicker} ru={ru} section={mobileSectionKey}
       music={releases.map(item => ({id:item.id,artist:item.artist,title:item.title}))}
       onMusic={id => {

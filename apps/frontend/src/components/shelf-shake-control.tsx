@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Shuffle, Smartphone } from 'lucide-react';
 import { ShelfShakeDetector, motionAcceleration } from '../lib/shelf-shake';
 
-export function ShelfShakeControl({onShuffle,ru,disabled=false}:{onShuffle:()=>void;ru:boolean;disabled?:boolean}) {
+export function ShelfShakeControl({onShuffle,ru,disabled=false,sensitivity=50}:{onShuffle:()=>void;ru:boolean;disabled?:boolean;sensitivity?:number}) {
   const callback=useRef(onShuffle);callback.current=onShuffle;
   const [enabled,setEnabled]=useState(false),[status,setStatus]=useState('');
   const localControls=process.env.NODE_ENV!=='production';
@@ -24,7 +24,7 @@ export function ShelfShakeControl({onShuffle,ru,disabled=false}:{onShuffle:()=>v
   },[localControls]);
   useEffect(()=>{
     if(!enabled)return;
-    const detector=new ShelfShakeDetector();
+    const detector=new ShelfShakeDetector(sensitivity);
     const motion=(event:DeviceMotionEvent)=>{
       if(document.hidden||disabled)return;
       const a=motionAcceleration(event);
@@ -32,7 +32,7 @@ export function ShelfShakeControl({onShuffle,ru,disabled=false}:{onShuffle:()=>v
     };
     window.addEventListener('devicemotion',motion);
     return()=>window.removeEventListener('devicemotion',motion);
-  },[enabled,disabled]);
+  },[enabled,disabled,sensitivity]);
   async function toggle(){
     if(enabled){setEnabled(false);setStatus('');return;}
     if(!window.isSecureContext){setStatus(ru?'Для встряхивания открой сайт по HTTPS. Кнопка перемешивания работает и здесь.':'Shake needs HTTPS. You can still use Shuffle.');return;}

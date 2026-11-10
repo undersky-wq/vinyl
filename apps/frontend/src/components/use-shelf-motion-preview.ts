@@ -113,8 +113,15 @@ export function useShelfMotionPreview(rootRef: RefObject<HTMLElement | null>, en
       const origin = style.transformOrigin.split(' ').map(Number.parseFloat);
       const cx=record.offsetWidth/2,cy=record.offsetHeight/2;
       const projected = new DOMPoint(cx-origin[0],cy-origin[1]).matrixTransform(matrix);
-      record.style.setProperty('--sleeve-grab-x',`${origin[0]+projected.x/projected.w-cx}px`);
-      record.style.setProperty('--sleeve-grab-y',`${origin[1]+projected.y/projected.w-cy}px`);
+      const corners=[[0,0],[record.offsetWidth,0],[0,record.offsetHeight],[record.offsetWidth,record.offsetHeight]]
+        .map(([x,y])=>new DOMPoint(x-origin[0],y-origin[1]).matrixTransform(matrix));
+      const xs=corners.map(point=>point.x/point.w),ys=corners.map(point=>point.y/point.w);
+      // Removing the deck's shear must not shrink its projected height. Keep
+      // the longest visible extent when the sleeve becomes a rotating square.
+      const scale=Math.max(1,(Math.max(...xs)-Math.min(...xs))/record.offsetWidth,(Math.max(...ys)-Math.min(...ys))/record.offsetHeight);
+      record.style.setProperty('--sleeve-grab-scale',String(scale));
+      record.style.setProperty('--sleeve-grab-x',`${origin[0]+projected.x/projected.w-cx*scale}px`);
+      record.style.setProperty('--sleeve-grab-y',`${origin[1]+projected.y/projected.w-cy*scale}px`);
       record.classList.add('is-sleeve-squared'); sleeve.squared = true;
     }
     function unsquare(sleeve: Sleeve) {

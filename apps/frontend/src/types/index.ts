@@ -228,6 +228,7 @@ export type ProfileStats = {
 };
 
 export type AuthSettings = {
+  shelfShakeSensitivity?: number;
   shelfWaveEnabled?: boolean;
   shelfSpinEnabled?: boolean;
   shelfShuffleEnabled?: boolean;
@@ -240,6 +241,7 @@ export type AuthSettings = {
 export type SiteDesign = 'classic' | 'shelf';
 
 export type SiteSettings = {
+  shelfShakeSensitivity?: number;
   shelfWaveEnabled?: boolean;
   shelfSpinEnabled?: boolean;
   shelfShuffleEnabled?: boolean;

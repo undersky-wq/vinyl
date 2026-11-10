@@ -39,3 +39,20 @@ for (const layout of ['grid', 'tracks', 'shelf', 'stack']) for (const visible of
   assert.equal(frames.size, 0, 'Stop the idle frame loop once the cover has returned');
 }
 console.log('PASS: released 3D covers return in all layouts, visible or observer-clipped, with and without reduced motion');
+
+for(const [a,b,c,d,expectedScale] of [[.76,.43,0,1,1.43],[1,0,0,1,1],[1.035,0,0,1.035,1.035]]){
+  const properties=new Map();
+  const record={offsetWidth:180,offsetHeight:180,style:{setProperty:(key,value)=>properties.set(key,value)},classList:{add:()=>{}}};
+  const sleeve={squared:false,button:{parentElement:record}};
+  class Matrix{constructor(){Object.assign(this,{a,b,c,d});}}
+  class Point{constructor(x,y){this.x=x;this.y=y;}matrixTransform(matrix){return {x:matrix.a*this.x+matrix.c*this.y+13,y:matrix.b*this.x+matrix.d*this.y-8,w:1};}}
+  const context=vm.createContext({getComputedStyle:()=>({transform:'matrix',transformOrigin:'20px 70px'}),DOMMatrix:Matrix,DOMPoint:Point});
+  vm.runInContext(ts.transpileModule(functions.get('square'),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,context);
+  context.square(sleeve);
+  const scale=Number(properties.get('--sleeve-grab-scale'));
+  assert(Math.abs(scale-expectedScale)<1e-9,'Retain the longest projected sleeve extent without enlarging neutral Grid covers');
+  const oldCenterX=20+a*(90-20)+c*(90-70)+13,oldCenterY=70+b*(90-20)+d*(90-70)-8;
+  assert(Math.abs(Number.parseFloat(properties.get('--sleeve-grab-x'))+90*scale-oldCenterX)<1e-9);
+  assert(Math.abs(Number.parseFloat(properties.get('--sleeve-grab-y'))+90*scale-oldCenterY)<1e-9,'Scaling preserves the visible center');
+}
+console.log('PASS: Shelf grab preserves projected size and center; neutral Grid size is unchanged');

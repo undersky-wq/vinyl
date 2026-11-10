@@ -6,6 +6,11 @@ export function shuffledShelf<T>(items: readonly T[], seed: number): T[] {
 }
 
 export class ShelfShakeDetector {
+  private readonly threshold:number;
+  constructor(sensitivity=50){
+    const value=Number.isFinite(sensitivity)?Math.max(0,Math.min(100,sensitivity)):50;
+    this.threshold=9.5-value*.06;
+  }
   private gravity: [number,number,number] | null=null;
   private lastSample: number | null=null;
   private aboveThreshold=false;
@@ -26,8 +31,8 @@ export class ShelfShakeDetector {
     const motion=values.map((value,index)=>{this.gravity![index]+=(value-this.gravity![index])*alpha;return value-this.gravity![index];});
     const force=Math.hypot(...motion);
     if(now-this.lastShake<3000){this.peaks=0;this.aboveThreshold=false;return false;}
-    if(force<3.25){this.aboveThreshold=false;return false;}
-    if(force<6.5)return false;
+    if(force<this.threshold*.5){this.aboveThreshold=false;return false;}
+    if(force<this.threshold)return false;
     const reversed=this.peakDirection!==null&&motion.reduce((dot,value,index)=>dot+value*this.peakDirection![index],0)<-force*.25;
     if((this.aboveThreshold&&!reversed)||now-this.lastPeak<90)return false;
     this.aboveThreshold=true;this.peakDirection=motion.map(value=>value/force) as [number,number,number];

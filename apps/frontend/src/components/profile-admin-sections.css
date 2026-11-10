@@ -20,4 +20,11 @@ html body .paper-profile-page .profile-admin-identity .profile-title{font-size:2
 html body .paper-profile-page .profile-admin-identity .paper-profile-avatar-hint{display:none}
 html body .paper-profile-page .profile-admin-identity .muted{font-size:13px;margin:0}
 .profile-panel--admin .profile-admin-overview{display:block}
+.admin-shake-sensitivity{padding:22px 0;border-bottom:1px solid var(--shelf-web-line,#ddd)}
+.admin-shake-sensitivity__heading{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:15px;font-weight:600}
+.admin-shake-sensitivity__heading output{font-size:14px;font-variant-numeric:tabular-nums;color:var(--shelf-web-muted,#777)}
+.admin-shake-sensitivity p,.admin-shake-sensitivity__ends{font-size:12px;line-height:1.5;color:var(--shelf-web-muted,#777)}
+.admin-shake-sensitivity p{margin:7px 0 15px}.admin-shake-sensitivity__ends{display:flex;justify-content:space-between;gap:12px;margin-top:5px}
+.admin-shake-sensitivity input[type=range]{display:block;width:100%;height:26px;margin:0;accent-color:var(--shelf-web-ink,#111);cursor:pointer}
+.admin-shake-sensitivity input:disabled{opacity:.4;cursor:default}
 @media(max-width:700px){html body .paper-profile-page .profile-panel--admin>.profile-admin-identity{gap:16px;margin-bottom:26px}html body .paper-profile-page .profile-admin-identity .profile-avatar{width:72px;height:72px}html body .paper-profile-page .profile-admin-identity .profile-title{font-size:23px}}

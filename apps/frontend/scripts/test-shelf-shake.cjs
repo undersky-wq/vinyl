@@ -3,8 +3,8 @@ const exportsObject={};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../src/lib/shelf-shake.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:exportsObject,Math,Number});
 const {ShelfShakeDetector,motionAcceleration}=exportsObject;
 
-function trace(hz,seconds,values){
-  const detector=new ShelfShakeDetector(),events=[];
+function trace(hz,seconds,values,sensitivity=50){
+  const detector=new ShelfShakeDetector(sensitivity),events=[];
   for(let i=0;i<hz*seconds;i++){const time=i/hz;if(detector.sample(...values(time),time*1000))events.push(time);}
   return events;
 }
@@ -30,4 +30,9 @@ assert.equal(gap.sample(NaN,0,9.8,5100),false);
 assert.deepEqual(Array.from(motionAcceleration({accelerationIncludingGravity:{x:1,y:2,z:9.8},acceleration:null})),[1,2,9.8]);
 assert.deepEqual(Array.from(motionAcceleration({accelerationIncludingGravity:{x:null,y:null,z:null},acceleration:{x:1,y:2,z:3}})),[1,2,3]);
 assert.equal(motionAcceleration({accelerationIncludingGravity:null,acceleration:null}),null);
+const gentle=t=>[t<.4?0:5*Math.sin((t-.4)*Math.PI*6),0,9.8];
+assert.equal(trace(60,2,gentle,0).length,0,'Low sensitivity requires a stronger shake');
+assert.equal(trace(60,2,gentle,50).length,0,'50% preserves the current force threshold');
+assert.equal(trace(60,2,gentle,100).length,1,'High sensitivity detects a lighter shake');
+assert.equal(trace(60,2,t=>[t<.4?0:14*Math.sin((t-.4)*Math.PI*6),0,9.8],0).length,1,'Strong shakes still work at the lowest sensitivity');
 console.log('PASS: shake traces at 20–200Hz on all axes, cooldown, single-bump/slow-motion rejection, resume and nullable sensor fallback');

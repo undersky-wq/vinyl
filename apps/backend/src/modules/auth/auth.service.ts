@@ -87,7 +87,7 @@ export class AuthService {
   }
 
   async getAuthSettings() {
-    const [registrationSetting, designSetting, playbackSetting, guestMixSetting,waveSetting,spinSetting,shuffleSetting] = await Promise.all([
+    const [registrationSetting, designSetting, playbackSetting, guestMixSetting,waveSetting,spinSetting,shuffleSetting,sensitivitySetting] = await Promise.all([
       this.prisma.appSetting.findUnique({ where: { key: REGISTRATION_INVITE_REQUIRED_SETTING } }),
       this.prisma.appSetting.findUnique({ where: { key: SITE_DESIGN_SETTING } }),
       this.prisma.appSetting.findUnique({ where: { key: 'playbackRequiresRegistration' } }),
@@ -95,6 +95,7 @@ export class AuthService {
       this.prisma.appSetting.findUnique({ where: { key: 'shelfWaveEnabled' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'shelfSpinEnabled' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'shelfShuffleEnabled' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'shelfShakeSensitivity' } }),
     ]);
 
     return {
@@ -104,19 +105,21 @@ export class AuthService {
       shelfWaveEnabled:waveSetting?.value!==false,
       shelfSpinEnabled:spinSetting?.value!==false,
       shelfShuffleEnabled:shuffleSetting?.value!==false,
+      shelfShakeSensitivity:typeof sensitivitySetting?.value==='number'&&Number.isInteger(sensitivitySetting.value)&&sensitivitySetting.value>=0&&sensitivitySetting.value<=100?sensitivitySetting.value:50,
       siteDesign: designSetting?.value === 'shelf' ? 'shelf' as const : 'classic' as const,
     };
   }
 
   async getSiteSettings() {
     const settings = await this.getAuthSettings();
-    return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration, allowGuestMixPlayback: settings.allowGuestMixPlayback, registrationInviteRequired: settings.registrationInviteRequired,shelfWaveEnabled:settings.shelfWaveEnabled,shelfSpinEnabled:settings.shelfSpinEnabled,shelfShuffleEnabled:settings.shelfShuffleEnabled };
+    return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration, allowGuestMixPlayback: settings.allowGuestMixPlayback, registrationInviteRequired: settings.registrationInviteRequired,shelfWaveEnabled:settings.shelfWaveEnabled,shelfSpinEnabled:settings.shelfSpinEnabled,shelfShuffleEnabled:settings.shelfShuffleEnabled,shelfShakeSensitivity:settings.shelfShakeSensitivity };
   }
 
   async updateAuthSettings(input: {
     shelfWaveEnabled?:boolean;
     shelfSpinEnabled?:boolean;
     shelfShuffleEnabled?:boolean;
+    shelfShakeSensitivity?:number;
     registrationInviteRequired?: boolean;
     playbackRequiresRegistration?: boolean;
     allowGuestMixPlayback?: boolean;
@@ -162,6 +165,11 @@ export class AuthService {
     for(const key of ['shelfWaveEnabled','shelfSpinEnabled','shelfShuffleEnabled'] as const){
       const value=input[key];
       if(typeof value==='boolean')await this.prisma.appSetting.upsert({where:{key},create:{key,value},update:{value}});
+    }
+    const sensitivity=input.shelfShakeSensitivity;
+    if(typeof sensitivity==='number'&&Number.isInteger(sensitivity)&&sensitivity>=0&&sensitivity<=100){
+      const key='shelfShakeSensitivity';
+      await this.prisma.appSetting.upsert({where:{key},create:{key,value:sensitivity},update:{value:sensitivity}});
     }
     return this.getAuthSettings();
   }

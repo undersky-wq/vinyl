@@ -1,4 +1,4 @@
-import { Equals, IsBoolean, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength, MaxLength } from 'class-validator';
+import { Equals, IsBoolean, IsEmail, IsIn, IsInt, Min, Max, IsNotEmpty, IsOptional, IsString, MinLength, MaxLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -59,6 +59,12 @@ export class TwoFactorVerifyDto {
 }
 
 export class UpdateAuthSettingsDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  shelfShakeSensitivity?: number;
+
   @IsOptional()
   @IsBoolean()
   shelfWaveEnabled?: boolean;
