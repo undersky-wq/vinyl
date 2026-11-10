@@ -40,7 +40,7 @@ for (const layout of ['grid', 'tracks', 'shelf', 'stack']) for (const visible of
 }
 console.log('PASS: released 3D covers return in all layouts, visible or observer-clipped, with and without reduced motion');
 
-for(const [a,b,c,d,expectedScale] of [[.76,.43,0,1,1.43],[1,0,0,1,1],[1.035,0,0,1.035,1.035]]){
+for(const [a,b,c,d,expectedScale] of [[.76,.43,0,1,1.095],[1,0,0,1,1],[1.035,0,0,1.035,1.035],[1,1.2,0,1,1.1]]){
   const properties=new Map();
   const record={offsetWidth:180,offsetHeight:180,style:{setProperty:(key,value)=>properties.set(key,value)},classList:{add:()=>{}}};
   const sleeve={squared:false,button:{parentElement:record}};
@@ -50,9 +50,9 @@ for(const [a,b,c,d,expectedScale] of [[.76,.43,0,1,1.43],[1,0,0,1,1],[1.035,0,0,
   vm.runInContext(ts.transpileModule(functions.get('square'),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,context);
   context.square(sleeve);
   const scale=Number(properties.get('--sleeve-grab-scale'));
-  assert(Math.abs(scale-expectedScale)<1e-9,'Retain the longest projected sleeve extent without enlarging neutral Grid covers');
+  assert(Math.abs(scale-expectedScale)<1e-9,'Use average projected size with a 10% cap, without enlarging neutral Grid covers');
   const oldCenterX=20+a*(90-20)+c*(90-70)+13,oldCenterY=70+b*(90-20)+d*(90-70)-8;
   assert(Math.abs(Number.parseFloat(properties.get('--sleeve-grab-x'))+90*scale-oldCenterX)<1e-9);
   assert(Math.abs(Number.parseFloat(properties.get('--sleeve-grab-y'))+90*scale-oldCenterY)<1e-9,'Scaling preserves the visible center');
 }
-console.log('PASS: Shelf grab preserves projected size and center; neutral Grid size is unchanged');
+console.log('PASS: Shelf grab uses bounded size compensation and retains its center; neutral Grid size is unchanged');

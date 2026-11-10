@@ -116,9 +116,9 @@ export function useShelfMotionPreview(rootRef: RefObject<HTMLElement | null>, en
       const corners=[[0,0],[record.offsetWidth,0],[0,record.offsetHeight],[record.offsetWidth,record.offsetHeight]]
         .map(([x,y])=>new DOMPoint(x-origin[0],y-origin[1]).matrixTransform(matrix));
       const xs=corners.map(point=>point.x/point.w),ys=corners.map(point=>point.y/point.w);
-      // Removing the deck's shear must not shrink its projected height. Keep
-      // the longest visible extent when the sleeve becomes a rotating square.
-      const scale=Math.max(1,(Math.max(...xs)-Math.min(...xs))/record.offsetWidth,(Math.max(...ys)-Math.min(...ys))/record.offsetHeight);
+      // Preserve the average projected extent, rather than stretching a square
+      // to the sheared deck's full height. Limit the compensation to 10%.
+      const scale=Math.min(1.1,Math.max(1,((Math.max(...xs)-Math.min(...xs))+(Math.max(...ys)-Math.min(...ys)))/(record.offsetWidth+record.offsetHeight)));
       record.style.setProperty('--sleeve-grab-scale',String(scale));
       record.style.setProperty('--sleeve-grab-x',`${origin[0]+projected.x/projected.w-cx*scale}px`);
       record.style.setProperty('--sleeve-grab-y',`${origin[1]+projected.y/projected.w-cy*scale}px`);
