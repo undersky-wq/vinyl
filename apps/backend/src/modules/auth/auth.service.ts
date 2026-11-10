@@ -87,27 +87,36 @@ export class AuthService {
   }
 
   async getAuthSettings() {
-    const [registrationSetting, designSetting, playbackSetting, guestMixSetting] = await Promise.all([
+    const [registrationSetting, designSetting, playbackSetting, guestMixSetting,waveSetting,spinSetting,shuffleSetting] = await Promise.all([
       this.prisma.appSetting.findUnique({ where: { key: REGISTRATION_INVITE_REQUIRED_SETTING } }),
       this.prisma.appSetting.findUnique({ where: { key: SITE_DESIGN_SETTING } }),
       this.prisma.appSetting.findUnique({ where: { key: 'playbackRequiresRegistration' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'allowGuestMixPlayback' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'shelfWaveEnabled' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'shelfSpinEnabled' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'shelfShuffleEnabled' } }),
     ]);
 
     return {
       registrationInviteRequired: registrationSetting?.value === true,
       playbackRequiresRegistration: playbackSetting?.value !== false,
       allowGuestMixPlayback: guestMixSetting?.value === true,
+      shelfWaveEnabled:waveSetting?.value!==false,
+      shelfSpinEnabled:spinSetting?.value!==false,
+      shelfShuffleEnabled:shuffleSetting?.value!==false,
       siteDesign: designSetting?.value === 'shelf' ? 'shelf' as const : 'classic' as const,
     };
   }
 
   async getSiteSettings() {
     const settings = await this.getAuthSettings();
-    return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration, allowGuestMixPlayback: settings.allowGuestMixPlayback, registrationInviteRequired: settings.registrationInviteRequired };
+    return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration, allowGuestMixPlayback: settings.allowGuestMixPlayback, registrationInviteRequired: settings.registrationInviteRequired,shelfWaveEnabled:settings.shelfWaveEnabled,shelfSpinEnabled:settings.shelfSpinEnabled,shelfShuffleEnabled:settings.shelfShuffleEnabled };
   }
 
   async updateAuthSettings(input: {
+    shelfWaveEnabled?:boolean;
+    shelfSpinEnabled?:boolean;
+    shelfShuffleEnabled?:boolean;
     registrationInviteRequired?: boolean;
     playbackRequiresRegistration?: boolean;
     allowGuestMixPlayback?: boolean;
@@ -150,6 +159,10 @@ export class AuthService {
       });
     }
 
+    for(const key of ['shelfWaveEnabled','shelfSpinEnabled','shelfShuffleEnabled'] as const){
+      const value=input[key];
+      if(typeof value==='boolean')await this.prisma.appSetting.upsert({where:{key},create:{key,value},update:{value}});
+    }
     return this.getAuthSettings();
   }
 

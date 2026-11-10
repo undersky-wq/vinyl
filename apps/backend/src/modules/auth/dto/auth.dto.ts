@@ -61,6 +61,18 @@ export class TwoFactorVerifyDto {
 export class UpdateAuthSettingsDto {
   @IsOptional()
   @IsBoolean()
+  shelfWaveEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  shelfSpinEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  shelfShuffleEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   allowGuestMixPlayback?: boolean;
 
   @IsOptional()

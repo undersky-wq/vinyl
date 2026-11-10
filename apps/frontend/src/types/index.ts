@@ -228,6 +228,9 @@ export type ProfileStats = {
 };
 
 export type AuthSettings = {
+  shelfWaveEnabled?: boolean;
+  shelfSpinEnabled?: boolean;
+  shelfShuffleEnabled?: boolean;
   allowGuestMixPlayback?: boolean;
   playbackRequiresRegistration?: boolean;
   registrationInviteRequired: boolean;
@@ -237,6 +240,9 @@ export type AuthSettings = {
 export type SiteDesign = 'classic' | 'shelf';
 
 export type SiteSettings = {
+  shelfWaveEnabled?: boolean;
+  shelfSpinEnabled?: boolean;
+  shelfShuffleEnabled?: boolean;
   registrationInviteRequired?: boolean;
   allowGuestMixPlayback?: boolean;
   playbackRequiresRegistration?: boolean;

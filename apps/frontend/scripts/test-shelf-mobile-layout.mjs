@@ -6,8 +6,8 @@ for (const [width,height] of [[320,568],[375,667],[390,844],[393,851],[430,932],
     const playerTop=height-80;
     const layout=shelfMobileLayout(width,height,84,88,38,playerTop,compact);
     assert.ok(layout.headingTop>=84);
-    assert.ok(layout.contentTop>=layout.headingTop+38);
-    if (compact) assert.ok(layout.contentTop-layout.headingTop-38>=36-1e-8, 'Grid/Tracks must keep a clear gap below the heading');
+    if(compact){assert.equal(layout.headingTop-84,16,'APK search-to-context spacing');assert.equal(layout.contentTop-layout.headingTop,35,'APK context-to-content rhythm');}
+    else assert.ok(layout.contentTop>=layout.headingTop+38);
     assert.ok(height-layout.bottom<playerTop);
     assert.ok(layout.panelHeight<=height-layout.bottom-layout.contentTop);
     assert.ok(layout.coverSize<=180);

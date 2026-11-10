@@ -2,8 +2,10 @@
 
 import { ChangeEvent, CSSProperties, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Upload } from 'lucide-react';
+import { useRouter,useSearchParams } from 'next/navigation';
+import { Upload,UserRound,ShieldCheck,Palette,Wrench,LibraryBig,Users,RefreshCw,AudioLines,FileAudio } from 'lucide-react';
+import { ShelfDesignSettings } from './shelf-design-settings';
+import './profile-admin-sections.css';
 import {
   AudioBackfillStatus,
   AudioNormalizeStatus,
@@ -52,6 +54,11 @@ export function ProfileScreen({
   authSettings?: AuthSettings;
 }) {
   const router = useRouter();
+  const requestedSection=useSearchParams().get('section');
+  const adminSections=[{key:'profile',ru:'Профиль',en:'Profile',Icon:UserRound},{key:'security',ru:'Безопасность',en:'Security',Icon:ShieldCheck},{key:'design',ru:'Дизайн сайта',en:'Site design',Icon:Palette},{key:'maintenance',ru:'Обслуживание',en:'Maintenance',Icon:Wrench},{key:'content',ru:'Контент',en:'Content',Icon:LibraryBig},{key:'users',ru:'Пользователи',en:'Users',Icon:Users}] as const;
+  type AdminSection=typeof adminSections[number]['key'];
+  const [adminSection,setAdminSection]=useState<AdminSection>(adminSections.some(item=>item.key===requestedSection)?requestedSection as AdminSection:'profile');
+
   const webEditMode = useWebEditMode();
   const { setUser, user: authUser } = useAuth();
   const activeUser = authUser ?? user;
@@ -408,7 +415,12 @@ export function ProfileScreen({
 
   return (
     <section className="profile-grid">
-      <article className="release-panel profile-panel">
+      <article className={`release-panel profile-panel${activeUser.role==='ADMIN'?' profile-panel--admin':''}`}>
+        {activeUser.role==='ADMIN'&&<>
+          <nav className="profile-admin-nav" aria-label={lang==='ru'?'Разделы администрирования':'Administration sections'}>{adminSections.map(({key,ru,en,Icon})=><button key={key} type="button" aria-pressed={adminSection===key} onClick={()=>{setAdminSection(key);setStatus('');}}><Icon size={20}/><span>{lang==='ru'?ru:en}</span></button>)}</nav>
+          <header className="profile-admin-heading"><h1>{adminSections.find(item=>item.key===adminSection)?.[lang==='ru'?'ru':'en']}</h1><p>{lang==='ru'?({profile:'Ваш профиль и обзор коллекции.',security:'Защита аккаунта, регистрация и правила доступа к музыке.',design:'Внешний вид и движения интерфейса.',maintenance:'Фоновые операции с аудио, обложками и данными Discogs.',content:'Загрузка музыки и способы редактирования коллекции.',users:'Зарегистрированные слушатели и управление доступом.'})[adminSection]:({profile:'Your profile and collection overview.',security:'Account security, registration and music access.',design:'Appearance and motion of the website.',maintenance:'Background jobs for audio, artwork and Discogs data.',content:'Music uploads and collection editing.',users:'Registered listeners and access management.'})[adminSection]}</p></header>
+        </>}
+        <div className="profile-admin-overview" hidden={activeUser.role==='ADMIN'&&adminSection!=='profile'}>
         <div className="profile-hero">
           <label className="profile-avatar">
             {avatarPreviewUrl ? (
@@ -448,119 +460,33 @@ export function ProfileScreen({
           </div>
         ) : null}
 
-        <div className="profile-actions">
-          <DancerSetting lang={lang} />
-          {activeUser.role === 'ADMIN' ? <TwoFactorSettings lang={lang} /> : null}
-          {activeUser.role === 'ADMIN' ? <CoverMaintenance lang={lang} /> : null}
-          {activeUser.role === 'ADMIN' ? (
-            <>
-              <Link href="/profile/users" className="profile-action-button">
-                <span className="profile-action-button__label">{lang === 'ru' ? 'Список зарегистрированных' : 'Registered users'}</span>
-                <span aria-hidden="true">&rarr;</span>
-              </Link>
-              <button type="button" className={`profile-action-button profile-action-button--switch${playbackRequiresRegistration ? ' active' : ''}`} aria-pressed={playbackRequiresRegistration} disabled={isSavingPlayback} onClick={handlePlaybackToggle}>
-                <span className="profile-action-button__label">{lang === 'ru' ? 'Треки только для зарегистрированных' : 'Playback requires registration'}</span>
-                <strong>{playbackRequiresRegistration ? 'ON' : 'OFF'}</strong>
-              </button>
-              <button type="button" className={`profile-action-button profile-action-button--switch${allowGuestMixPlayback ? ' active' : ''}`} aria-pressed={allowGuestMixPlayback} disabled={isSavingGuestMixPlayback} onClick={handleGuestMixPlaybackToggle}>
-                <span className="profile-action-button__label">{lang === 'ru' ? 'Миксы без регистрации' : 'Mixes without registration'}</span>
-                <strong>{allowGuestMixPlayback ? 'ON' : 'OFF'}</strong>
-              </button>
-              <Link href="/upload" className="profile-action-button">
-                <Upload size={16} />
-                <span className="profile-action-button__label">
-                  {lang === 'ru' ? 'Загрузить' : 'Upload'}
-                </span>
-              </Link>
-
-              <button
-                type="button"
-                className={`profile-action-button${isSyncingDiscogs ? ' is-loading' : ''}`}
-                onClick={handleDiscogsSync}
-                disabled={isSyncingDiscogs}
-                style={{ ['--profile-progress' as string]: `${discogsProgress}%` } as CSSProperties}
-              >
-                <span className="profile-action-button__label">
-                  {isSyncingDiscogs
-                    ? lang === 'ru'
-                      ? `Синхронизация ${discogsProgress}%`
-                      : `Syncing ${discogsProgress}%`
-                    : lang === 'ru'
-                      ? 'Синхронизировать Discogs'
-                      : 'Sync Discogs'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className={`profile-action-button${isBackfillingWaveform ? ' is-loading' : ''}`}
-                onClick={handleWaveformBackfill}
-                disabled={isBackfillingWaveform}
-                style={{ ['--profile-progress' as string]: `${waveformProgress}%` } as CSSProperties}
-              >
-                <span className="profile-action-button__label">
-                  {isBackfillingWaveform
-                    ? `Waveform ${waveformProgress}%`
-                    : lang === 'ru'
-                      ? 'Пересчитать waveform'
-                      : 'Backfill waveform'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className={`profile-action-button${isNormalizingAudio ? ' is-loading' : ''}`}
-                onClick={handleNormalizeBackfill}
-                disabled={isNormalizingAudio}
-                style={{ ['--profile-progress' as string]: `${normalizeProgress}%` } as CSSProperties}
-              >
-                <span className="profile-action-button__label">
-                  {isNormalizingAudio
-                    ? `MP3 ${normalizeProgress}%`
-                    : lang === 'ru'
-                      ? 'Подготовить MP3'
-                      : 'Prepare MP3'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className={`profile-action-button profile-action-button--switch${isAdminEditModeEnabled ? ' active' : ''}`}
-                aria-pressed={isAdminEditModeEnabled}
-                onClick={handleAdminEditModeToggle}
-              >
-                <span className="profile-action-button__label">
-                  {lang === 'ru' ? 'Редактирование с телефона' : 'Mobile editing'}
-                </span>
-                <strong>{isAdminEditModeEnabled ? 'ON' : 'OFF'}</strong>
-              </button>
-
-              <button type="button" className={`profile-action-button profile-action-button--switch${webEditMode ? ' active' : ''}`} aria-pressed={webEditMode} onClick={() => setWebEditMode(!webEditMode)}>
-                <span className="profile-action-button__label">{lang === 'ru' ? 'Веб-редактирование релизов и миксов' : 'Web release and mix editing'}</span>
-                <strong>{webEditMode ? 'ON' : 'OFF'}</strong>
-              </button>
-
-              <button
-                type="button"
-                className={`profile-action-button profile-action-button--switch${isRegistrationInviteRequired ? ' active' : ''}`}
-                aria-pressed={isRegistrationInviteRequired}
-                onClick={handleRegistrationInviteToggle}
-                disabled={isSavingAuthSettings}
-              >
-                <span className="profile-action-button__label">
-                  {lang === 'ru' ? 'Пароль для регистрации' : 'Registration invite'}
-                </span>
-                <strong>{isRegistrationInviteRequired ? 'ON' : 'OFF'}</strong>
-              </button>
-
-            </>
-          ) : null}
-
-          <button type="button" className="profile-action-button" onClick={handleLogout}>
-            {lang === 'ru' ? 'Выйти' : 'Logout'}
-          </button>
         </div>
-
+        <div className="profile-actions profile-admin-actions">
+          {(activeUser.role!=='ADMIN'||adminSection==='design')&&<DancerSetting lang={lang}/>}
+          {activeUser.role==='ADMIN'&&<>
+            <section hidden={adminSection!=='security'} aria-label={lang==='ru'?'Настройки безопасности':'Security settings'}>
+              <TwoFactorSettings lang={lang}/>
+              <button type="button" className={`profile-action-button profile-action-button--switch${isRegistrationInviteRequired?' active':''}`} aria-pressed={isRegistrationInviteRequired} onClick={handleRegistrationInviteToggle} disabled={isSavingAuthSettings}><span>{lang==='ru'?'Пароль для регистрации':'Registration invite'}</span><strong>{isRegistrationInviteRequired?'ON':'OFF'}</strong></button>
+              <h2>{lang==='ru'?'Доступ к музыке':'Music access'}</h2>
+              <button type="button" className={`profile-action-button profile-action-button--switch${playbackRequiresRegistration?' active':''}`} aria-pressed={playbackRequiresRegistration} disabled={isSavingPlayback} onClick={handlePlaybackToggle}><span>{lang==='ru'?'Треки только для зарегистрированных':'Playback requires registration'}</span><strong>{playbackRequiresRegistration?'ON':'OFF'}</strong></button>
+              <button type="button" className={`profile-action-button profile-action-button--switch${allowGuestMixPlayback?' active':''}`} aria-pressed={allowGuestMixPlayback} disabled={isSavingGuestMixPlayback} onClick={handleGuestMixPlaybackToggle}><span>{lang==='ru'?'Миксы без регистрации':'Mixes without registration'}</span><strong>{allowGuestMixPlayback?'ON':'OFF'}</strong></button>
+            </section>
+            <section hidden={adminSection!=='design'} aria-label={lang==='ru'?'Настройки дизайна сайта':'Site design settings'}><ShelfDesignSettings ru={lang==='ru'}/></section>
+            <section hidden={adminSection!=='maintenance'} aria-label={lang==='ru'?'Обслуживание медиатеки':'Library maintenance'}>
+              <button type="button" className={`profile-action-button${isSyncingDiscogs?' is-loading':''}`} onClick={handleDiscogsSync} disabled={isSyncingDiscogs} style={{['--profile-progress' as string]:`${discogsProgress}%`} as CSSProperties}><RefreshCw size={19}/><span>{isSyncingDiscogs?`${lang==='ru'?'Синхронизация':'Syncing'} ${discogsProgress}%`:lang==='ru'?'Синхронизировать Discogs':'Sync Discogs'}</span></button>
+              <button type="button" className={`profile-action-button${isBackfillingWaveform?' is-loading':''}`} onClick={handleWaveformBackfill} disabled={isBackfillingWaveform} style={{['--profile-progress' as string]:`${waveformProgress}%`} as CSSProperties}><AudioLines size={19}/><span>{isBackfillingWaveform?`Waveform ${waveformProgress}%`:lang==='ru'?'Пересчитать waveform':'Recalculate waveform'}</span></button>
+              <button type="button" className={`profile-action-button${isNormalizingAudio?' is-loading':''}`} onClick={handleNormalizeBackfill} disabled={isNormalizingAudio} style={{['--profile-progress' as string]:`${normalizeProgress}%`} as CSSProperties}><FileAudio size={19}/><span>{isNormalizingAudio?`MP3 ${normalizeProgress}%`:lang==='ru'?'Подготовить MP3':'Prepare MP3'}</span></button>
+              <CoverMaintenance lang={lang}/>
+            </section>
+            <section hidden={adminSection!=='content'} aria-label={lang==='ru'?'Управление контентом':'Content management'}>
+              <Link href="/upload" className="profile-action-button"><Upload size={19}/><span>{lang==='ru'?'Загрузить музыку':'Upload music'}</span></Link>
+              <button type="button" className={`profile-action-button profile-action-button--switch${isAdminEditModeEnabled?' active':''}`} aria-pressed={isAdminEditModeEnabled} onClick={handleAdminEditModeToggle}><span>{lang==='ru'?'Редактирование с телефона':'Mobile editing'}</span><strong>{isAdminEditModeEnabled?'ON':'OFF'}</strong></button>
+              <button type="button" className={`profile-action-button profile-action-button--switch${webEditMode?' active':''}`} aria-pressed={webEditMode} onClick={()=>setWebEditMode(!webEditMode)}><span>{lang==='ru'?'Веб-редактирование релизов и миксов':'Web release and mix editing'}</span><strong>{webEditMode?'ON':'OFF'}</strong></button>
+            </section>
+            <section hidden={adminSection!=='users'}><Link href="/profile/users" className="profile-action-button"><Users size={19}/><span>{lang==='ru'?'Список зарегистрированных':'Registered users'}</span><span aria-hidden="true">→</span></Link></section>
+          </>}
+          {(activeUser.role!=='ADMIN'||adminSection==='profile')&&<button type="button" className="profile-action-button" onClick={handleLogout}>{lang==='ru'?'Выйти':'Logout'}</button>}
+        </div>
 
         {status ? <p className="muted" role="status">{status}</p> : null}
       </article>

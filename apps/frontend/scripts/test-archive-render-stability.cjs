@@ -41,20 +41,20 @@ for(const selector of ['.paper-archive>.paper-header>.paper-heading','.paper-arc
 }
 assert(stableChrome[2].includes('isolation:isolate;'));
 assert(stableChrome[2].includes('will-change:transform;'));
-assert(stableChrome[2].includes('backface-visibility:hidden;'));
+assert(stableChrome[2].includes('backface-visibility:visible;'), 'Text remains visible after interrupted 3D morphs');
 assert(!css.slice(0,stableChrome.index).includes('@media'), 'Desktop needs the same stable chrome as mobile');
 assert(!/\.is-scrolling[^{}]*\.paper-header/.test(css), 'Header layer is stable before, during and after a touch drag');
 assert(!css.includes('.paper-archive>.paper-header{'), 'Do not make the parent a containing block for fixed header controls');
-assert(!/opacity|visibility\s*:|transform\s*:|position|top|left|height|width|contain/.test(stableChrome[2].replace('backface-visibility:hidden;', '')),
+assert(!/opacity|visibility\s*:|transform\s*:|position|top|left|height|width|contain/.test(stableChrome[2].replace('backface-visibility:visible;', '').replace(/\/\*[\s\S]*?\*\//g, '')),
   'Keep header geometry, navigation animations and expanded heading visibility unchanged');
 assert(!css.includes('opacity:0'));
-assert(!css.includes('.paper-record'), 'Theme guard does not disable cover animations');
+assert(!css.slice(css.indexOf('html[data-shelf-theme-changing]')).includes('.paper-record'), 'Theme guard does not disable cover animations');
 const playerCss = fs.readFileSync(path.join(root,'components/mini-player-layout-motion.css'),'utf8');
 for(const selector of ['.mini-player','.mini-player__track','.mini-player__controls','.mini-player__timeline']) assert(playerCss.includes(selector));
 assert(playerCss.includes('will-change:transform;'));
-assert(playerCss.includes('backface-visibility:hidden;'));
+assert(playerCss.includes('backface-visibility:visible;'));
 assert(!playerCss.includes('@media') && !playerCss.includes('is-scrolling'), 'Player layers remain stable at rest, not just during morphs');
-assert(!/opacity|visibility\s*:|width\s*:|height\s*:|display\s*:/.test(playerCss.replace('backface-visibility:hidden;', '')), 'Do not hide or resize player controls to mask flicker');
+assert(!/opacity|visibility\s*:|width\s*:|height\s*:|display\s*:/.test(playerCss.replace('backface-visibility:visible;', '').replace(/\/\*[\s\S]*?\*\//g, '')), 'Do not hide or resize player controls to mask flicker');
 assert(fs.readFileSync(path.join(root, 'components/paper-archive.tsx'), 'utf8').includes("import './archive-render-stability.css'"));
 const themeCss = fs.readFileSync(path.join(root, 'components/shelf-theme.css'), 'utf8');
 const toggleRules = [...themeCss.matchAll(/([^{}]*\.shelf-theme-toggle[^{}]*)\{([^{}]*)\}/g)];

@@ -7,3 +7,6 @@
 .mini-track-transition__cover img{display:block}
 @keyframes mini-track-label-enter{from{opacity:0;transform:translateX(-14px);clip-path:inset(0 100% 0 0)}to{opacity:1;transform:translateX(0);clip-path:inset(0)}}
 @media(prefers-reduced-motion:reduce){.mini-track-transition__labels>:is(.mini-player__artist,.mini-player__title){animation:none}}
+
+html[data-visual-variant='shelf'][data-shelf-theme] body .mini-player .mini-player__meta .mini-player__title{color:#aaa!important}
+html[data-visual-variant='shelf'][data-shelf-theme='dark'] body .mini-player .mini-player__meta .mini-player__title{color:#96989d!important}
