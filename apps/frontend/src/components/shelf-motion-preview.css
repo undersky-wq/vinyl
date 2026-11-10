@@ -5,7 +5,8 @@
 .paper-archive.is-sleeve-spinning .paper-record:has(.is-sleeve-gripped){z-index:10000!important}
 .shelf-motion-back-placeholder{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:#f5f4f0;color:#777;padding:20px;text-align:center}
 .shelf-motion-back-placeholder b{font-size:44px;font-weight:400}.shelf-motion-back-placeholder small{font-size:10px;line-height:1.4}
-.paper-archive .paper-record.is-sleeve-squared{transform:translate(var(--sleeve-grab-x,0px),var(--sleeve-grab-y,0px)) scale(var(--sleeve-grab-scale,1))!important;transform-origin:0 0!important;transition:transform .22s cubic-bezier(.22,1,.36,1)!important;z-index:10000!important}
+.paper-archive.has-shelf-motion-preview .paper-record.is-sleeve-squared{transform:translate(var(--sleeve-grab-x,0px),var(--sleeve-grab-y,0px)) scale(var(--sleeve-grab-scale,1))!important;transform-origin:var(--sleeve-grab-origin,50% 50%)!important;transition:transform .4s cubic-bezier(.4,0,.2,1),left 1.05s cubic-bezier(.19,1,.22,1),top 1.05s cubic-bezier(.19,1,.22,1),width 1.05s cubic-bezier(.19,1,.22,1),height 1.05s cubic-bezier(.19,1,.22,1),margin 1.05s cubic-bezier(.19,1,.22,1)!important;z-index:10000!important}
+@media(prefers-reduced-motion:reduce){.paper-archive.has-shelf-motion-preview .paper-record.is-sleeve-squared{transition:none!important}}
 .paper-archive:is(.is-grid,.is-listing) .paper-record-open{cursor:grab}
 .paper-archive.is-listing .paper-record{z-index:10005!important}
 html[data-visual-variant='shelf'][data-shelf-theme] body .mini-player .mini-player__meta .mini-player__title{color:#aaa!important}

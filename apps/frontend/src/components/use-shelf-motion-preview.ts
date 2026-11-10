@@ -10,8 +10,9 @@ type Sleeve = {
   spinX: number; spinY: number; velocityX: number; velocityY: number; released: number;
   visible: boolean;
   squared: boolean;
+  floatBlend: number;
 };
-type Grip = { sleeve: Sleeve; pointer: number; startX: number; startY: number; lastX: number; lastY: number; lastTime: number; pitch: number; yaw: number; moved: boolean };
+type Grip = { sleeve: Sleeve; pointer: number; startX: number; startY: number; lastX: number; lastY: number; lastTime: number; pitch: number; yaw: number; targetPitch: number; targetYaw: number; moved: boolean };
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 const turn = (n: number) => ((n + 180) % 360 + 360) % 360 - 180;
 
@@ -47,7 +48,7 @@ export function useShelfMotionPreview(rootRef: RefObject<HTMLElement | null>, en
         const index = Number(button.parentElement?.dataset.index || 0);
         const old = sleeves.get(button);
         if (old) { old.surface = surface; old.phase=index*.42; return; }
-        sleeves.set(button, { button, surface, phase: index * .42, hoverX: 0, hoverY: 0, x: 0, y: 0, spinX: 0, spinY: 0, velocityX: 0, velocityY: 0, released: 0, visible: false, squared: false });
+        sleeves.set(button, { button, surface, phase: index * .42, hoverX: 0, hoverY: 0, x: 0, y: 0, spinX: 0, spinY: 0, velocityX: 0, velocityY: 0, released: 0, visible: false, squared: false, floatBlend: 1 });
         visibilityObserver.observe(button);
       });
       wake();
@@ -68,15 +69,20 @@ export function useShelfMotionPreview(rootRef: RefObject<HTMLElement | null>, en
       for (const sleeve of sleeves.values()) {
         const held = grip?.sleeve === sleeve;
         // Expanded Grid covers use position:fixed and can be clipped by the
-        // observer root. Visibility must never interrupt a released rotation.
+        // observer root. Direct pointer interaction still proves they are on
+        // screen, even before their first rotation.
         const returning = sleeve.squared || turn(sleeve.spinX) !== 0 || turn(sleeve.spinY) !== 0 || sleeve.x !== 0 || sleeve.y !== 0;
-        if (!sleeve.visible && !held && !returning) { sleeve.x = sleeve.y = 0; continue; }
+        if (!sleeve.visible && !held && sleeve !== hovered && !returning) { sleeve.x = sleeve.y = 0; continue; }
         const targetX=sleeve === hovered && !scrolling ? sleeve.hoverX : 0,targetY=sleeve === hovered && !scrolling ? sleeve.hoverY : 0;
         sleeve.x += (targetX - sleeve.x) * ease;
         sleeve.y += (targetY - sleeve.y) * ease;
         if(Math.abs(sleeve.x-targetX)<.0005)sleeve.x=targetX;
         if(Math.abs(sleeve.y-targetY)<.0005)sleeve.y=targetY;
-        if (!held) {
+        if (held && grip) {
+          const follow = reduced.matches ? 1 : 1 - Math.pow(.72, dt);
+          sleeve.spinX += (grip.targetPitch - sleeve.spinX) * follow;
+          sleeve.spinY += (grip.targetYaw - sleeve.spinY) * follow;
+        } else {
           if (now - sleeve.released < 220 && !reduced.matches) {
             sleeve.spinX += sleeve.velocityX * dt; sleeve.spinY += sleeve.velocityY * dt;
             sleeve.velocityX *= Math.pow(.86, dt); sleeve.velocityY *= Math.pow(.86, dt);
@@ -89,7 +95,11 @@ export function useShelfMotionPreview(rootRef: RefObject<HTMLElement | null>, en
         if (sleeve.squared && !held && now-sleeve.released>650 && Math.abs(turn(sleeve.spinX))+Math.abs(turn(sleeve.spinY))<2) unsquare(sleeve);
         if(!held&&now-sleeve.released>=220){if(Math.abs(turn(sleeve.spinX))<.01)sleeve.spinX=Math.round(sleeve.spinX/360)*360;if(Math.abs(turn(sleeve.spinY))<.01)sleeve.spinY=Math.round(sleeve.spinY/360)*360;}
         if(sleeve.x!==targetX||sleeve.y!==targetY||turn(sleeve.spinX)!==0||turn(sleeve.spinY)!==0||sleeve.squared)settling=true;
-        const drift = reduced.matches || held ? 0 : waveMix;
+        const floatTarget = held && grip?.moved ? 0 : 1;
+        sleeve.floatBlend += (floatTarget - sleeve.floatBlend) * ease;
+        if (Math.abs(sleeve.floatBlend-floatTarget)<.0005) sleeve.floatBlend=floatTarget;
+        if (sleeve.floatBlend!==floatTarget) settling=true;
+        const drift = reduced.matches ? 0 : waveMix * sleeve.floatBlend;
         // One travelling wave: adjacent records share a small phase delay.
         const wave = clock * .00145 - sleeve.phase;
         const floatX = Math.cos(wave) * 1.8 * drift;
@@ -120,8 +130,11 @@ export function useShelfMotionPreview(rootRef: RefObject<HTMLElement | null>, en
       // to the sheared deck's full height. Limit the compensation to 10%.
       const scale=Math.min(1.1,Math.max(1,((Math.max(...xs)-Math.min(...xs))+(Math.max(...ys)-Math.min(...ys)))/(record.offsetWidth+record.offsetHeight)));
       record.style.setProperty('--sleeve-grab-scale',String(scale));
-      record.style.setProperty('--sleeve-grab-x',`${origin[0]+projected.x/projected.w-cx*scale}px`);
-      record.style.setProperty('--sleeve-grab-y',`${origin[1]+projected.y/projected.w-cy*scale}px`);
+      // Keep the same origin throughout the transition. Switching a centered
+      // Stack cover to 0 0 would move its very first frame before interpolation.
+      record.style.setProperty('--sleeve-grab-origin',style.transformOrigin);
+      record.style.setProperty('--sleeve-grab-x',`${projected.x/projected.w-(cx-origin[0])*scale}px`);
+      record.style.setProperty('--sleeve-grab-y',`${projected.y/projected.w-(cy-origin[1])*scale}px`);
       record.classList.add('is-sleeve-squared'); sleeve.squared = true;
     }
     function unsquare(sleeve: Sleeve) {
@@ -134,8 +147,8 @@ export function useShelfMotionPreview(rootRef: RefObject<HTMLElement | null>, en
         if (!grip.moved && Math.hypot(dx, dy) < 5) return;
         grip.moved = true; square(grip.sleeve); event.preventDefault(); event.stopImmediatePropagation();
         const dt = Math.max(8, event.timeStamp - grip.lastTime);
-        grip.sleeve.spinY = grip.yaw + dx * .85;
-        grip.sleeve.spinX = grip.pitch - dy * .7;
+        grip.targetYaw = grip.yaw + dx * .85;
+        grip.targetPitch = grip.pitch - dy * .7;
         grip.sleeve.velocityY = clamp((event.clientX - grip.lastX) * .85 * 16.667 / dt, -14, 14);
         grip.sleeve.velocityX = clamp(-(event.clientY - grip.lastY) * .7 * 16.667 / dt, -14, 14);
         grip.lastX = event.clientX; grip.lastY = event.clientY; grip.lastTime = event.timeStamp;
@@ -158,7 +171,7 @@ export function useShelfMotionPreview(rootRef: RefObject<HTMLElement | null>, en
       const sleeve = find(event.target);
       if (!sleeve) return;
       event.stopImmediatePropagation();
-      grip = { sleeve, pointer: event.pointerId, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, lastTime: event.timeStamp, pitch: sleeve.spinX, yaw: sleeve.spinY, moved: false };
+      grip = { sleeve, pointer: event.pointerId, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, lastTime: event.timeStamp, pitch: sleeve.spinX, yaw: sleeve.spinY, targetPitch: sleeve.spinX, targetYaw: sleeve.spinY, moved: false };
       root!.dataset.sleeveLastGrip=sleeve.button.getAttribute('aria-label')||'';
       sleeve.velocityX = sleeve.velocityY = 0;
       sleeve.button.setPointerCapture(event.pointerId);
