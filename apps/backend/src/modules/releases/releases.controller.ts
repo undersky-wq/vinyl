@@ -249,8 +249,36 @@ export class ReleasesController {
 
   @Delete(':id/images/:imageId')
   @UseGuards(AdminGuard)
-  async deleteGalleryImage(@Param('id') id: string, @Param('imageId') imageId: string) {
-    return this.releasesService.deleteGalleryImage(id, imageId);
+  async deleteGalleryImage(@Param('id') id: string, @Param('imageId') imageId: string, @Query('detach') detach?: string) {
+    return this.releasesService.deleteGalleryImage(id, imageId, detach === 'true');
+  }
+
+  @Get(':id/images/:imageId/file')
+  @UseGuards(AdminGuard)
+  async imageFile(@Param('id') id: string, @Param('imageId') imageId: string, @Res() response: Response) {
+    const file = await this.releasesService.readGalleryImage(id, imageId);
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.type(file.mime).send(file.buffer);
+  }
+
+  @Post(':id/images/:imageId/copy')
+  @UseGuards(AdminGuard)
+  copyImage(@Param('id') id: string, @Param('imageId') imageId: string) {
+    return this.releasesService.copyGalleryImage(id, imageId);
+  }
+
+  @Post(':id/images')
+  @UseGuards(AdminGuard)
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }))
+  addImage(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    return this.releasesService.saveGalleryImage(id, file);
+  }
+
+  @Patch(':id/images/:imageId')
+  @UseGuards(AdminGuard)
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }))
+  editImage(@Param('id') id: string, @Param('imageId') imageId: string, @UploadedFile() file: Express.Multer.File) {
+    return this.releasesService.saveGalleryImage(id, file, imageId);
   }
 
   @Post(':id/back-cover')

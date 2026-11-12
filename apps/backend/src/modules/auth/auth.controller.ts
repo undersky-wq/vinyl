@@ -13,7 +13,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AdminGuard, AuthGuard } from './auth.guards';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, UpdateAuthSettingsDto, TwoFactorSetupDto, TwoFactorVerifyDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, UpdateAuthSettingsDto, TwoFactorSetupDto, TwoFactorVerifyDto, ChangePasswordDto } from './dto/auth.dto';
 import { TwoFactorService } from './two-factor.service';
 
 @Controller('auth')
@@ -68,6 +68,12 @@ export class AuthController {
   async logout(@Req() request: any, @Res({ passthrough: true }) response: any) {
     request.securityAuditActor = await this.authService.getUserFromRequest(request);
     return this.authService.logout(request, response);
+  }
+
+  @Post('password')
+  @UseGuards(AuthGuard)
+  changePassword(@Req() request: any, @Body() input: ChangePasswordDto, @Res({ passthrough: true }) response: any) {
+    return this.authService.changePassword(request.user.id, input, response);
   }
 
   @Get('me')

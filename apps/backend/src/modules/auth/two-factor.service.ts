@@ -89,6 +89,21 @@ export class TwoFactorService {
     return { enabled: !!value?.enabledAt, recoveryCodesRemaining: value?.enabledAt ? value.recoveryHashes.length : 0 };
   }
 
+  async changePassword(userId: string, password: string, nextHash: string, code?: string) {
+    const checked = await this.checkPassword(userId, password);
+    return this.locked(userId, async (tx, credential) => {
+      const current = await tx.user.findUnique({ where: { id: userId } });
+      if (!current || current.passwordHash !== checked.passwordHash) return { error: 'Invalid password' };
+      if (credential?.enabledAt) {
+        if (!code?.trim()) return { error: 'TWO_FACTOR_REQUIRED' };
+        const error = await this.consume(tx, credential, code);
+        if (error) return error;
+      }
+      await tx.user.update({ where: { id: userId }, data: { passwordHash: nextHash } });
+      return { token: await this.replaceSessions(tx, userId) };
+    });
+  }
+
   private async checkPassword(userId: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !(await verifyPasswordHash(password, user.passwordHash))) throw new UnauthorizedException('Invalid password');

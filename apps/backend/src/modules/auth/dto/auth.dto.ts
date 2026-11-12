@@ -20,6 +20,23 @@ export class RegisterDto {
   privacyConsent!: boolean;
 }
 
+export class ChangePasswordDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1024)
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(1024)
+  newPassword!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  code?: string;
+}
+
 export class LoginDto {
   @IsEmail()
   email!: string;

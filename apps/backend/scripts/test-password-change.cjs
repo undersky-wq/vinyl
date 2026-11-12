@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict');
+const {scryptSync}=require('node:crypto');
+require('ts-node').register({transpileOnly:true});
+const {TwoFactorService}=require('../src/modules/auth/two-factor.service.ts');
+(async()=>{
+  const hash=password=>`test-salt:${scryptSync(password,'test-salt',64).toString('hex')}`;
+  let user={id:'user',passwordHash:hash('old-password')}, credential=null, revoked=0, created=0, consumed=0;
+  const prisma={user:{findUnique:async()=>({...user}),update:async({data})=>Object.assign(user,data)},twoFactorCredential:{findUnique:async()=>credential},session:{deleteMany:async()=>{revoked++;},create:async()=>{created++;}},$queryRaw:async()=>[]};
+  prisma.$transaction=operation=>operation(prisma);
+  const factor=new TwoFactorService(prisma,{get:()=> '11'.repeat(32)});
+  await assert.rejects(()=>factor.changePassword('user','wrong',hash('new-password')),/Invalid password/);
+  assert.equal(revoked,0);assert.equal(created,0);
+  await factor.changePassword('user','old-password',hash('new-password'));
+  assert.equal(user.passwordHash,hash('new-password'));assert.equal(revoked,1);assert.equal(created,1);
+  credential={enabledAt:new Date()};
+  factor.consume=async(tx,value,code)=>{consumed++;return code==='valid-code'?null:{error:'TWO_FACTOR_INVALID'};};
+  await assert.rejects(()=>factor.changePassword('user','new-password',hash('another-password')),error=>error.getResponse().code==='TWO_FACTOR_REQUIRED');
+  await assert.rejects(()=>factor.changePassword('user','new-password',hash('another-password'),'bad-code'),error=>error.getResponse().code==='TWO_FACTOR_INVALID');
+  assert.equal(user.passwordHash,hash('new-password'));assert.equal(revoked,1);
+  await factor.changePassword('user','new-password',hash('another-password'),'valid-code');
+  assert.equal(consumed,2);assert.equal(user.passwordHash,hash('another-password'));assert.equal(revoked,2);assert.equal(created,2);
+  console.log('PASS: password change requires current password and enabled 2FA; failed checks preserve credentials/sessions; success rotates hash and revokes old sessions');
+})().catch(error=>{console.error(error);process.exitCode=1;});

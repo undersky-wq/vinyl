@@ -1,0 +1,6 @@
+html body .site-error-page{padding:clamp(140px,22vh,240px) 6vw 160px;background:var(--shelf-web-bg,#fff);color:var(--shelf-web-ink,#111)}
+.site-error-panel{max-width:560px;margin:0 auto;font:400 15px/1.5 Arial,Helvetica,sans-serif;letter-spacing:0}
+.site-error-panel h1{margin:0 0 16px;font:600 clamp(22px,3vw,30px)/1.2 Arial,Helvetica,sans-serif;letter-spacing:-.6px}
+.site-error-panel p{color:var(--shelf-web-muted,#777)}
+.site-error-actions{display:flex;align-items:center;flex-wrap:wrap;gap:24px;margin-top:28px}
+html body .site-error-actions :is(button,a){padding:8px 0;background:transparent;color:inherit;border:0;border-bottom:1px solid var(--shelf-web-line,#8885);border-radius:0;box-shadow:none;font:600 14px/1.4 Arial,Helvetica,sans-serif;text-decoration:none;cursor:pointer}

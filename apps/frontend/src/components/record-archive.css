@@ -357,13 +357,14 @@ html body .paper-track-menu-popup .muted{color:#777;font:13px Arial}
 html body .paper-archive .paper-release-styles{margin:16px 0 0;color:#888;font:400 clamp(12px,1vw,17px)/1.5 Arial,Helvetica,sans-serif;letter-spacing:0;overflow-wrap:anywhere}
 html body .paper-archive .paper-release-styles .paper-release-style{font:inherit;color:inherit}
 html body .paper-archive .paper-release-styles .paper-release-style.is-active{color:var(--shelf-collection-accent,#3478db)}
+html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive .paper-list-tracks>.paper-release-styles>button.paper-release-style{display:inline;width:auto;min-height:0;height:auto;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit!important;font:inherit;letter-spacing:inherit;vertical-align:baseline;cursor:pointer}
+html[data-visual-variant='shelf'][data-shelf-theme] .paper-archive .paper-list-tracks>.paper-release-styles>button.paper-release-style.is-active{color:var(--shelf-collection-accent,#3478db)!important}
+html body .paper-archive .paper-list-tracks>.paper-release-styles>button.paper-release-style:disabled{cursor:default}
 /* A short tracklist ends at the sleeve; a long one pushes genres below itself. */
 html body .paper-archive.is-listing:not(.is-mixes) .paper-list-tracks:not(.is-compact-track){display:flex;flex-direction:column;min-height:var(--list-size)}
 html body .paper-archive.is-listing:not(.is-mixes) .paper-list-tracks:not(.is-compact-track)>*{flex-shrink:0}
 html body .paper-archive.is-listing:not(.is-mixes) .paper-list-tracks:not(.is-compact-track)>.paper-release-styles{margin: auto 0 0;padding-top:16px}
 .paper-list-tracks .paper-track-primary-line{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.paper-archive.is-playlist.is-listing .paper-track-primary-line>em{color:#aaa}
-html[data-shelf-theme='dark'] .paper-archive.is-playlist.is-listing .paper-track-primary-line>em{color:#96989d}
 html body .paper-archive .paper-list-tracks.is-compact-track .paper-compact-genres{display:block;margin:0;padding:0;line-height:18px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .paper-list-tracks.is-compact-track .paper-track-primary:has(.paper-compact-genres){line-height:22px}
 @media(max-width:700px){
@@ -970,6 +971,8 @@ html[data-visual-variant='shelf'] body:has(.paper-archive) .mix-comment-marker__
 .paper-release-identity .paper-release-identity-row>b,.paper-release-identity .paper-release-identity-title,.paper-release-label>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .paper-release-identity .paper-release-identity-row>b{font-family:Arial,Helvetica,sans-serif;font-weight:600}
 .paper-release-identity .paper-release-identity-title{display:block}
+.paper-list-tracks h2.paper-release-identity .paper-list-cover-flip{display:inline-flex;flex:none;align-items:center;justify-content:center;margin:0;color:inherit}
+.paper-release-identity .paper-release-control-slot{display:block;flex:none;width:24px;height:24px}
 html body .paper-archive.is-listing:not(.is-playlist):not(.is-mixes) .paper-list-tracks h2.paper-release-identity>:is(time,.shelf-release-year){color:inherit!important;font:400 1em/1.3 Arial,Helvetica,sans-serif}
 html body .paper-archive.is-listing:not(.is-playlist):not(.is-mixes) .paper-list-tracks h2.paper-release-identity>.shelf-release-year>time{color:inherit!important;font:inherit}
 .paper-release-identity .paper-release-identity-labels{color:#888;font-weight:400;font-size:.85em}
@@ -978,6 +981,9 @@ html body .paper-archive.is-listing:not(.is-playlist):not(.is-mixes) .paper-list
 .paper-list-tracks h2 .paper-release-browse:hover,.paper-list-tracks h2 .paper-release-browse:focus-visible{color:var(--shelf-web-ink,#111);transform:scale(1.1)}
 html[data-visual-variant='shelf'][data-shelf-theme] .paper-list-tracks h2 .paper-release-browse{color:inherit!important}
 html[data-visual-variant='shelf'][data-shelf-theme] .paper-list-tracks h2 .paper-release-browse[aria-pressed='true']{color:#3478db!important}
+@media(min-width:701px){
+  .paper-archive .paper-list-tracks h2.paper-release-identity :is(.paper-release-browse,.paper-list-cover-flip){justify-content:flex-start}
+}
 @media(max-width:700px){
   .paper-archive .paper-list-tracks:not(.is-compact-track) h2.paper-release-identity{height:var(--list-size);max-height:var(--list-size);min-height:0;box-sizing:border-box;overflow:hidden;gap:8px}
   .paper-release-identity .paper-release-identity-lines{height:100%;max-height:100%;justify-content:space-between;gap:0;line-height:1.25;letter-spacing:0}
@@ -985,6 +991,9 @@ html[data-visual-variant='shelf'][data-shelf-theme] .paper-list-tracks h2 .paper
   .paper-release-identity .paper-release-identity-row,.paper-release-identity .paper-release-label{align-items:center}
   .paper-list-tracks h2 .paper-release-browse{height:1lh;min-height:0;line-height:inherit}
   .paper-list-tracks h2 .paper-release-browse>svg{width:13px;height:13px;flex:none}
+  .paper-release-identity .paper-list-cover-flip{height:1lh;min-height:0;line-height:inherit}
+  .paper-release-identity .paper-release-control-slot{height:1lh}
+  .paper-release-identity .paper-list-cover-flip>svg{width:13px;height:13px;flex:none}
 }
 @media(max-width:700px){
   html body .paper-archive.is-listing:not(.is-playlist):not(.is-mixes) .paper-list-tracks h2>:is(time,.shelf-release-year){

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import '../../components/record-archive.css';
 import './profile.css';
 import './profile-player.css';
-import { getAuthSettings, getCurrentUser, getProfileStats } from '../../lib/api';
+import { getAuthSettings, getCurrentUser } from '../../lib/api';
 import { normalizeSiteLang } from '../../lib/language';
 import { getRequestSiteSettings } from '../../lib/server-site-settings';
 import { AuthScreen } from '../../components/auth-screen';
@@ -54,12 +54,9 @@ export default async function ProfilePage({
     redirect('/profile');
   }
 
-  const [stats, authSettings] = await Promise.all([
-    getProfileStats(cookieHeader),
-    currentUser.role === 'ADMIN'
+  const authSettings = await (currentUser.role === 'ADMIN'
       ? getAuthSettings(cookieHeader).catch(() => ({ registrationInviteRequired: false, siteDesign: 'shelf' as const }))
-      : Promise.resolve({ registrationInviteRequired: false, siteDesign: 'shelf' as const }),
-  ]);
+      : Promise.resolve({ registrationInviteRequired: false, siteDesign: 'shelf' as const }));
 
   return (
     <main className="paper-profile-page">
@@ -67,10 +64,6 @@ export default async function ProfilePage({
       <ProfileScreen
         lang={lang}
         user={currentUser}
-        releasesCount={stats.releasesCount}
-        mixesCount={stats.mixesCount}
-        tracksCount={stats.tracksCount}
-        playlistsCount={stats.playlistsCount}
         authSettings={authSettings}
       />
     </main>

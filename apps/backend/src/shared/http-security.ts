@@ -47,6 +47,11 @@ export function configureHttpSecurity(app: INestApplication, env = process.env) 
     skip: request => request.method !== 'POST',
     standardHeaders: 'draft-8', legacyHeaders: false, message,
   }));
+  app.use('/api/auth/password', rateLimit({
+    windowMs: 15 * 60 * 1000, limit: 10,
+    skip: request => request.method !== 'POST',
+    standardHeaders: 'draft-8', legacyHeaders: false, message,
+  }));
   app.use('/api/auth/login', rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 15,

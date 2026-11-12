@@ -32,6 +32,9 @@ import {
 import { DancerSetting } from './dancer-setting';
 import { TwoFactorSettings } from './two-factor-settings';
 import { CoverMaintenance } from './cover-maintenance';
+import { ProfilePasswordForm } from './profile-password-form';
+import { RegisteredUsersList } from './registered-users-list';
+import { getUsers } from '../lib/api';
 
 function getUserInitial(user: UserProfile) {
   return (user.displayName || user.email || '?').slice(0, 1).toUpperCase();
@@ -40,18 +43,10 @@ function getUserInitial(user: UserProfile) {
 export function ProfileScreen({
   lang,
   user,
-  releasesCount,
-  mixesCount,
-  tracksCount,
-  playlistsCount,
   authSettings,
 }: {
   lang: SiteLang;
   user: AuthUser;
-  releasesCount: number;
-  mixesCount: number;
-  tracksCount: number;
-  playlistsCount: number;
   authSettings?: AuthSettings;
 }) {
   const router = useRouter();
@@ -63,6 +58,17 @@ export function ProfileScreen({
   const webEditMode = useWebEditMode();
   const { setUser, user: authUser } = useAuth();
   const activeUser = authUser ?? user;
+  const [registeredUsers,setRegisteredUsers] = useState<UserProfile[]>([]);
+  const [usersLoading,setUsersLoading] = useState(false), [usersError,setUsersError] = useState(false), [usersRetry,setUsersRetry] = useState(0);
+  useEffect(() => {
+    if (activeUser.role !== 'ADMIN' || adminSection !== 'users') return;
+    let cancelled = false;
+    setUsersLoading(true);setUsersError(false);
+    void getUsers().then(users => { if (!cancelled) setRegisteredUsers(users); })
+      .catch(() => { if (!cancelled) setUsersError(true); })
+      .finally(() => { if (!cancelled) setUsersLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeUser.id,activeUser.role,adminSection,usersRetry]);
   const [status, setStatus] = useState('');
   const [isSyncingDiscogs, setIsSyncingDiscogs] = useState(false);
   const [discogsProgress, setDiscogsProgress] = useState(0);
@@ -440,31 +446,12 @@ export function ProfileScreen({
         {activeUser.role==='ADMIN'&&<>
           {profileHero}
           <nav className="profile-admin-nav" aria-label={lang==='ru'?'Разделы администрирования':'Administration sections'}>{adminSections.map(({key,ru,en,Icon})=><button key={key} type="button" aria-pressed={adminSection===key} onClick={()=>{setAdminSection(key);setStatus('');}}><Icon size={20}/><span>{lang==='ru'?ru:en}</span></button>)}</nav>
-          <header className="profile-admin-heading"><h1>{adminSections.find(item=>item.key===adminSection)?.[lang==='ru'?'ru':'en']}</h1><p>{lang==='ru'?({profile:'Ваш профиль и обзор коллекции.',security:'Защита аккаунта, регистрация и правила доступа к музыке.',design:'Внешний вид и движения интерфейса.',maintenance:'Фоновые операции с аудио, обложками и данными Discogs.',content:'Загрузка музыки и способы редактирования коллекции.',users:'Зарегистрированные слушатели и управление доступом.'})[adminSection]:({profile:'Your profile and collection overview.',security:'Account security, registration and music access.',design:'Appearance and motion of the website.',maintenance:'Background jobs for audio, artwork and Discogs data.',content:'Music uploads and collection editing.',users:'Registered listeners and access management.'})[adminSection]}</p></header>
+          <header className="profile-admin-heading"><h1>{adminSections.find(item=>item.key===adminSection)?.[lang==='ru'?'ru':'en']}</h1><p>{lang==='ru'?({profile:'Имя, почта и пароль вашего аккаунта.',security:'Защита аккаунта, регистрация и правила доступа к музыке.',design:'Внешний вид и движения интерфейса.',maintenance:'Фоновые операции с аудио, обложками и данными Discogs.',content:'Загрузка музыки и способы редактирования коллекции.',users:'Зарегистрированные слушатели и управление доступом.'})[adminSection]:({profile:'Your account name, email and password.',security:'Account security, registration and music access.',design:'Appearance and motion of the website.',maintenance:'Background jobs for audio, artwork and Discogs data.',content:'Music uploads and collection editing.',users:'Registered listeners and access management.'})[adminSection]}</p></header>
         </>}
         <div className="profile-admin-overview" hidden={activeUser.role==='ADMIN'&&adminSection!=='profile'}>
         {activeUser.role!=='ADMIN'&&profileHero}
 
-        {activeUser.role === 'ADMIN' ? (
-          <div className="profile-stats">
-            <div className="stat-card">
-              <span className="muted">{lang === 'ru' ? 'Релизы' : 'Releases'}</span>
-              <strong>{releasesCount}</strong>
-            </div>
-            <div className="stat-card">
-              <span className="muted">{lang === 'ru' ? 'Миксы' : 'Mixes'}</span>
-              <strong>{mixesCount}</strong>
-            </div>
-            <div className="stat-card">
-              <span className="muted">{lang === 'ru' ? 'Плейлисты' : 'Playlists'}</span>
-              <strong>{playlistsCount}</strong>
-            </div>
-            <div className="stat-card">
-              <span className="muted">{lang === 'ru' ? 'Треки' : 'Tracks'}</span>
-              <strong>{tracksCount}</strong>
-            </div>
-          </div>
-        ) : null}
+        <ProfilePasswordForm lang={lang}/>
 
         </div>
         <div className="profile-actions profile-admin-actions">
@@ -489,7 +476,7 @@ export function ProfileScreen({
               <ProfileToggle checked={isAdminEditModeEnabled} label={lang==='ru'?'Редактирование с телефона':'Mobile editing'} onChange={handleAdminEditModeToggle}>{lang==='ru'?'Редактирование с телефона':'Mobile editing'}</ProfileToggle>
               <ProfileToggle checked={webEditMode} label={lang==='ru'?'Веб-редактирование релизов и миксов':'Web release and mix editing'} onChange={()=>setWebEditMode(!webEditMode)}>{lang==='ru'?'Веб-редактирование релизов и миксов':'Web release and mix editing'}</ProfileToggle>
             </section>
-            <section hidden={adminSection!=='users'}><Link href="/profile/users" className="profile-action-button"><Users size={19}/><span>{lang==='ru'?'Список зарегистрированных':'Registered users'}</span><span aria-hidden="true">→</span></Link></section>
+            <section hidden={adminSection!=='users'} aria-label={lang==='ru'?'Зарегистрированные пользователи':'Registered users'}>{usersLoading ? <p role="status">{lang==='ru'?'Загрузка…':'Loading…'}</p> : usersError ? <button type="button" onClick={()=>setUsersRetry(value=>value+1)}>{lang==='ru'?'Не удалось загрузить. Повторить':'Could not load. Retry'}</button> : <RegisteredUsersList users={registeredUsers} lang={lang}/>}</section>
           </>}
           {(activeUser.role!=='ADMIN'||adminSection==='profile')&&<button type="button" className="profile-action-button" onClick={handleLogout}>{lang==='ru'?'Выйти':'Logout'}</button>}
         </div>

@@ -47,7 +47,7 @@ export function SiteTooltips() {
         const left = viewport?.offsetLeft || 0, top = viewport?.offsetTop || 0;
         const width = viewport?.width || window.innerWidth, height = viewport?.height || window.innerHeight;
         tip.style.left = `${Math.max(left + 8, Math.min(anchor.left + anchor.width / 2 - box.width / 2, left + width - box.width - 8))}px`;
-        const y = anchor.top - box.height - 8 >= top + 8 ? anchor.top - box.height - 8 : anchor.bottom + 8;
+        const y = anchor.bottom + box.height + 8 <= top + height - 8 ? anchor.bottom + 8 : anchor.top - box.height - 8;
         tip.style.top = `${Math.max(top + 8, Math.min(y, top + height - box.height - 8))}px`;
         target.setAttribute('aria-describedby', [...new Set([...(target.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean), id])].join(' '));
       }, keyboard ? 0 : 180);

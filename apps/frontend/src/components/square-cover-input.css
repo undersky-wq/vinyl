@@ -10,6 +10,8 @@ html body .square-cover-control > button { width: auto; padding: 8px 0; border: 
 .square-cover-editor label { display: grid; gap: 6px; max-width: 320px; }
 html body .square-cover-editor input[type=range] { width: 100%; height: 28px; min-height: 28px; margin: 0; padding: 0; border: 0; accent-color: #b77713; }
 .square-cover-editor__actions { display: flex; flex-wrap: wrap; gap: 20px; }
+.square-cover-editor__rotation{display:flex;align-items:center;flex-wrap:wrap;gap:16px}
+html body .square-cover-editor__rotation button{padding:6px 0;border:0;border-bottom:1px solid currentColor;border-radius:0;background:transparent;color:inherit;font:inherit;cursor:pointer}
 html body .square-cover-editor__actions button { width: auto; min-height: 40px; padding: 6px 0; border: 0; border-bottom: 1px solid currentColor; border-radius: 0; background: none; color: inherit; box-shadow: none; font: inherit; cursor: pointer; }
 html body .square-cover-editor button:disabled { opacity: .45; cursor: wait; }
 html[data-shelf-theme='dark'] .square-cover-editor { color: #f3f3f1; }

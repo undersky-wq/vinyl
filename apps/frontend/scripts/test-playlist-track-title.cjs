@@ -23,11 +23,11 @@ const css = ['record-archive.css', 'shelf-web.css', 'shelf-theme.css', 'shelf-mo
         titles: [...document.querySelectorAll('.paper-track-primary-line>em')].map(node => getComputedStyle(node).color),
         artists: [...document.querySelectorAll('.paper-track-primary-line>b')].map(node => getComputedStyle(node).color),
       }));
-      for (const title of result.titles) assert.equal(title, result.reference, `${width}/${theme}: title matches mini-player, including playing row`);
+      for (let index = 0; index < result.titles.length; index++) assert.equal(result.titles[index], result.artists[index], `${width}/${theme}: title restores inherited text color, including playing row`);
       assert(result.artists.every(color => color !== result.reference), `${width}/${theme}: artist retains its own color`);
       await page.close();
     }
-    console.log('PASS: playlist/favorites track titles match mini-player gray on mobile/desktop, light/dark, playing/idle rows; artists unchanged');
+    console.log('PASS: playlist/favorites track titles restore normal text color on mobile/desktop, light/dark, playing/idle rows; artists unchanged');
   } finally {
     await browser.close();
   }

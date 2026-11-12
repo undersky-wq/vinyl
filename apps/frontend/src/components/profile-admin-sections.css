@@ -20,6 +20,12 @@ html body .paper-profile-page .profile-admin-identity .profile-title{font-size:2
 html body .paper-profile-page .profile-admin-identity .paper-profile-avatar-hint{display:none}
 html body .paper-profile-page .profile-admin-identity .muted{font-size:13px;margin:0}
 .profile-panel--admin .profile-admin-overview{display:block}
+.profile-password-form{display:grid;gap:14px;max-width:440px;padding:20px 0;font:400 14px/1.4 Arial,Helvetica,sans-serif}
+.profile-password-form h2{margin:0 0 6px;font-size:18px;font-weight:600}
+.profile-password-form label{display:grid;gap:6px}
+html body .paper-profile-page .profile-password-form input{width:100%;box-sizing:border-box;padding:8px 0;background:transparent;border:0;border-bottom:1px solid var(--shelf-web-line,#8885);border-radius:0;color:inherit;font:inherit;box-shadow:none}
+html body .paper-profile-page .profile-password-form button{display:inline-flex;align-items:center;gap:8px;width:fit-content;padding:8px 0;background:transparent;border:0;border-bottom:1px solid var(--shelf-web-line,#8885);border-radius:0;color:inherit;font:inherit;box-shadow:none;cursor:pointer}
+.profile-password-form p{margin:0;color:var(--shelf-web-muted,#777)}
 .admin-shake-sensitivity{padding:22px 0;border-bottom:1px solid var(--shelf-web-line,#ddd)}
 .admin-shake-sensitivity__heading{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:15px;font-weight:600}
 .admin-shake-sensitivity__heading output{font-size:14px;font-variant-numeric:tabular-nums;color:var(--shelf-web-muted,#777)}

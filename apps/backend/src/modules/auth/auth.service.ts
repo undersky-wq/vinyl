@@ -110,6 +110,13 @@ export class AuthService {
     };
   }
 
+  async changePassword(userId: string, input: { currentPassword: string; newPassword: string; code?: string }, response: CookieResponse) {
+    if (typeof input.currentPassword !== 'string' || !input.currentPassword || input.currentPassword.length > 1024 || typeof input.newPassword !== 'string' || input.newPassword.length < 8 || input.newPassword.length > 1024) throw new BadRequestException('Password must contain 8 to 1024 characters');
+    const { token } = await this.twoFactorService.changePassword(userId, input.currentPassword, await this.hashPassword(input.newPassword), input.code);
+    this.setSessionCookie(response, token);
+    return { success: true };
+  }
+
   async getSiteSettings() {
     const settings = await this.getAuthSettings();
     return { siteDesign: settings.siteDesign, playbackRequiresRegistration: settings.playbackRequiresRegistration, allowGuestMixPlayback: settings.allowGuestMixPlayback, registrationInviteRequired: settings.registrationInviteRequired,shelfWaveEnabled:settings.shelfWaveEnabled,shelfSpinEnabled:settings.shelfSpinEnabled,shelfShuffleEnabled:settings.shelfShuffleEnabled,shelfShakeSensitivity:settings.shelfShakeSensitivity };

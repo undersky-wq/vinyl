@@ -38,6 +38,11 @@ assert.equal(releaseCoverSide({...release,tracks:[]},b).back,true,'a playing B t
 assert.equal(releaseCoverSide({...release,tracks:[{id:'a',position:'A1'}]},b,undefined,true).back,false,'compact A artwork stays tied to its own track');
 assert.equal(releaseCoverSide({...release,tracks:[{id:'b',position:'B1'}]},a,undefined,true).back,true,'compact B artwork stays tied to its own track');
 assert.equal(releaseCoverSide({...release,backCoverUrl:null},b,{playbackKey:'b:B1',back:true}).back,false,'missing back artwork never reveals an empty face');
+const withoutBack = {...release,backCoverUrl:null};
+const placeholder = toggleReleaseCoverSide({},withoutBack,null,false,true);
+assert.equal(releaseCoverSide(withoutBack,null,placeholder.record).back,true,'collection Tracks can explicitly turn to the B placeholder');
+assert.equal(releaseCoverSide(withoutBack,null,toggleReleaseCoverSide(placeholder,withoutBack,null,false,true).record).back,false,'placeholder can turn back to A');
+assert.equal(releaseCoverSide(withoutBack,b,placeholder.record).back,false,'new playback does not inherit another track placeholder override');
 assert.equal(releaseCoverSide(release,null).back,false);
 const idle=toggleReleaseCoverSide({},release,null);
 assert.equal(releaseCoverSide(release,null,idle.record).back,true,'manual previews also work when nothing is playing');
@@ -89,7 +94,7 @@ assert(!source.includes('setIsCoverFlipped(false)'));
 assert(!source.includes('flippedListCovers.has'));
 assert(source.includes('const recordSide = releaseCoverSide(r, currentTrack, coverSideOverrides[r.id], isTrackCollection);'));
 assert(/<ShelfCoverImage[\s\S]*?\brelease=\{r\} disc=\{disc\}/.test(source),'cover receives the release and active disc even when responsive props precede them');
-assert(source.includes('aria-pressed={releaseCoverSide('));
+assert(source.includes('aria-pressed={side.back}'));
 assert.equal((source.match(/toggleReleaseCoverSide\(previous/g)||[]).length,2,'both flip controls use the same effective-side toggle');
 console.log('PASS: idle and paused covers return to A on collapse; playing sides, manual toggles, new playback, compact covers and delayed metadata stay correct');
 if(process.env.COVER_SIDE_BROWSER==='1') (async()=>{

@@ -6,7 +6,7 @@ type CoverRelease = Pick<HomeRelease, 'id' | 'images' | 'backCoverUrl' | 'second
   tracks: Array<{ id: string; position?: string | null }>;
 };
 type PlayingTrack = Pick<PlayerTrack, 'id' | 'releaseId' | 'position'> | null;
-export type CoverSideOverride = { playbackKey: string; back: boolean };
+export type CoverSideOverride = { playbackKey: string; back: boolean; placeholder?: boolean };
 export type CoverSideOverrides = Record<string, CoverSideOverride>;
 
 export function trackRowCoverSide(release: CoverRelease) {
@@ -24,13 +24,15 @@ export function releaseCoverSide(release: CoverRelease, playing: PlayingTrack, o
   return {
     playbackKey,
     disc,
-    back: Boolean(getBackCoverUrl(release, disc)) && (override?.playbackKey === playbackKey ? override.back : automaticBack),
+    back: override?.playbackKey === playbackKey
+      ? override.back && (Boolean(getBackCoverUrl(release, disc)) || Boolean(override.placeholder))
+      : Boolean(getBackCoverUrl(release, disc)) && automaticBack,
   };
 }
 
-export function toggleReleaseCoverSide(overrides: CoverSideOverrides, release: CoverRelease, playing: PlayingTrack, compact = false): CoverSideOverrides {
+export function toggleReleaseCoverSide(overrides: CoverSideOverrides, release: CoverRelease, playing: PlayingTrack, compact = false, allowPlaceholder = false): CoverSideOverrides {
   const side = releaseCoverSide(release, playing, overrides[release.id], compact);
-  return { ...overrides, [release.id]: { playbackKey: side.playbackKey, back: !side.back } };
+  return { ...overrides, [release.id]: { playbackKey: side.playbackKey, back: !side.back, ...(allowPlaceholder ? { placeholder: true } : {}) } };
 }
 
 export function collapseReleaseCoverSide(overrides: CoverSideOverrides, release: CoverRelease, playing: PlayingTrack, isPlaying: boolean, compact = false): CoverSideOverrides {

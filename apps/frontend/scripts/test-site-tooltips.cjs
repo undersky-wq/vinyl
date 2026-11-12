@@ -13,9 +13,20 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       await target.waitFor({ state: 'visible' });
       await page.waitForTimeout(1200);
       assert.equal(await target.getAttribute('title'), null, 'Eye has no browser-native tooltip');
+      const metadata = page.locator('.paper-release-identity').first();
+      for (const selector of ['.paper-release-identity-row>b', '.paper-release-identity-title', '.paper-release-label>span:not(.paper-release-control-slot)']) {
+        const text = metadata.locator(selector).first();
+        if (!await text.count()) continue;
+        assert.equal(await text.getAttribute('title'), null);
+        assert.equal(await text.getAttribute('data-site-tooltip'), null);
+        await text.hover(); await page.waitForTimeout(250);
+        assert(await page.locator('.site-tooltip').isHidden(), 'Artist, release and label text do not show tooltips');
+      }
       await target.hover();
       const tip = page.locator('.site-tooltip');
       await tip.waitFor({ state: 'visible' });
+      const anchorBox = await target.boundingBox(), tipBox = await tip.boundingBox();
+      assert(tipBox.y >= anchorBox.y + anchorBox.height, 'Tooltip opens below its control when there is room');
       console.log(`Tooltip visible at ${width}px`);
       for (const theme of ['light', 'dark']) {
         await page.evaluate(theme => { document.documentElement.dataset.shelfTheme = theme; }, theme);
@@ -36,6 +47,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         button.textContent = 'Edge'; button.style.cssText = 'position:fixed;bottom:0;right:0;z-index:2147480000'; document.body.append(button);
       });
       const edge = page.locator('#tooltip-edge'); await edge.focus(); await tip.waitFor({ state: 'visible' });
+      assert((await tip.boundingBox()).y < (await edge.boundingBox()).y, 'Bottom-edge control falls back above to avoid clipping');
       const before = await edge.evaluate(node => getComputedStyle(node, '::after').display);
       assert.equal(before, 'none', 'Legacy pseudo-tooltip is not duplicated');
       await page.evaluate(() => window.dispatchEvent(new Event('resize'))); await tip.waitFor({ state: 'hidden' });

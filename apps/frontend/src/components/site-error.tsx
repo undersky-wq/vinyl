@@ -1,18 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import './record-archive.css';
+import './paper-sections.css';
+import './site-error.css';
 
 export function SiteError({ reset, reload = false }: { reset: () => void; reload?: boolean }) {
   const [ru, setRu] = useState(true);
-  useEffect(() => { setRu(document.documentElement.lang !== 'en'); }, []);
-  return <main style={{ maxWidth: 560, margin: '15vh auto', padding: 24, fontFamily: 'Arial, Helvetica, sans-serif', lineHeight: 1.5 }}>
-    <h1 style={{ fontSize: 24 }}>{ru ? 'Не удалось загрузить страницу' : 'Unable to load this page'}</h1>
+  useEffect(() => {
+    setRu(document.documentElement.lang !== 'en');
+    document.documentElement.dataset.visualVariant = 'shelf';
+    if (!document.documentElement.dataset.shelfTheme) {
+      try { document.documentElement.dataset.shelfTheme = localStorage.getItem('mityadima-shelf-theme') === 'dark' ? 'dark' : 'light'; }
+      catch { document.documentElement.dataset.shelfTheme = 'light'; }
+    }
+  }, []);
+  return <main className="paper-section-page site-error-page"><section className="site-error-panel" aria-live="polite">
+    <h1>{ru ? 'Не удалось загрузить страницу' : 'Unable to load this page'}</h1>
     <p>{ru ? 'Проверьте соединение и попробуйте ещё раз.' : 'Check your connection and try again.'}</p>
-    <button type="button" onClick={() => reload ? window.location.reload() : reset()} style={{ padding: '10px 16px', font: 'inherit', color: 'inherit', background: 'transparent', border: '1px solid currentColor', cursor: 'pointer' }}>
+    <div className="site-error-actions"><button type="button" onClick={() => reload ? window.location.reload() : reset()}>
       {ru ? 'Попробовать снова' : 'Try again'}
     </button>
-    <a href="/" style={{ marginLeft: 20, color: 'inherit' }}>{ru ? 'На главную' : 'Home'}</a>
-  </main>;
+    <a href="/">{ru ? 'На главную' : 'Home'}</a></div>
+  </section></main>;
 }
 
 export function isChunkLoadError(error: Error) {

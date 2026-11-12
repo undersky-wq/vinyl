@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ImageType, Prisma, User, UserRole } from '@prisma/client';
 import sanitizeFilename from 'sanitize-filename';
@@ -8,7 +8,7 @@ import { AudioService } from '../audio/audio.service';
 import { DiscogsService } from '../discogs/discogs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { ensureCoverVariants } from '../storage/cover-variants';
+import { coverVariantKeys, ensureCoverVariants } from '../storage/cover-variants';
 import { CreateManualReleaseDto, ManualTrackInput } from './dto/create-manual-release.dto';
 import { CreateReleaseTrackDto } from './dto/create-release-track.dto';
 import { CreateTimelineCommentDto } from './dto/create-timeline-comment.dto';
@@ -22,6 +22,7 @@ import { signedSideCoverUrls } from './release-back-cover';
 
 @Injectable()
 export class ReleasesService {
+  private readonly galleryLogger = new Logger('ReleaseGallery');
   async getMusicEngagement(id: string) {
     await this.requireMusicRelease(id);
     const [favorites, plays, copies, downloads] = await Promise.all([
@@ -1024,7 +1025,104 @@ export class ReleasesService {
     return this.findOne(id, true);
   }
 
-  async deleteGalleryImage(id: string, imageId: string) {
+  async readGalleryImage(id: string, imageId: string) {
+    const image = await this.prisma.image.findFirst({ where: { id: imageId, releaseId: id } });
+    if (!image) throw new NotFoundException('Release image not found');
+    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    const stream = await this.storageService.openDownload(bucket, image.storageKey);
+    const chunks: Buffer[] = []; let size = 0;
+    try {
+      for await (const part of stream) {
+        const chunk = Buffer.isBuffer(part) ? part : Buffer.from(part);
+        size += chunk.length;
+        if (size > 20 * 1024 * 1024) throw new BadRequestException('Image exceeds 20 MB');
+        chunks.push(chunk);
+      }
+    } finally { stream.destroy(); }
+    const buffer = Buffer.concat(chunks);
+    const metadata = await sharp(buffer, { limitInputPixels: 40000000 }).metadata();
+    if (!['jpeg', 'png', 'webp', 'heif'].includes(metadata.format || '')) throw new BadRequestException('Unsupported gallery image format');
+    const mime = metadata.format === 'png' ? 'image/png' : metadata.format === 'webp' ? 'image/webp' : metadata.format === 'heif' ? 'image/avif' : 'image/jpeg';
+    return { buffer, mime };
+  }
+
+  async copyGalleryImage(id: string, imageId: string) {
+    const { buffer, mime } = await this.readGalleryImage(id, imageId);
+    return this.saveGalleryImage(id, { buffer, mimetype: mime } as Express.Multer.File, undefined, true);
+  }
+
+  async saveGalleryImage(id: string, file: Express.Multer.File, imageId?: string, keepOriginal = false) {
+    if (!file || !['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.mimetype) || file.buffer.length > 20 * 1024 * 1024) {
+      throw new BadRequestException('Choose a JPEG, PNG, WebP or AVIF image under 20 MB');
+    }
+    if (!await this.prisma.release.findUnique({ where: { id }, select: { id: true } })) throw new NotFoundException('Release not found');
+    if (imageId && !await this.prisma.image.findFirst({ where: { id: imageId, releaseId: id } })) throw new NotFoundException('Release image not found');
+    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    const extension = keepOriginal ? file.mimetype.split('/')[1].replace('jpeg', 'jpg') : 'webp';
+    const storageKey = `covers/manual/${id}/gallery.${randomUUID()}.${extension}`;
+    const buffer = keepOriginal ? file.buffer : await sharp(file.buffer, { limitInputPixels: 40000000 }).rotate().resize(1600, 1600, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 90 }).toBuffer();
+    const variants = coverVariantKeys(storageKey);
+    const oldKeys: string[] = [];
+    try {
+      await ensureCoverVariants(this.storageService, bucket, storageKey, buffer);
+      const url = await this.storageService.uploadObject({ bucket, key: storageKey, body: buffer, contentType: keepOriginal ? file.mimetype : 'image/webp' });
+      const [thumbUrl, mediumUrl] = await Promise.all([
+        this.storageService.getSignedObjectUrl(bucket, variants.thumbStorageKey),
+        this.storageService.getSignedObjectUrl(bucket, variants.mediumStorageKey),
+      ]);
+      await this.prisma.$transaction(async tx => {
+        const release = await tx.release.update({ where: { id }, data: { updatedAt: new Date() } });
+        if (!imageId) {
+          await tx.image.create({ data: { releaseId: id, type: ImageType.GALLERY, storageKey, url: url || '', ...variants } });
+          return;
+        }
+        const image = await tx.image.findFirst({ where: { id: imageId, releaseId: id } });
+        if (!image) throw new NotFoundException('Release image not found');
+        oldKeys.push(...[image.storageKey, image.thumbStorageKey, image.mediumStorageKey].filter((key): key is string => Boolean(key)));
+        // Keep the image ID and all selected side flags when replacing pixels.
+        await tx.image.update({ where: { id: image.id }, data: { storageKey, url: url || '', ...variants } });
+        if (image.type === ImageType.COVER || release.coverStorageKey === image.storageKey) {
+          await tx.release.update({ where: { id }, data: {
+            coverStorageKey: storageKey, coverStorageUrl: url, coverImageUrl: url,
+            coverThumbStorageKey: variants.thumbStorageKey, coverThumbStorageUrl: thumbUrl,
+            coverMediumStorageKey: variants.mediumStorageKey, coverMediumStorageUrl: mediumUrl,
+          } });
+        }
+      });
+    } catch (error) {
+      await this.removeUnusedGalleryFiles([storageKey, variants.thumbStorageKey, variants.mediumStorageKey]).catch(() => undefined);
+      throw error;
+    }
+    await this.removeUnusedGalleryFiles(oldKeys).catch(() => this.galleryLogger.warn('Could not remove unreferenced old image files after editing'));
+    return this.findOne(id, true);
+  }
+
+  private async removeUnusedGalleryFiles(keys: string[]) {
+    const bucket = this.configService.get<string>('SELECTEL_S3_BUCKET_COVERS') || 'covers';
+    for (const key of new Set(keys)) {
+      const [images, releases] = await Promise.all([
+        this.prisma.image.count({ where: { OR: [{ storageKey: key }, { thumbStorageKey: key }, { mediumStorageKey: key }] } }),
+        this.prisma.release.count({ where: { OR: [{ coverStorageKey: key }, { coverThumbStorageKey: key }, { coverMediumStorageKey: key }] } }),
+      ]);
+      if (!images && !releases) await this.storageService.deleteObject(bucket, key);
+    }
+  }
+
+  async deleteGalleryImage(id: string, imageId: string, detach = false) {
+    if (detach) {
+      const keys = await this.prisma.$transaction(async tx => {
+        const release = await tx.release.update({ where: { id }, data: { updatedAt: new Date() } });
+        const image = await tx.image.findFirst({ where: { id: imageId, releaseId: id } });
+        if (!image) throw new NotFoundException('Release image not found');
+        if (image.type === ImageType.COVER || release.coverStorageKey === image.storageKey) {
+          await tx.release.update({ where: { id }, data: { coverStorageKey: null, coverStorageUrl: null, coverImageUrl: null, coverThumbStorageKey: null, coverThumbStorageUrl: null, coverMediumStorageKey: null, coverMediumStorageUrl: null } });
+        }
+        await tx.image.delete({ where: { id: image.id } });
+        return [image.storageKey, image.thumbStorageKey, image.mediumStorageKey].filter((key): key is string => Boolean(key));
+      });
+      await this.removeUnusedGalleryFiles(keys);
+      return this.findOne(id, true);
+    }
     const image = await this.prisma.image.findFirst({ where: { id: imageId, releaseId: id } });
     if (!image) throw new NotFoundException('Release image not found');
     const referenced = await this.prisma.release.count({ where: { OR: [

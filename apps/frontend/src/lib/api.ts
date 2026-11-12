@@ -312,6 +312,12 @@ export async function getUsers(cookieHeader?: string) {
   });
 }
 
+export async function changeProfilePassword(input: { currentPassword: string; newPassword: string; code?: string }) {
+  const response = await fetch(`${API_URL}/auth/password`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not change password'));
+  return parseJsonResponse<{ success: boolean }>(response);
+}
+
 export async function getCurrentUser(cookieHeader?: string) {
   return fetchJson<AuthUser | null>('/auth/me', {
     headers: cookieHeader ? { cookie: cookieHeader } : undefined,
@@ -659,12 +665,34 @@ export async function selectReleaseCover(releaseId: string, imageId: string, sid
   return parseJsonResponse<Release>(response);
 }
 
-export async function deleteReleaseGalleryImage(releaseId: string, imageId: string) {
-  const response = await fetch(`${API_URL}/releases/${encodeURIComponent(releaseId)}/images/${encodeURIComponent(imageId)}`, {
+export async function deleteReleaseGalleryImage(releaseId: string, imageId: string, detach = false) {
+  const response = await fetch(`${API_URL}/releases/${encodeURIComponent(releaseId)}/images/${encodeURIComponent(imageId)}${detach ? '?detach=true' : ''}`, {
     method: 'DELETE', credentials: 'include',
   });
   if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not delete image'));
   return parseJsonResponse<Release>(response);
+}
+
+export async function saveReleaseGalleryImage(releaseId: string, file: File, imageId?: string) {
+  const body = new FormData(); body.append('file', file);
+  const response = await fetch(`${API_URL}/releases/${encodeURIComponent(releaseId)}/images${imageId ? `/${encodeURIComponent(imageId)}` : ''}`, {
+    method: imageId ? 'PATCH' : 'POST', credentials: 'include', body,
+  });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not save image'));
+  return parseJsonResponse<Release>(response);
+}
+
+export async function copyReleaseGalleryImage(releaseId: string, imageId: string) {
+  const response = await fetch(`${API_URL}/releases/${encodeURIComponent(releaseId)}/images/${encodeURIComponent(imageId)}/copy`, { method: 'POST', credentials: 'include' });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not copy image'));
+  return parseJsonResponse<Release>(response);
+}
+
+export async function getReleaseGalleryImageFile(releaseId: string, imageId: string) {
+  const response = await fetch(`${API_URL}/releases/${encodeURIComponent(releaseId)}/images/${encodeURIComponent(imageId)}/file`, { credentials: 'include', cache: 'no-store' });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not load image'));
+  const blob = await response.blob();
+  return new File([blob], 'cover.jpg', { type: blob.type });
 }
 
 export async function removeReleaseCover(releaseId: string) {

@@ -16,3 +16,13 @@ for (const [width, height] of [[1200,800], [800,1200], [100,100]]) for (const zo
   assert(bounds.x + bounds.side <= width && bounds.y + bounds.side <= height);
 }
 console.log('PASS: square crops preserve aspect ratio, zoom and stay within landscape/portrait/square sources');
+const rotate = exportsObject.squareCoverTransform;
+for (const [width,height] of [[1200,800],[800,1200],[200,200]]) for (const angle of [-180,-135,-90,-45,0,30,90,180]) for (const zoom of [1,2,3]) for (const value of [0,50,100]) {
+  const area = rotate(width,height,value,value,zoom,angle);
+  for (const dx of [-area.side/2,area.side/2]) for (const dy of [-area.side/2,area.side/2]) {
+    const x=area.centerX+dx*Math.cos(area.radians)+dy*Math.sin(area.radians);
+    const y=area.centerY-dx*Math.sin(area.radians)+dy*Math.cos(area.radians);
+    assert(x>=-1e-8&&x<=width+1e-8&&y>=-1e-8&&y<=height+1e-8,'rotated crop corners stay inside the original image');
+  }
+}
+console.log('PASS: rotated crops stay filled at all angles, pan positions and zoom levels');

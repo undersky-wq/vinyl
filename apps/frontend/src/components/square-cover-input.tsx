@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { SiteLang } from '../lib/language';
-import { squareCoverBounds } from '../lib/square-cover';
+import { drawSquareCover, squareCoverTransform } from '../lib/square-cover';
 import './square-cover-input.css';
 
-export function SquareCoverEditor({ file, lang, onApply, onCancel }: { file: File; lang: SiteLang; onApply: (file: File) => void; onCancel: () => void }) {
+export function SquareCoverEditor({ file, lang, onApply, onCancel }: { file: File; lang: SiteLang; onApply: (file: File) => void | Promise<void>; onCancel: () => void }) {
   const ru = lang === 'ru';
   const canvas = useRef<HTMLCanvasElement>(null);
   const image = useRef<HTMLImageElement | null>(null);
@@ -13,6 +13,7 @@ export function SquareCoverEditor({ file, lang, onApply, onCancel }: { file: Fil
   const [x, setX] = useState(50);
   const [y, setY] = useState(50);
   const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -20,7 +21,7 @@ export function SquareCoverEditor({ file, lang, onApply, onCancel }: { file: Fil
     const url = URL.createObjectURL(file);
     const next = new Image();
     let cancelled = false;
-    setLoaded(false); setError(''); setX(50); setY(50); setZoom(1);
+    setLoaded(false); setError(''); setX(50); setY(50); setZoom(1); setRotation(0);
     next.onload = () => { if (!cancelled) { image.current = next; setLoaded(true); } };
     next.onerror = () => { if (!cancelled) setError(ru ? 'Не удалось открыть изображение.' : 'Could not open image.'); };
     next.src = url;
@@ -30,27 +31,23 @@ export function SquareCoverEditor({ file, lang, onApply, onCancel }: { file: Fil
     const source = image.current;
     const context = canvas.current?.getContext('2d');
     if (!loaded || !source || !context) return;
-    const crop = squareCoverBounds(source.naturalWidth, source.naturalHeight, x, y, zoom);
-    context.clearRect(0, 0, 320, 320);
-    context.drawImage(source, crop.x, crop.y, crop.side, crop.side, 0, 0, 320, 320);
-  }, [loaded, x, y, zoom]);
+    drawSquareCover(context, source, 320, x, y, zoom, rotation);
+  }, [loaded, x, y, zoom, rotation]);
 
   async function apply() {
     const source = image.current;
     if (!source || saving) return;
     setSaving(true); setError('');
     try {
-      const crop = squareCoverBounds(source.naturalWidth, source.naturalHeight, x, y, zoom);
+      const crop = squareCoverTransform(source.naturalWidth, source.naturalHeight, x, y, zoom, rotation);
       const result = document.createElement('canvas');
       result.width = result.height = Math.min(1600, Math.max(1, Math.floor(crop.side)));
       const context = result.getContext('2d');
       if (!context) throw new Error('Canvas unavailable');
-      context.fillStyle = '#fff'; context.fillRect(0, 0, result.width, result.height);
-      context.imageSmoothingQuality = 'high';
-      context.drawImage(source, crop.x, crop.y, crop.side, crop.side, 0, 0, result.width, result.height);
+      drawSquareCover(context, source, result.width, x, y, zoom, rotation);
       const blob = await new Promise<Blob | null>(resolve => result.toBlob(resolve, 'image/jpeg', .94));
       if (!blob) throw new Error('Image export failed');
-      onApply(new File([blob], `${file.name.replace(/\.[^.]+$/, '')}-square.jpg`, { type: 'image/jpeg' }));
+      await onApply(new File([blob], `${file.name.replace(/\.[^.]+$/, '')}-square.jpg`, { type: 'image/jpeg' }));
     } catch { setError(ru ? 'Не удалось подготовить обложку. Попробуйте другой файл.' : 'Could not prepare cover. Try another file.'); }
     finally { setSaving(false); }
   }
@@ -62,7 +59,9 @@ export function SquareCoverEditor({ file, lang, onApply, onCancel }: { file: Fil
       [ru ? 'По горизонтали' : 'Horizontal', x, setX, 0, 100, 1],
       [ru ? 'По вертикали' : 'Vertical', y, setY, 0, 100, 1],
       [ru ? 'Масштаб' : 'Zoom', zoom, setZoom, 1, 3, .01],
+      [ru ? 'Поворот' : 'Rotation', rotation, setRotation, -180, 180, 1],
     ] as const).map(([label, value, set, min, max, step]) => <label key={label}>{label}<input type="range" min={min} max={max} step={step} value={value} disabled={!loaded || saving} onChange={event => set(Number(event.target.value))} /></label>)}
+    <div className="square-cover-editor__rotation"><button type="button" disabled={!loaded || saving} onClick={()=>setRotation(value=>(value+450)%360-180)}>{ru?'На 90° влево':'90° left'}</button><output>{rotation}°</output><button type="button" disabled={!loaded || saving} onClick={()=>setRotation(value=>(value+630)%360-180)}>{ru?'На 90° вправо':'90° right'}</button></div>
     <div className="square-cover-editor__actions">
       <button type="button" disabled={!loaded || saving} onClick={() => void apply()}>{saving ? '…' : ru ? 'Применить квадрат' : 'Apply square'}</button>
       <button type="button" disabled={saving} onClick={onCancel}>{ru ? 'Отмена' : 'Cancel'}</button>
