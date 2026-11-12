@@ -13,6 +13,8 @@ async function main() {
   server.get('/api/auth/me', (req, res) => res.json({ anonymous: true }));
   server.post('/api/auth/login', (req, res) => res.status(req.headers['x-test-success'] ? 200 : 401).json({ ok: false }));
   server.post('/api/auth/register', (req, res) => res.status(400).json({ ok: false }));
+  server.patch('/api/auth/profile', (req, res) => res.status(401).json({ ok: false }));
+  server.post('/api/auth/password', (req, res) => res.status(401).json({ ok: false }));
   await app.listen(0, '127.0.0.1');
   const base = await app.getUrl();
   try {
@@ -57,7 +59,13 @@ async function main() {
       response = await fetch(`${base}/api/auth/register`, { method: 'POST', headers: { 'X-Forwarded-For': '192.0.2.12' } });
       assert.equal(response.status, index < 5 ? 400 : 429);
     }
-    console.log('PASS: CORS allowlist, CSRF origin rejection, native clients, headers, login/register limits, successful login budget and forged-XFF resistance');
+    for (const [path, method] of [['profile','PATCH'],['password','POST']]) {
+      for (let index=0;index<11;index++) {
+        response=await fetch(`${base}/api/auth/${path}`,{method});
+        assert.equal(response.status,index<10?401:429,`${path} attempt budget`);
+      }
+    }
+    console.log('PASS: CORS/CSRF, headers, login/register/profile/password limits, successful login budget and forged-XFF resistance');
   } finally { await app.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

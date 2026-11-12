@@ -312,7 +312,19 @@ export async function getUsers(cookieHeader?: string) {
   });
 }
 
-export async function changeProfilePassword(input: { currentPassword: string; newPassword: string; code?: string }) {
+export type PasswordChangePolicy = { admin: boolean; inviteRequired: boolean; inviteConfigured: boolean; twoFactorRequired: boolean; twoFactorEnabled: boolean };
+
+export function getPasswordChangePolicy(cookieHeader?: string) {
+  return fetchJson<PasswordChangePolicy>('/auth/password-policy', { headers: cookieHeader ? { cookie: cookieHeader } : undefined });
+}
+
+export async function updateProfile(input: { displayName?: string }) {
+  const response = await fetch(`${API_URL}/auth/profile`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not update profile'));
+  return parseJsonResponse<AuthUser>(response);
+}
+
+export async function changeProfilePassword(input: { currentPassword: string; newPassword: string; code?: string; inviteCode?: string }) {
   const response = await fetch(`${API_URL}/auth/password`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
   if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not change password'));
   return parseJsonResponse<{ success: boolean }>(response);

@@ -89,11 +89,13 @@ export class TwoFactorService {
     return { enabled: !!value?.enabledAt, recoveryCodesRemaining: value?.enabledAt ? value.recoveryHashes.length : 0 };
   }
 
-  async changePassword(userId: string, password: string, nextHash: string, code?: string) {
+  async changePassword(userId: string, password: string, nextHash: string, code?: string, authorize?: (user: User) => Promise<void>) {
     const checked = await this.checkPassword(userId, password);
     return this.locked(userId, async (tx, credential) => {
       const current = await tx.user.findUnique({ where: { id: userId } });
       if (!current || current.passwordHash !== checked.passwordHash) return { error: 'Invalid password' };
+      if (current.role === 'ADMIN' && !credential?.enabledAt) return { error: 'TWO_FACTOR_SETUP_REQUIRED', status: 400 };
+      await authorize?.(current);
       if (credential?.enabledAt) {
         if (!code?.trim()) return { error: 'TWO_FACTOR_REQUIRED' };
         const error = await this.consume(tx, credential, code);
@@ -108,6 +110,17 @@ export class TwoFactorService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !(await verifyPasswordHash(password, user.passwordHash))) throw new UnauthorizedException('Invalid password');
     return user;
+  }
+
+  async updateProfile(userId: string, input: { displayName?: string }) {
+    return this.locked<{ user: User }>(userId, async tx => {
+      const current = await tx.user.findUnique({ where: { id: userId } });
+      if (!current) return { error: 'Authentication required' };
+      const user = await tx.user.update({ where: { id: userId }, data: {
+        ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+      } });
+      return { user };
+    });
   }
 
   async setup(userId: string, password: string, code?: string) {

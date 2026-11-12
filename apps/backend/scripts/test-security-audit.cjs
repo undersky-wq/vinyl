@@ -19,6 +19,7 @@ async function main() {
   configureHttpSecurity(app, { NODE_ENV: 'production', APP_URL: 'https://mityadima.ru' });
   const server = app.getHttpAdapter().getInstance();
   server.get('/api/health', (_, res) => res.json({ ok: true }));
+  server.patch('/api/auth/profile',(req,res)=>{req.user={id:'profile-id',role:'USER'};res.json({ok:true});});
   server.post('/api/auth/login', (req, res) => {
     if (!req.headers['x-test-login']) return res.status(401).json({ password: 'NEVER_STORE_SECRET' });
     res.cookie('vinyl_session', 'NEVER_STORE_SECRET');
@@ -59,6 +60,14 @@ async function main() {
     assert.equal(events[3].userId, null);
     assert.equal(events[4].role, 'USER');
     assert.equal(events[5].outcome, 'success');
+    await fetch(`${base}/api/auth/profile?email=NEVER_STORE_SECRET`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:'NEVER_STORE_SECRET',code:'NEVER_STORE_SECRET',email:'NEVER_STORE_SECRET'})});
+    for(let attempt=0;attempt<50;attempt++) {
+      raw=await fs.readFile(file,'utf8');if(raw.trim().split('\n').length===7)break;
+      await new Promise(resolve=>setTimeout(resolve,20));
+    }
+    assert.ok(!raw.includes('NEVER_STORE_SECRET'));
+    const profileEvent=JSON.parse(raw.trim().split('\n').at(-1));
+    assert.equal(profileEvent.action,'auth.profile');assert.equal(profileEvent.userId,'profile-id');
     // Reopening after external rotation must create the new path, not keep an
     // open descriptor writing to an old rotated file.
     await fs.rename(file, `${file}.1`);

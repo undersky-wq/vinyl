@@ -32,7 +32,7 @@ import {
 import { DancerSetting } from './dancer-setting';
 import { TwoFactorSettings } from './two-factor-settings';
 import { CoverMaintenance } from './cover-maintenance';
-import { ProfilePasswordForm } from './profile-password-form';
+import { ProfileIdentityForm } from './profile-identity-form';
 import { RegisteredUsersList } from './registered-users-list';
 import { getUsers } from '../lib/api';
 
@@ -451,7 +451,7 @@ export function ProfileScreen({
         <div className="profile-admin-overview" hidden={activeUser.role==='ADMIN'&&adminSection!=='profile'}>
         {activeUser.role!=='ADMIN'&&profileHero}
 
-        <ProfilePasswordForm lang={lang}/>
+        <ProfileIdentityForm user={activeUser} lang={lang} onAvatar={handleAvatar}/>
 
         </div>
         <div className="profile-actions profile-admin-actions">

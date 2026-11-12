@@ -110,11 +110,37 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: string, input: { currentPassword: string; newPassword: string; code?: string }, response: CookieResponse) {
+  async passwordChangePolicy(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Authentication required');
+    const [settings, factor] = await Promise.all([this.getAuthSettings(), this.twoFactorService.status(userId)]);
+    const admin = user.role === UserRole.ADMIN;
+    return { admin, inviteRequired: admin || settings.registrationInviteRequired,
+      inviteConfigured: Boolean(this.configService.get<string>(admin ? 'REGISTRATION_INVITE_CODE_ADMIN' : 'REGISTRATION_INVITE_CODE')),
+      twoFactorRequired: admin || factor.enabled, twoFactorEnabled: factor.enabled };
+  }
+
+  async changePassword(userId: string, input: { currentPassword: string; newPassword: string; code?: string; inviteCode?: string }, response: CookieResponse) {
     if (typeof input.currentPassword !== 'string' || !input.currentPassword || input.currentPassword.length > 1024 || typeof input.newPassword !== 'string' || input.newPassword.length < 8 || input.newPassword.length > 1024) throw new BadRequestException('Password must contain 8 to 1024 characters');
-    const { token } = await this.twoFactorService.changePassword(userId, input.currentPassword, await this.hashPassword(input.newPassword), input.code);
+    const { token } = await this.twoFactorService.changePassword(userId, input.currentPassword, await this.hashPassword(input.newPassword), input.code, async user => {
+      const required = user.role === UserRole.ADMIN || (await this.getAuthSettings()).registrationInviteRequired;
+      if (!required) return;
+      const expected = this.configService.get<string>(user.role === UserRole.ADMIN ? 'REGISTRATION_INVITE_CODE_ADMIN' : 'REGISTRATION_INVITE_CODE');
+      if (!expected) throw new BadRequestException('INVITE_CODE_UNAVAILABLE');
+      const candidate = createHash('sha256').update(input.inviteCode?.trim() || '').digest();
+      const actual = createHash('sha256').update(expected).digest();
+      if (!timingSafeEqual(candidate, actual)) throw new UnauthorizedException('INVITE_CODE_INVALID');
+    });
     this.setSessionCookie(response, token);
     return { success: true };
+  }
+
+  async updateProfile(userId: string, input: { displayName?: string; email?: never }) {
+    if (input.email !== undefined) throw new BadRequestException('Email is the login and cannot be changed');
+    const displayName = input.displayName?.trim();
+    if (displayName !== undefined && (!displayName || displayName.length > 80)) throw new BadRequestException('Name must contain 1 to 80 characters');
+    const result = await this.twoFactorService.updateProfile(userId, { displayName });
+    return this.signAvatarUrl(this.toPublicUser(result.user));
   }
 
   async getSiteSettings() {

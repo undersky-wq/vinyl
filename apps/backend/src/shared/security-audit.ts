@@ -23,7 +23,8 @@ export function configureSecurityAudit(app: INestApplication, env = process.env)
   let pending = Promise.resolve();
   app.use((request: AuditRequest, response: Response, next: NextFunction) => {
     const path = request.originalUrl.split('?')[0];
-    const auth = request.method === 'POST' && /^\/api\/auth\/(login|register|logout|password|2fa\/(?:setup|confirm|disable|recovery))\/?$/.exec(path);
+    const auth = (request.method === 'POST' && /^\/api\/auth\/(login|register|logout|password|2fa\/(?:setup|confirm|disable|recovery))\/?$/.exec(path))
+      || (request.method === 'PATCH' && /^\/api\/auth\/(profile)\/?$/.exec(path));
     const started = Date.now();
     if (auth && ['login', 'register'].includes(auth[1])) {
       const json = response.json;

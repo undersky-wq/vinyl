@@ -26,6 +26,16 @@ html body .paper-profile-page .profile-admin-identity .muted{font-size:13px;marg
 html body .paper-profile-page .profile-password-form input{width:100%;box-sizing:border-box;padding:8px 0;background:transparent;border:0;border-bottom:1px solid var(--shelf-web-line,#8885);border-radius:0;color:inherit;font:inherit;box-shadow:none}
 html body .paper-profile-page .profile-password-form button{display:inline-flex;align-items:center;gap:8px;width:fit-content;padding:8px 0;background:transparent;border:0;border-bottom:1px solid var(--shelf-web-line,#8885);border-radius:0;color:inherit;font:inherit;box-shadow:none;cursor:pointer}
 .profile-password-form p{margin:0;color:var(--shelf-web-muted,#777)}
+.profile-password-link{color:inherit;text-decoration:none;border-bottom:1px solid var(--shelf-web-line,#8885);width:fit-content;padding:8px 0}
+.paper-profile-page{--shelf-web-ink:var(--auth-ink);--shelf-web-bg:var(--auth-surface);--shelf-web-muted:var(--auth-muted);--shelf-web-line:var(--auth-line)}
+html body .paper-profile-page .profile-password-page{display:block;max-width:760px;margin:auto}
+html body .paper-profile-page .profile-password-form{color:var(--auth-ink)}
+html body .paper-profile-page .profile-password-form input{color:var(--auth-ink);-webkit-text-fill-color:var(--auth-ink);caret-color:var(--auth-ink);border-bottom-color:var(--auth-line)}
+html body .paper-profile-page .profile-password-form input::placeholder{color:var(--auth-muted);-webkit-text-fill-color:var(--auth-muted);opacity:1}
+html body .paper-profile-page .profile-password-form input:-webkit-autofill{-webkit-text-fill-color:var(--auth-ink);background-clip:text;-webkit-background-clip:text}
+html body .paper-profile-page .profile-password-form input:focus-visible{outline:1px solid var(--auth-ink);outline-offset:3px}
+html body .paper-profile-page .profile-password-form input[type=file]::file-selector-button{font:inherit;color:var(--auth-ink);background:var(--auth-surface);border:1px solid var(--auth-line);padding:6px 8px;margin-right:10px;cursor:pointer}
+html body .paper-profile-page .profile-password-form :is(button,input):disabled{opacity:.5;cursor:not-allowed}
 .admin-shake-sensitivity{padding:22px 0;border-bottom:1px solid var(--shelf-web-line,#ddd)}
 .admin-shake-sensitivity__heading{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:15px;font-weight:600}
 .admin-shake-sensitivity__heading output{font-size:14px;font-variant-numeric:tabular-nums;color:var(--shelf-web-muted,#777)}

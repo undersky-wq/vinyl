@@ -119,7 +119,7 @@ html body .paper-profile-page .auth-submit-button:hover:not(:disabled){opacity:.
 .auth-password-toggle{flex-shrink:0;padding:0 4px;border:0;border-bottom:1px solid currentColor;border-radius:0;background:none;color:inherit;font:inherit;box-shadow:none;cursor:pointer;transform:none}
 .auth-password-toggle:hover{opacity:.65;background:none;transform:none;box-shadow:none}
 .auth-password-toggle::before,.auth-password-toggle::after{display:none}
-.paper-profile-page :is(button,a):focus-visible{outline:1px solid #111;outline-offset:4px}
+.paper-profile-page :is(button,a):focus-visible{outline:1px solid var(--auth-ink);outline-offset:4px}
 .paper-profile-page .profile-panel,.paper-profile-page .auth-panel{animation:paper-profile-enter .7s cubic-bezier(.16,1,.3,1) both}
 @keyframes paper-profile-enter{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @media(max-width:700px){

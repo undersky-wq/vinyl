@@ -21,6 +21,10 @@ export class RegisterDto {
 }
 
 export class ChangePasswordDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1024)
+  inviteCode?: string;
   @IsString()
   @MinLength(1)
   @MaxLength(1024)
@@ -35,6 +39,17 @@ export class ChangePasswordDto {
   @IsString()
   @MaxLength(64)
   code?: string;
+}
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  displayName?: string;
+
+  @Equals(undefined, { message: 'Email is the login and cannot be changed' })
+  email?: never;
 }
 
 export class LoginDto {

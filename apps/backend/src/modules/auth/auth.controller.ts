@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Req,
   Res,
   UploadedFile,
@@ -13,7 +14,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AdminGuard, AuthGuard } from './auth.guards';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, UpdateAuthSettingsDto, TwoFactorSetupDto, TwoFactorVerifyDto, ChangePasswordDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, UpdateAuthSettingsDto, TwoFactorSetupDto, TwoFactorVerifyDto, ChangePasswordDto, UpdateProfileDto } from './dto/auth.dto';
 import { TwoFactorService } from './two-factor.service';
 
 @Controller('auth')
@@ -74,6 +75,16 @@ export class AuthController {
   @UseGuards(AuthGuard)
   changePassword(@Req() request: any, @Body() input: ChangePasswordDto, @Res({ passthrough: true }) response: any) {
     return this.authService.changePassword(request.user.id, input, response);
+  }
+
+  @Get('password-policy')
+  @UseGuards(AuthGuard)
+  passwordPolicy(@Req() request: any) { return this.authService.passwordChangePolicy(request.user.id); }
+
+  @Patch('profile')
+  @UseGuards(AuthGuard)
+  updateProfile(@Req() request: any, @Body() input: UpdateProfileDto) {
+    return this.authService.updateProfile(request.user.id, input);
   }
 
   @Get('me')
