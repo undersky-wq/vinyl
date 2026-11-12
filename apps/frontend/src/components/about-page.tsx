@@ -58,9 +58,9 @@ export function AboutPage({ lang }: { lang: SiteLang }) {
           <p>I have been collecting vinyl records since 2009. I love listening to them and playing them in bars and at events.</p>
         </>}
         <nav className="about-contacts" aria-label={ru ? 'Связаться со мной' : 'Contact me'}>
-          <a href="mailto:mityadima@internet.ru" aria-label={ru ? 'Написать на mityadima@internet.ru' : 'Email mityadima@internet.ru'} title="mityadima@internet.ru"><Mail size={22} aria-hidden="true" /></a>
-          <a href="https://www.instagram.com/mitya_dima/" target="_blank" rel="noopener noreferrer" aria-label="Instagram — mitya_dima" title="Instagram"><Instagram size={22} aria-hidden="true" /></a>
-          <a href="https://t.me/Gerasimov1987" target="_blank" rel="noopener noreferrer" aria-label="Telegram — Gerasimov1987" title="Telegram"><Send size={22} aria-hidden="true" /></a>
+          <a href="mailto:mityadima@internet.ru" aria-label={ru ? 'Написать на mityadima@internet.ru' : 'Email mityadima@internet.ru'} data-site-tooltip="mityadima@internet.ru"><Mail size={22} aria-hidden="true" /></a>
+          <a href="https://www.instagram.com/mitya_dima/" target="_blank" rel="noopener noreferrer" aria-label="Instagram — mitya_dima" data-site-tooltip="Instagram"><Instagram size={22} aria-hidden="true" /></a>
+          <a href="https://t.me/Gerasimov1987" target="_blank" rel="noopener noreferrer" aria-label="Telegram — Gerasimov1987" data-site-tooltip="Telegram"><Send size={22} aria-hidden="true" /></a>
         </nav>
       </div>
     </section>

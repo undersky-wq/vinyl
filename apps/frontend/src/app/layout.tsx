@@ -19,6 +19,7 @@ import { normalizeSiteLang } from '../lib/language';
 import { DesignVariantProvider } from '../components/design-variant-switcher';
 import { CookieConsent } from '../components/cookie-consent';
 import { ArchiveHeaderShell } from '../components/archive-header-shell';
+import { SiteTooltips } from '../components/site-tooltips';
 
 export const metadata = {
   title: 'MityaDima — Vinyl & Mixes',
@@ -47,6 +48,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body>
         <AdminEditModeSync />
+        <SiteTooltips />
         <AuthProvider initialUser={currentUser} playbackRequiresRegistration={siteSettings.playbackRequiresRegistration ?? true} allowGuestMixPlayback={'allowGuestMixPlayback' in siteSettings && siteSettings.allowGuestMixPlayback === true}>
           <FavoritesProvider initialFavoriteTrackIds={favoriteTrackIds}>
             <PlaylistsProvider>

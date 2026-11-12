@@ -33,6 +33,7 @@ export type ReleaseCoverVariants = {
 };
 
 export type Release = ReleaseCoverVariants & {
+  labels?: string[];
   id: string;
   audioComplete?: boolean;
   artist: string;
@@ -65,6 +66,7 @@ export type Release = ReleaseCoverVariants & {
 };
 
 export type HomeRelease = ReleaseCoverVariants & {
+  labels?: string[];
   tracksLoaded?: boolean;
   trackCount?: number;
   trackSearchText?: string;
@@ -109,6 +111,7 @@ export type HomeRelease = ReleaseCoverVariants & {
 };
 
 export type HomeReleaseApi = ReleaseCoverVariants & {
+  labels?: string[];
   tracksLoaded?: boolean;
   trackCount?: number;
   trackSearchText?: string;

@@ -84,7 +84,7 @@ export function TrackUploadButton({ trackId, lang, onUploaded }: TrackUploadButt
               ? 'Загрузить MP3'
               : 'Upload MP3'
         }
-        title={
+        data-site-tooltip={
           isUploading
             ? lang === 'ru'
               ? 'Загрузка...'

@@ -46,7 +46,7 @@ export function ShelfShakeControl({onShuffle,ru,disabled=false,sensitivity=50}:{
   if(!localControls)return null;
   return <div className="shelf-shake-control">
     <button type="button" onClick={onShuffle} disabled={disabled} aria-label={ru?'Перемешать коллекцию':'Shuffle collection'}><Shuffle size={16}/><span>{disabled?(ru?'Перемешиваю…':'Shuffling…'):(ru?'Перемешать':'Shuffle')}</span></button>
-    <button type="button" onClick={()=>void toggle()} aria-pressed={enabled} aria-label={ru?'Включить встряхивание':'Enable shake'} title={ru?'Встряхивание':'Shake'}><Smartphone size={17}/></button>
+    <button type="button" onClick={()=>void toggle()} aria-pressed={enabled} aria-label={ru?'Включить встряхивание':'Enable shake'} data-site-tooltip={ru?'Встряхивание':'Shake'}><Smartphone size={17}/></button>
     {status&&<output role="status">{status}</output>}
   </div>;
 }

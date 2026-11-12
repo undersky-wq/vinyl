@@ -24,6 +24,6 @@ export function TimelineCommentComposer({ lang, second, text, onTextChange, onSu
     </span>
     <time aria-label={lang === 'ru' ? 'Время комментария' : 'Comment time'}>{second === null ? '--:--' : `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`}</time>
     <input aria-label={placeholder} value={text} onChange={event => onTextChange(event.target.value)} maxLength={280} placeholder={placeholder} />
-    <button type="submit" aria-label={lang === 'ru' ? 'Отправить комментарий' : 'Post comment'} title={lang === 'ru' ? 'Отправить комментарий' : 'Post comment'} aria-busy={pending} disabled={pending || disabled || second === null || !text.trim()}>{pending ? <LoaderCircle size={16} aria-hidden="true" /> : <Send size={16} aria-hidden="true" />}</button>
+    <button type="submit" aria-label={lang === 'ru' ? 'Отправить комментарий' : 'Post comment'} data-site-tooltip={lang === 'ru' ? 'Отправить комментарий' : 'Post comment'} aria-busy={pending} disabled={pending || disabled || second === null || !text.trim()}>{pending ? <LoaderCircle size={16} aria-hidden="true" /> : <Send size={16} aria-hidden="true" />}</button>
   </form>;
 }

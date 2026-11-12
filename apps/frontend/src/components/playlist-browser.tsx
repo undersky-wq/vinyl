@@ -583,7 +583,7 @@ export function PlaylistBrowser({
                 type="button"
                 className={`playlist-track-sort__button playlist-track-sort__button--bpm${trackSort?.field === 'bpm' ? ' active' : ''}`}
                 aria-pressed={trackSort?.field === 'bpm'}
-                title={lang === 'ru' ? 'Сортировать по скорости' : 'Sort by tempo'}
+                data-site-tooltip={lang === 'ru' ? 'Сортировать по скорости' : 'Sort by tempo'}
                 onClick={() => cycleTrackSort('bpm')}
               >
                 <span>BPM</span>
@@ -594,7 +594,7 @@ export function PlaylistBrowser({
                 type="button"
                 className={`playlist-track-sort__button playlist-track-sort__button--key${trackSort?.field === 'key' ? ' active' : ''}`}
                 aria-pressed={trackSort?.field === 'key'}
-                title={lang === 'ru' ? 'Сортировать по кругу Camelot' : 'Sort by Camelot wheel'}
+                data-site-tooltip={lang === 'ru' ? 'Сортировать по кругу Camelot' : 'Sort by Camelot wheel'}
                 onClick={() => cycleTrackSort('key')}
               >
                 <span>KEY</span>

@@ -125,7 +125,7 @@ html[data-visual-variant='shelf'] .shelf-form-gallery__actions :is(button,.shelf
   .shelf-form-add-track { grid-template-columns:36px 1fr; }
 }
 html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__comments { color:var(--shelf-web-ink);font:400 12px/1.4 Arial,Helvetica,sans-serif; }
-html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__cover-flip { right:10px;bottom:10px;border:1px solid var(--shelf-web-line);border-radius:0;background:var(--shelf-web-bg);color:var(--shelf-web-ink);box-shadow:none;backdrop-filter:none;font:600 11px/1 Arial,Helvetica,sans-serif; }
+html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__cover-flip { right:10px;bottom:10px;border:0;border-radius:0;background:transparent;color:var(--shelf-web-ink);box-shadow:none;backdrop-filter:none;font:600 11px/1 Arial,Helvetica,sans-serif; }
 html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__comments form { display:grid;gap:10px;padding:12px 0;border-block:1px solid var(--shelf-web-line); }
 html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__comments textarea { width:100%;box-sizing:border-box;min-height:64px;padding:8px;background:transparent;color:inherit;border:1px solid var(--shelf-web-line);border-radius:0;font:inherit; }
 html[data-visual-variant='shelf'] .mobile-player-overlay .player-page__comments button { background:transparent;color:inherit;border:0;padding:4px 0;font:inherit; }

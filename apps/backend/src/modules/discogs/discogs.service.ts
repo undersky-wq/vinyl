@@ -16,6 +16,7 @@ type DiscogsRelease = {
   cover_image?: string;
   genres?: string[];
   styles?: string[];
+  labels?: Array<{ name: string }>;
   artists?: Array<{ name: string }>;
   images?: Array<{ type: string; uri?: string; uri150?: string }>;
   tracklist?: Array<{
@@ -66,10 +67,18 @@ export class DiscogsService {
           },
           select: {
             id: true,
+            labels: true,
           },
         });
 
         if (existingRelease) {
+          if (!existingRelease.labels.length) {
+            const source = item.basic_information.labels?.length
+              ? item.basic_information
+              : await this.fetchDiscogsReleaseDetails(item.basic_information.id);
+            const labels = [...new Set((source?.labels || []).map(label => label.name.trim()).filter(Boolean))];
+            if (labels.length) await this.prisma.release.update({ where: { id: existingRelease.id }, data: { labels } });
+          }
           await this.prisma.collectionItem.upsert({
             where: {
               userId_releaseId: {
@@ -249,6 +258,7 @@ export class DiscogsService {
         year: release.year,
         country: release.country,
         genres: release.genres || [],
+        labels: [...new Set((release.labels || []).map(label => label.name.trim()).filter(Boolean))],
         styles: release.styles || [],
         coverImageUrl: primaryImage,
       },
@@ -258,6 +268,7 @@ export class DiscogsService {
         year: release.year,
         country: release.country,
         genres: release.genres || [],
+        ...(release.labels ? { labels: [...new Set(release.labels.map(label => label.name.trim()).filter(Boolean))] } : {}),
         styles: release.styles || [],
         coverImageUrl: primaryImage,
       },
@@ -637,6 +648,7 @@ export class DiscogsService {
       cover_image: fullRelease.cover_image || basicInformation.cover_image || basicInformation.thumb,
       genres: fullRelease.genres?.length ? fullRelease.genres : basicInformation.genres,
       styles: fullRelease.styles?.length ? fullRelease.styles : basicInformation.styles,
+      labels: fullRelease.labels?.length ? fullRelease.labels : basicInformation.labels,
       artists: fullRelease.artists?.length ? fullRelease.artists : basicInformation.artists,
       images: fullRelease.images?.length ? fullRelease.images : basicInformation.images,
       tracklist: fullRelease.tracklist?.length ? fullRelease.tracklist : basicInformation.tracklist,

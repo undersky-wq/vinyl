@@ -22,6 +22,7 @@ import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayer } from '../providers/player-provider';
 import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
+import { CoverRotation } from './cover-rotation';
 import { MiniPlayerTrack } from './mini-player-track';
 import { PlayerVolumeControl } from './player-volume-control';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
@@ -520,8 +521,10 @@ export function MiniPlayer({ lang }: MiniPlayerProps) {
             onClick={() => setIsFullPlayerOpen(false)}
             aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
           >
-            <CoverImage className="player-cover-face player-cover-front" src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
-            {backArtwork ? <CoverImage className="player-cover-face player-cover-back" src={backArtwork} alt={lang === 'ru' ? `Обратная сторона ${currentTrack.title}` : `${currentTrack.title} back cover`} width={520} height={520} loading="eager" /> : null}
+            <CoverRotation>
+              <CoverImage className="player-cover-face player-cover-front" src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
+              {backArtwork ? <CoverImage className="player-cover-face player-cover-back" src={backArtwork} alt={lang === 'ru' ? `Обратная сторона ${currentTrack.title}` : `${currentTrack.title} back cover`} width={520} height={520} loading="eager" /> : <span className="player-cover-face player-cover-back cover-rotation-placeholder" aria-hidden="true" />}
+            </CoverRotation>
           </button>
           <div className={`player-page__meta slide-${trackDirection}`} key={`mobile-meta-${currentTrack.id}`}>
             <div className="player-page__artist-row">

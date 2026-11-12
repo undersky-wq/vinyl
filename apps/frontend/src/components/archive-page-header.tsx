@@ -57,7 +57,7 @@ export function ArchivePageHeaderView({ lang, search, onSearchChange, onSearchSu
         <nav className="paper-layout-controls" aria-label="Collection view">
           {(['shelf','stack','grid','tracks'] as const).map((layout,index) => {
             const label = (ru ? ['Полка','Стопка','Сетка','Треки'] : ['Shelf','Stack','Grid','Tracks'])[index];
-            return <button key={layout} type="button" aria-label={label} aria-pressed={activeLayout === layout} onClick={() => onLayoutChange(layout)}><ArchiveLayoutIcon layout={layout}/><span className="archive-layout-tooltip" role="tooltip">{label}</span></button>;
+            return <button key={layout} type="button" aria-label={label} data-site-tooltip={label} aria-pressed={activeLayout === layout} onClick={() => onLayoutChange(layout)}><ArchiveLayoutIcon layout={layout}/></button>;
           })}
         </nav>
       </div>

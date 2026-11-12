@@ -12,6 +12,7 @@ import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerProgress, usePlayerTransport } from '../providers/player-provider';
 import { TimelineComment } from '../types';
 import { CoverImage } from './cover-image';
+import { CoverRotation } from './cover-rotation';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 import { usePlayerArtwork, usePlayerBackArtwork, usePlayerCoverSide } from '../lib/use-player-artwork';
@@ -221,8 +222,10 @@ export function PlayerPageClient({ lang, returnTo }: { lang: SiteLang; returnTo?
           onClick={collapsePlayer}
           aria-label={lang === 'ru' ? 'Свернуть плеер' : 'Collapse player'}
         >
-          <CoverImage className="player-cover-face player-cover-front" src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
-          {backArtwork ? <CoverImage className="player-cover-face player-cover-back" src={backArtwork} alt={lang === 'ru' ? `Обратная сторона ${currentTrack.title}` : `${currentTrack.title} back cover`} width={520} height={520} loading="eager" /> : null}
+          <CoverRotation>
+            <CoverImage className="player-cover-face player-cover-front" src={fullArtwork} alt={currentTrack.title} width={520} height={520} loading="eager" />
+            {backArtwork ? <CoverImage className="player-cover-face player-cover-back" src={backArtwork} alt={lang === 'ru' ? `Обратная сторона ${currentTrack.title}` : `${currentTrack.title} back cover`} width={520} height={520} loading="eager" /> : <span className="player-cover-face player-cover-back cover-rotation-placeholder" aria-hidden="true" />}
+          </CoverRotation>
         </button>
       </div>
       <div className={`player-page__meta slide-${trackDirection}`} key={`meta-${currentTrack.id}`}>

@@ -316,7 +316,7 @@ export function TrackPlaylistMenu({
       onPointerCancel={() => {desktopDrag.current = null;if (canSheetDrag) finishPopupDrag();}}
     >
       <div className="track-playlist-menu__create">
-        <div className="track-playlist-menu__title" tabIndex={desktopPopup ? 0 : undefined} title={desktopPopup ? (lang==='ru'?'Перетащить окно; стрелки — переместить':'Drag window; arrow keys to move') : undefined} onKeyDown={event => {
+        <div className="track-playlist-menu__title" tabIndex={desktopPopup ? 0 : undefined} data-site-tooltip={desktopPopup ? (lang==='ru'?'Перетащить окно; стрелки — переместить':'Drag window; arrow keys to move') : undefined} onKeyDown={event => {
           if (!desktopPopup || !desktopPosition || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
           event.preventDefault();event.stopPropagation();
           const rect = popupRef.current?.getBoundingClientRect();

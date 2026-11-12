@@ -332,7 +332,7 @@ export function TechnoDancer() {
       className={styles.dancer}
       data-paused={remark !== null}
       aria-label="Танцующий персонаж: перетащи или нажми дважды для реплики"
-      title="Перетащи меня или нажми дважды"
+      data-site-tooltip="Перетащи меня или нажми дважды"
       onPointerDown={event => {
         if (event.button !== 0 || !event.isPrimary) return;
         event.preventDefault();

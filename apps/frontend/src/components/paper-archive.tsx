@@ -12,7 +12,8 @@ import { trackArtist } from '../lib/track-artist';
 import { useAuth } from '../providers/auth-provider';
 import { usePlaylists } from '../providers/playlists-provider';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
-import { Heart, Library, ListMusic, Disc3, AudioLines, Plus, Rotate3D, ChevronDown } from 'lucide-react';
+import { Heart, Library, ListMusic, Disc3, AudioLines, Plus, Rotate3D, ChevronDown, Eye } from 'lucide-react';
+import { matchesReleaseSearch, releaseIdentityQuery } from '../lib/release-identity-search';
 import { MobileCollectionPicker, type MobileCollectionSection } from './mobile-collection-picker';
 import { useCollectionCounts } from './use-collection-counts';
 import { ShelfMixTrack } from './shelf-mix-track';
@@ -120,7 +121,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const detailRequests = useRef(new Map<string, Promise<HomeRelease>>());
   const detailGeneration = useRef(0);
   useEffect(() => {
-    const reset = () => { detailGeneration.current++; detailRequests.current.clear(); setReleaseDetails({}); setDetailErrors({}); };
+    const reset = () => { detailGeneration.current++; detailRequests.current.clear(); setReleaseDetails({}); setDetailErrors({}); searchCatalogRequest.current = null; setSearchCatalog(null); };
     window.addEventListener('vinyl:release-updated', reset);
     return () => window.removeEventListener('vinyl:release-updated', reset);
   }, []);
@@ -179,6 +180,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const [playlistTransition, setPlaylistTransition] = useState(false);
   const [search, setSearch] = useState(initialSearch);
   const [appliedSearch, setAppliedSearch] = useState(initialSearch);
+  const identityBrowseOrigin = useRef<{ query: string; styles: string[]; activeQuery: string } | null>(null);
+  const identityScrollAnchor = useRef<{ releaseId: string; top: number } | null>(null);
   const [searchCatalog, setSearchCatalog] = useState<HomeRelease[] | null>(null);
   const searchCatalogRequest = useRef<Promise<HomeRelease[]> | null>(null);
   const [searchStatus, setSearchStatus] = useState('');
@@ -299,14 +302,13 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const shuffleAbort=useRef<AbortController|null>(null);
   useEffect(()=>()=>shuffleAbort.current?.abort(),[]);
   const releases = useMemo(() => {
-    const words = appliedSearch.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
     const playlist = playlists.find(p => p.id === activePlaylist);
     // Keep each playlist item separate, including non-adjacent tracks of one release.
     const source: HomeRelease[] = playlist ? [...playlist.items].sort((a,b) => a.sortOrder-b.sortOrder).map(item => ({
       ...item.track.release,
       tracks: [{...item.track, audioUrl: item.track.audioFiles?.find(f => f.storageUrl)?.storageUrl || ''}],
     })) : (appliedSearch ? searchCatalog || allReleases : mixesMode || favoritesMode ? allReleases : allReleases.filter(r=>!r.isMix)).map(r => releaseDetails[r.id] ? { ...r, ...releaseDetails[r.id], tracks: favoritesMode ? r.tracks : releaseDetails[r.id].tracks } : r);
-    const filtered=source.filter(r => (!activeStyles.length || r.styles.some(style => activeStyles.includes(style))) && words.every(word => `${r.artist} ${r.title} ${r.trackSearchText || r.tracks.map(t => t.title).join(' ')}`.toLocaleLowerCase().includes(word)));
+    const filtered=source.filter(r => (!activeStyles.length || r.styles.some(style => activeStyles.includes(style))) && matchesReleaseSearch(r, appliedSearch));
     return shuffleSeed&&collectionView?shuffledShelf(filtered,shuffleSeed):filtered;
   }, [allReleases, searchCatalog, releaseDetails, activeStyles, appliedSearch, activePlaylist, playlists, mixesMode, favoritesMode,shuffleSeed,collectionView]);
   const [mobileCardHeights, setMobileCardHeights] = useState<Record<string, number>>({});
@@ -327,6 +329,18 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     });
     return { positions, height: y + gridBounds.bottom };
   }, [releases, listSize, gridBounds, isTrackCollection, playlists.length, viewport, mixesMode, originalsMode, openMixComments, mobileCardHeights]);
+  useLayoutEffect(() => {
+    const anchor = identityScrollAnchor.current;
+    if (!anchor || filtering || !isTrackListInteractive) return;
+    identityScrollAnchor.current = null;
+    const index = releases.findIndex(item => item.id === anchor.releaseId);
+    const row = stage.current?.querySelector<HTMLElement>('.paper-row');
+    if (index < 0 || !row) return;
+    const top = Math.max(0, Math.min(listLayout.positions[index] + row.getBoundingClientRect().top - anchor.top, row.scrollHeight - row.clientHeight));
+    row.scrollTop = top;
+    setListPan(top);
+    setWindowScroll(Math.floor(top / 128) * 128);
+  }, [releases, listLayout.positions, filtering, isTrackListInteractive]);
   const navigatorPositions = useMemo(() => listMix >= 1 ? listLayout.positions : gridNavigatorPositions(releases.length, columns, gridBounds.top, cell),
     [listMix, listLayout.positions, releases.length, columns, gridBounds.top, cell]);
   const styleCounts = useMemo(() => {
@@ -952,6 +966,26 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     if (style !== null && nextStyles === current) return;
     applyStyleSelection(nextStyles, query);
   }
+  function browseReleaseIdentity(field: 'artist' | 'label', value: string, releaseId: string) {
+    const query = releaseIdentityQuery(field, value);
+    if (search === query) {
+      const article = [...(stage.current?.querySelectorAll<HTMLElement>('.paper-list-tracks') || [])].find(node => node.dataset.releaseId === releaseId);
+      identityScrollAnchor.current = article ? { releaseId, top: article.getBoundingClientRect().top } : null;
+      const previous = identityBrowseOrigin.current;
+      identityBrowseOrigin.current = null;
+      const restoredQuery = previous?.activeQuery === query ? previous.query : '';
+      const restoredStyles = previous?.activeQuery === query ? previous.styles : [];
+      setSearch(restoredQuery);
+      applyStyleSelection(restoredStyles, restoredQuery);
+      return;
+    }
+    const previous = identityBrowseOrigin.current;
+    identityBrowseOrigin.current = previous?.activeQuery === search
+      ? { ...previous, activeQuery: query }
+      : { query: search, styles: [...activeStylesRef.current], activeQuery: query };
+    setSearch(query);
+    filterByStyle(null, query);
+  }
   function applyStyleSelection(nextStyles: string[], query = search) {
     activeStylesRef.current = nextStyles;
     replaceStyleHash(nextStyles);
@@ -1479,7 +1513,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   }
   const coverFlipControl = expanded && backCoverUrl ? <button type="button" className="paper-cover-flip paper-cover-flip--icon" aria-pressed={isCoverFlipped}
     aria-label={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
-    title={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
+    data-site-tooltip={isCoverFlipped ? (ru?'Показать лицевую сторону':'Show front side') : (ru?'Показать обратную сторону':'Show back side')}
     onClick={event=>{event.stopPropagation();if(release)setCoverSideOverrides(previous=>toggleReleaseCoverSide(previous,release,currentTrack,isTrackCollection));}}><Rotate3D size={17}/></button> : null;
   return <section ref={stage}
     data-scroll-motion={compositorScroll ? 'transform' : 'legacy'}
@@ -1755,7 +1789,11 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
         onDragOver={e => {const target=r.tracks[0];if(activePlaylist&&dragTrack&&target){e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:target.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}
         onDrop={e => {const target=r.tracks[0];if(!activePlaylist||!dragTrack||!target)return;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();void movePlaylistTrack(dragTrack,target.id,e.clientY<rect.top+rect.height/2?'before':'after');setDragTrack(null);setDropTarget(null);suppressTrackClick.current=performance.now()+250;}}
         className={`paper-list-tracks${isTrackCollection ? ' is-compact-track' : ''}${r.tracks.some(track=>track.id===currentTrack?.id) ? ' is-playing' : ''}`} data-release-id={r.id} key={`tracks-${r.id}-${isTrackCollection ? r.tracks[0]?.id : ''}`} style={{ top: (gridBounds.top + (viewport.width <= 700 ? 0 : 12) + Math.floor(i / columns)*cell)*(1-listMix) + listLayout.positions[i]*listMix, '--release-divider-y': `${((mobileCardHeights[r.id] ?? listSize) + (listLayout.positions[i + 1] ?? listLayout.height - gridBounds.bottom) - listLayout.positions[i]) / 2}px`, opacity:listMix, pointerEvents:isTrackListInteractive ? 'auto':'none' } as CSSProperties}>
-        {!isTrackCollection && <>{!mixesMode && <h2><span>{r.artist} : <span className="paper-release-title-regular">{r.title}</span></span><ShelfReleaseYear id={r.id} year={r.year} lang={uiLang} editable={isTrackListInteractive}/></h2>}{getBackCoverUrl(r, releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).disc) ? <button type="button" className="paper-list-cover-flip" aria-pressed={releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).back} aria-label={ru?'Перевернуть обложку':'Flip cover'} title={ru?'Перевернуть обложку':'Flip cover'} onClick={event=>{event.stopPropagation();setCoverSideOverrides(previous=>toggleReleaseCoverSide(previous,r,currentTrack));}}><Rotate3D size={16}/></button> : null}</>}
+        {!isTrackCollection && <>{!mixesMode && <h2 className="paper-release-identity"><span className="paper-release-identity-lines">
+          <span className="paper-release-identity-row"><b data-site-tooltip={r.artist}>{r.artist}</b><button type="button" className="paper-release-browse" aria-pressed={search === releaseIdentityQuery('artist', r.artist)} aria-label={`${ru ? 'Релизы артиста' : 'Releases by'}: ${r.artist}`} data-site-tooltip={search === releaseIdentityQuery('artist', r.artist) ? (ru ? 'Отменить фильтр артиста' : 'Clear artist filter') : (ru ? 'Все релизы этого артиста' : 'All releases by this artist')} onClick={() => browseReleaseIdentity('artist', r.artist, r.id)}><Eye size={16} aria-hidden="true"/></button></span>
+          <span className="paper-release-identity-title paper-release-title-regular" data-site-tooltip={r.title}>{r.title}</span>
+          <span className="paper-release-identity-row paper-release-identity-labels">{r.labels?.length ? r.labels.map(label => <span className="paper-release-label" key={label}><span data-site-tooltip={label}>{label}</span><button type="button" className="paper-release-browse" aria-pressed={search === releaseIdentityQuery('label', label)} aria-label={`${ru ? 'Релизы лейбла' : 'Releases on label'}: ${label}`} data-site-tooltip={search === releaseIdentityQuery('label', label) ? (ru ? 'Отменить фильтр лейбла' : 'Clear label filter') : (ru ? 'Все релизы этого лейбла' : 'All releases on this label')} onClick={() => browseReleaseIdentity('label', label, r.id)}><Eye size={16} aria-hidden="true"/></button></span>) : <span>{ru ? 'Лейбл не указан' : 'Label unavailable'}</span>}</span>
+        </span><ShelfReleaseYear id={r.id} year={r.year} lang={uiLang} editable={isTrackListInteractive}/></h2>}{getBackCoverUrl(r, releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).disc) ? <button type="button" className="paper-list-cover-flip" aria-pressed={releaseCoverSide(r,currentTrack,coverSideOverrides[r.id]).back} aria-label={ru?'Перевернуть обложку':'Flip cover'} data-site-tooltip={ru?'Перевернуть обложку':'Flip cover'} onClick={event=>{event.stopPropagation();setCoverSideOverrides(previous=>toggleReleaseCoverSide(previous,r,currentTrack));}}><Rotate3D size={16}/></button> : null}</>}
         {mixesMode ? <ShelfMixTrack release={r} lang={uiLang} queueReleases={releases} yearInHeading timelineControls actions={null} onCommentsOpenChange={(open,count)=>setOpenMixComments(current=>{const next=new Map(current);if(open)next.set(r.id,count);else next.delete(r.id);return next;})} /> : r.tracks.map(t => <div key={t.id} data-track-id={t.id} className={`paper-track-line${dragTrack === t.id ? ' is-dragging' : ''}${dropTarget?.trackId === t.id ? ` is-drop-${dropTarget.side}` : ''}${currentTrack?.id === t.id ? ' is-playing' : ''}`}
           draggable={Boolean(activePlaylist) && !savingOrder && isTrackListInteractive}
           onDragStart={e => {if ((e.target as Element).closest('.paper-track-actions')) {e.preventDefault();return;} e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',t.id);setDragTrack(t.id);suppressTrackClick.current=Infinity;}}
@@ -1763,8 +1801,8 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
           onDragEnd={() => {setDragTrack(null);setDropTarget(null);suppressTrackClick.current=performance.now()+250;}}>
           {activePlaylist && <button className="paper-track-grip" disabled={savingOrder} aria-label="Move track. Alt and up or down arrow" onClick={e=>e.stopPropagation()} onKeyDown={e=>{if(e.altKey && (e.key==='ArrowUp'||e.key==='ArrowDown')) {e.preventDefault();const movingDown=e.key==='ArrowDown';const other=releases[i+(movingDown?1:-1)]?.tracks[0];if(other)void movePlaylistTrack(t.id,other.id,movingDown?'after':'before');}}}>⠿</button>}
           <button className="paper-track-play" disabled={!t.audioUrl} onClick={() => play(t.id,r)}>{mixesMode ? null : <small>{isTrackCollection ? i + 1 : t.position || '—'}</small>}<span className={isTrackCollection?'paper-track-primary':undefined}>{isTrackCollection ? <><span className="paper-track-primary-line"><b>{r.artist}</b><em>{t.title}</em></span>{activePlaylist && <span className="paper-release-styles paper-compact-genres" aria-label={ru ? 'Стили релиза' : 'Release styles'}>{r.styles.length ? r.styles.map((style,index) => [index > 0 ? ' · ' : null,<em key={style} className={`paper-release-style${activeStyles.includes(style) ? ' is-active' : ''}`}>{style}</em>]) : (ru ? 'Стиль не указан' : 'Style unavailable')}</span>}</> : t.title}</span>{isTrackCollection && <span className="paper-track-release">{r.title}</span>}</button>
-          {!mixesMode && <span className="paper-track-bpm" title="BPM">{t.bpm ?? '—'}</span>}
-          {(activePlaylist || (!mixesMode && !favoritesMode)) && <span className="paper-track-key" title="Key">{t.key || '—'}</span>}
+          {!mixesMode && <span className="paper-track-bpm" data-site-tooltip="BPM">{t.bpm ?? '—'}</span>}
+          {(activePlaylist || (!mixesMode && !favoritesMode)) && <span className="paper-track-key" data-site-tooltip="Key">{t.key || '—'}</span>}
           {trackActions(t.id)}<time>{normalizeDurationLabel(t.durationRaw,t.durationSec,'—')}</time>
         </div>)}
         {!r.tracks.length && <p>{r.tracksLoaded === false ? (detailErrors[r.id] ? <button onClick={() => setDetailErrors(current => ({...current,[r.id]:false}))}>{ru ? 'Повторить загрузку' : 'Retry loading'}</button> : (ru ? 'Загрузка треков…' : 'Loading tracks…')) : (ru ? 'Треклист недоступен' : 'Tracklist unavailable')}</p>}
@@ -1839,7 +1877,7 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
         const pinned = selectedStyle && (pinnedStyles.includes(style) || bottomPinnedStyles.includes(style));
         const limitReached = activeStyles.length >= MAX_SELECTED_STYLES && !selectedStyle;
         const matchingCount = selectedStyle ? releases.filter(release => release.styles.includes(style)).length : count;
-        return <button key={style} data-style={style} className={pinned ? 'is-pinned-placeholder' : undefined} aria-hidden={pinned || undefined} tabIndex={pinned ? -1 : undefined} aria-pressed={selectedStyle} disabled={limitReached} title={limitReached ? (ru ? 'Можно выбрать не больше 5 жанров' : 'Choose up to 5 genres') : undefined} onClick={() => filterByStyle(style)}>{style} <sup>{selectedStyle ? <CollectionPosition count={matchingCount} read={() => {
+        return <button key={style} data-style={style} className={pinned ? 'is-pinned-placeholder' : undefined} aria-hidden={pinned || undefined} tabIndex={pinned ? -1 : undefined} aria-pressed={selectedStyle} disabled={limitReached} data-site-tooltip={limitReached ? (ru ? 'Можно выбрать не больше 5 жанров' : 'Choose up to 5 genres') : undefined} onClick={() => filterByStyle(style)}>{style} <sup>{selectedStyle ? <CollectionPosition count={matchingCount} read={() => {
           const position = readCollectionPosition();
           const index = releases.slice(0, position.index + 1).filter(release => release.styles.includes(style)).length - 1;
           return { ...position, index };

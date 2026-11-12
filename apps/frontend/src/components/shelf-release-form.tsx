@@ -15,6 +15,7 @@ export function ShelfReleaseForm({ release, lang }: { release: Release; lang: Si
   const [data,setData] = useState(release);
   const [artist,setArtist] = useState(release.artist);
   const [title,setTitle] = useState(release.title);
+  const [labels,setLabels] = useState((release.labels || []).join(', '));
   const [year,setYear] = useState(String(release.year || ''));
   const [styles,setStyles] = useState(release.styles.join(', '));
   const [newTitle,setNewTitle] = useState('');
@@ -113,9 +114,10 @@ export function ShelfReleaseForm({ release, lang }: { release: Release; lang: Si
       {secondVinyl && secondSides.map(({side})=><SquareCoverInput key={side} id={`${side}-${data.id}`} lang={lang} disabled={busy} showResultPreview={false} onChange={file=>void run(async()=>setData(await uploadReleaseBackCover(data.id,file,side)))} />)}
       <p className="shelf-form-gallery__hint">{ru?'Скрытое фото остаётся в галерее. Чтобы вернуть его, выберите нужную пластинку и сторону.':'Hidden photos stay in the gallery. Select the record and side to show one again.'}</p>
     </section>
-    <form className="shelf-form-metadata" onSubmit={event=>{event.preventDefault();void run(async()=>{await updateReleaseMetadata(data.id,{artist,title,year:year?Number(year):null});await updateReleaseStyles(data.id,[...new Set(styles.split(',').map(s=>s.trim()).filter(Boolean))]);await reload();});}}>
+    <form className="shelf-form-metadata" onSubmit={event=>{event.preventDefault();void run(async()=>{await updateReleaseMetadata(data.id,{artist,title,labels:[...new Set(labels.split(',').map(label=>label.trim()).filter(Boolean))],year:year?Number(year):null});await updateReleaseStyles(data.id,[...new Set(styles.split(',').map(s=>s.trim()).filter(Boolean))]);await reload();});}}>
       <label>{ru?'Исполнитель':'Artist'}<input value={artist} required disabled={busy} onChange={event=>setArtist(event.target.value)}/></label>
       <label>{ru?'Название':'Title'}<input value={title} required disabled={busy} onChange={event=>setTitle(event.target.value)}/></label>
+      <label>{ru?'Лейблы (через запятую)':'Labels (comma separated)'}<input value={labels} disabled={busy} onChange={event=>setLabels(event.target.value)}/></label>
       <label>{ru?'Год':'Year'}<input type="number" value={year} disabled={busy} onChange={event=>setYear(event.target.value)}/></label>
       <label>{ru?'Стили / жанры (через запятую)':'Styles / genres (comma separated)'}<input value={styles} disabled={busy} onChange={event=>setStyles(event.target.value)}/></label>
       <button disabled={busy}><Save size={16}/>{ru?'Сохранить':'Save'}</button>
@@ -123,7 +125,7 @@ export function ShelfReleaseForm({ release, lang }: { release: Release; lang: Si
     <div className="shelf-form-status" role="status" aria-live="polite">{status}</div>
     <h3>{ru?'Треки':'Tracks'} <sup>{tracks.length}</sup></h3>
     <div className="shelf-form-tracklist">{tracks.map(track=><div className="shelf-form-track" key={track.id}>
-      <input className="shelf-form-track-position" key={`position-${track.position}`} aria-label={ru?'Сторона и номер трека':'Track side and number'} title={ru?'Сторона и номер трека, например B1':'Track side and number, e.g. B1'} defaultValue={track.position || ''} placeholder="A1" maxLength={32} disabled={busy} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur();}}} onBlur={event=>{const input=event.currentTarget;const position=input.value.trim();if(!position){input.value=track.position||'';setStatus(ru?'Укажите сторону и номер трека, например B1':'Enter the track side and number, e.g. B1');return;}if(position!==(track.position||''))void run(async()=>{try{await updateTrackMetadata(track.id,{position});await reload();}catch(error){input.value=track.position||'';throw error;}});}}/>
+      <input className="shelf-form-track-position" key={`position-${track.position}`} aria-label={ru?'Сторона и номер трека':'Track side and number'} data-site-tooltip={ru?'Сторона и номер трека, например B1':'Track side and number, e.g. B1'} defaultValue={track.position || ''} placeholder="A1" maxLength={32} disabled={busy} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur();}}} onBlur={event=>{const input=event.currentTarget;const position=input.value.trim();if(!position){input.value=track.position||'';setStatus(ru?'Укажите сторону и номер трека, например B1':'Enter the track side and number, e.g. B1');return;}if(position!==(track.position||''))void run(async()=>{try{await updateTrackMetadata(track.id,{position});await reload();}catch(error){input.value=track.position||'';throw error;}});}}/>
       <div className="shelf-form-track-text"><input className="shelf-form-track-artist" aria-label={ru?'Исполнитель трека':'Track artist'} defaultValue={track.artists?.join(', ') || ''} placeholder={data.artist} disabled={busy} onBlur={event=>{const artists=event.target.value.split(',').map(s=>s.trim()).filter(Boolean);if(artists.join(',')!==(track.artists||[]).join(','))void run(async()=>{await updateTrackMetadata(track.id,{artists});await reload();});}}/>
       <input className="shelf-form-track-title" aria-label={ru?'Название трека':'Track title'} defaultValue={track.title} disabled={busy} onBlur={event=>{const value=event.target.value.trim();if(value&&value!==track.title)void run(async()=>{await updateTrackMetadata(track.id,{title:value});await reload();});}}/>
       <div className="shelf-form-track-analysis">

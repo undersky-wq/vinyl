@@ -232,7 +232,7 @@ export class ReleasesService {
         ...(typeof skip === 'number' ? { skip } : {}),
         ...(typeof take === 'number' ? { take } : {}),
         select: {
-          id: true, artist: true, title: true, year: true, styles: true, isMix: true, isOriginal: true,
+          id: true, artist: true, title: true, year: true, labels: true, styles: true, isMix: true, isOriginal: true,
           coverImageUrl: true, coverStorageKey: true, coverStorageUrl: true,
           coverThumbStorageKey: true, coverThumbStorageUrl: true,
           coverMediumStorageKey: true, coverMediumStorageUrl: true,
@@ -262,6 +262,7 @@ export class ReleasesService {
             title: true,
             year: true,
             genres: true,
+            labels: true,
             styles: true,
             isMix: true,
             isOriginal: true,
@@ -1130,6 +1131,13 @@ export class ReleasesService {
 
   async updateReleaseMetadata(id: string, dto: UpdateReleaseMetadataDto) {
     const data: Prisma.ReleaseUpdateInput = {};
+
+    if (dto.labels !== undefined) {
+      if (!Array.isArray(dto.labels) || dto.labels.length > 30 || dto.labels.some(label => typeof label !== 'string' || label.length > 200)) {
+        throw new BadRequestException('Labels must be an array of up to 30 names, each at most 200 characters');
+      }
+      data.labels = [...new Set(dto.labels.map(label => label.trim()).filter(Boolean))];
+    }
 
     if ('artist' in dto) {
       const artist = dto.artist?.trim();

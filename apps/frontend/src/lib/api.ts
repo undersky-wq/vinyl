@@ -144,6 +144,7 @@ function mapHomeRelease(release: HomeReleaseApi): HomeRelease {
       release.tracks.length > 0 && release.tracks.every((track) => track.audioFiles.length > 0)
     ),
     artist: release.artist,
+    labels: release.labels || [],
     title: release.title,
     year: release.year,
     styles: release.styles,
@@ -706,7 +707,7 @@ export async function updateReleaseStyles(releaseId: string, styles: string[]) {
 
 export async function updateReleaseMetadata(
   releaseId: string,
-  input: { artist?: string; title?: string; year?: number | null },
+  input: { artist?: string; title?: string; year?: number | null; labels?: string[] },
 ) {
   const response = await fetch(`${API_URL}/releases/${releaseId}/metadata`, {
     method: 'PATCH',

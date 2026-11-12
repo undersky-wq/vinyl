@@ -3,6 +3,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { getHomeReleaseDetails } from '../lib/api';
 import { usePlayerActions, usePlayerTransport, type PlayerTrack } from '../providers/player-provider';
 import { CoverImage } from './cover-image';
+import { CoverRotation } from './cover-rotation';
+import { getBackCoverUrl, getSecondFrontCoverUrl, isBackSidePosition, vinylDisc } from '../lib/release-images';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { normalizeDurationLabel } from '../lib/time';
 import { trackArtist } from '../lib/track-artist';
@@ -19,6 +21,11 @@ export function MiniReleasePreview({track,lang,onClose}:{track:PlayerTrack;lang:
   onCloseRef.current=onClose;
   const {queue,currentTrack,isPlaying}=usePlayerTransport();
   const {playQueue,togglePlayback}=usePlayerActions();
+  const artworkTrack=currentTrack&&currentTrack.releaseId===track.releaseId?currentTrack:track;
+  const disc=vinylDisc(artworkTrack.position);
+  const front=(release?(disc===2?getSecondFrontCoverUrl(release):release.coverStorageUrl||release.coverImageUrl||release.coverMediumStorageUrl):'')||artworkTrack.frontCoverFullUrl||artworkTrack.coverUrl;
+  const back=(release?getBackCoverUrl(release,disc):'')||artworkTrack.backCoverUrl;
+  const flipped=Boolean(back)&&(artworkTrack.coverSide==='back'||isBackSidePosition(artworkTrack.position));
   const close=()=>setClosing(true);
   useLayoutEffect(()=>{
     const cards=Array.from(document.querySelectorAll<HTMLElement>('.paper-archive:not(.mini-release-preview) .paper-record,.paper-archive:not(.mini-release-preview) .paper-list-tracks'));
@@ -40,7 +47,7 @@ export function MiniReleasePreview({track,lang,onClose}:{track:PlayerTrack;lang:
   return <div className={`mini-release-preview paper-archive is-open is-expanded${closing?' is-closing':''}`} onAnimationEnd={event=>{if(closing&&event.target===event.currentTarget)onCloseRef.current();}} onClick={event=>{event.stopPropagation();if(event.target===event.currentTarget)close();}}>
     <button type="button" className="mini-release-preview__dismiss" tabIndex={-1} onClick={close} aria-label={lang==='ru'?'Закрыть релиз':'Close release'}/>
     <section role="dialog" aria-label={lang==='ru'?'Играющий релиз':'Playing release'} className="mini-release-preview__panel">
-      <button type="button" className="paper-record is-selected" autoFocus onClick={close} aria-label={lang==='ru'?'Закрыть релиз':'Close release'}><span className="paper-record-face paper-record-front"><CoverImage src={release?.coverStorageUrl || release?.coverImageUrl || release?.coverMediumStorageUrl || track.frontCoverFullUrl || track.coverUrl} alt={release?.title || track.title} width={900} height={900}/></span></button>
+      <button type="button" className={`paper-record is-selected${flipped?' is-flipped':''}`} autoFocus onClick={close} aria-label={lang==='ru'?'Закрыть релиз':'Close release'}><CoverRotation key={`${track.releaseId}:${disc}`}><span className="paper-record-face paper-record-front"><CoverImage src={front} alt={release?.title || track.title} width={900} height={900}/></span><span className={`paper-record-face paper-record-back${back?'':' cover-rotation-placeholder'}`}>{back?<CoverImage src={back} alt={release?.title || track.title} width={900} height={900}/>:null}</span></CoverRotation></button>
       <aside className="paper-tracklist"><h2 className="paper-release-heading"><span>{release?.artist || track.artist}</span></h2><p>{release?.title || track.title}<span>{release?.year || ''}</span></p>
         {!release&&<p role="status">{error?(lang==='ru'?'Не удалось загрузить релиз':'Could not load release'):(lang==='ru'?'Загрузка треков…':'Loading tracks…')}</p>}
         <ol>{release?.tracks.map((item,index)=><li className={`paper-track-line${item.id===currentTrack?.id?' is-playing':''}`} style={{'--line-delay':`${.48+Math.min(index,12)*.065}s`} as CSSProperties} key={item.id}><button type="button" className="paper-track-play" disabled={!item.audioUrl} aria-pressed={item.id===currentTrack?.id&&isPlaying} onClick={event=>{

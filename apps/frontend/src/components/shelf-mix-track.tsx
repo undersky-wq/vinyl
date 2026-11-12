@@ -212,7 +212,7 @@ export function ShelfMixTrack({
       <button className="paper-mix-play" type="button" disabled={queueIndex < 0} aria-label={release.isOriginal ? (lang==='ru' ? isCurrent && isPlaying ? 'Пауза трека' : 'Воспроизвести трек' : isCurrent && isPlaying ? 'Pause track' : 'Play track') : (lang==='ru' ? isCurrent && isPlaying ? 'Пауза микса' : 'Воспроизвести микс' : isCurrent && isPlaying ? 'Pause mix' : 'Play mix')} onClick={()=>{if(isCurrent)togglePlayback();else playQueue(queue,queueIndex,queue);}}>
         {isCurrent && isPlaying ? <Pause size={24}/> : <Play size={24}/>}
       </button>
-      <h2><span className="paper-mix-name"><span className="paper-mix-artist" title={release.artist}>{release.artist}</span><span className="paper-mix-title-separator"> : </span><span className="paper-release-title-regular paper-mix-title" title={release.title}>{release.title}</span></span><ShelfReleaseYear id={release.id} year={release.year} lang={lang}/></h2>
+      <h2><span className="paper-mix-name"><span className="paper-mix-artist" data-site-tooltip={release.artist}>{release.artist}</span><span className="paper-mix-title-separator"> : </span><span className="paper-release-title-regular paper-mix-title" data-site-tooltip={release.title}>{release.title}</span></span><ShelfReleaseYear id={release.id} year={release.year} lang={lang}/></h2>
     </div> : null}
     <div className={`paper-mix-timeline${timelineControls ? ' has-transport' : ''}`}>
       <div ref={waveformInteractionRef} className="paper-mix-wave">
@@ -248,7 +248,7 @@ export function ShelfMixTrack({
     <div ref={commentsPanelRef} className="paper-mix-comments" data-open={visibleComments} inert={!visibleComments}>
       <div className="paper-mix-comments-content">
       <TimelineCommentComposer lang={lang} second={selectedCommentSecond} text={commentText} onTextChange={setCommentText} onSubmit={addComment} pending={savingComment} disabled={Boolean(deletingComment)} />
-      <div>{comments.map(comment=><TimelineCommentRow key={comment.id} comment={comment} timestamp={clock(comment.second)} onSeek={()=>{if(totalDuration>0)commitSeek(comment.second/totalDuration*100,true);}} actions={user && (user.id===comment.userId || user.role==='ADMIN') ? <button type="button" className="paper-mix-comment-delete" aria-label={lang==='ru'?'Удалить комментарий':'Delete comment'} title={lang==='ru'?'Удалить комментарий':'Delete comment'} aria-busy={deletingComment===comment.id} disabled={Boolean(deletingComment) || savingComment} onClick={()=>void removeComment(comment)}>{deletingComment===comment.id?<LoaderCircle size={16} aria-hidden="true"/>:<Trash2 size={16} aria-hidden="true"/>}</button> : null} />)}</div>
+      <div>{comments.map(comment=><TimelineCommentRow key={comment.id} comment={comment} timestamp={clock(comment.second)} onSeek={()=>{if(totalDuration>0)commitSeek(comment.second/totalDuration*100,true);}} actions={user && (user.id===comment.userId || user.role==='ADMIN') ? <button type="button" className="paper-mix-comment-delete" aria-label={lang==='ru'?'Удалить комментарий':'Delete comment'} data-site-tooltip={lang==='ru'?'Удалить комментарий':'Delete comment'} aria-busy={deletingComment===comment.id} disabled={Boolean(deletingComment) || savingComment} onClick={()=>void removeComment(comment)}>{deletingComment===comment.id?<LoaderCircle size={16} aria-hidden="true"/>:<Trash2 size={16} aria-hidden="true"/>}</button> : null} />)}</div>
       </div>
     </div>
     {status?<p className="paper-mix-status" role="status">{status}</p>:null}

@@ -118,7 +118,7 @@ export function HomeStyleFilters({
             prefetch={false}
             className={`chip${isActive ? ' active' : ''}`}
             aria-disabled={isAtLimit}
-            title={isAtLimit ? (lang === 'ru' ? 'Можно выбрать не больше 5 жанров' : 'Choose up to 5 genres') : undefined}
+            data-site-tooltip={isAtLimit ? (lang === 'ru' ? 'Можно выбрать не больше 5 жанров' : 'Choose up to 5 genres') : undefined}
             onClick={isAtLimit ? (event) => event.preventDefault() : undefined}
             href={buildFilterHref({
               search,

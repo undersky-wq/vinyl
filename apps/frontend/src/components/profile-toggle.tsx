@@ -12,7 +12,7 @@ export function ProfileToggle({ checked, label, children, onChange, disabled = f
 }) {
   return <button type="button" role="switch" aria-checked={checked} aria-label={label}
     className={children ? 'profile-action-button profile-action-button--switch' : 'profile-toggle'}
-    disabled={disabled} title={title} onClick={onChange}>
+    disabled={disabled} data-site-tooltip={title} onClick={onChange}>
     {children && <span className="profile-action-button__label">{children}</span>}
     <ProfileSwitchTrack checked={checked} />
   </button>;
