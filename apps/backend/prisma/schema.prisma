@@ -81,6 +81,7 @@ model Release {
   title             String
   year              Int?
   country           String?
+  labels            String[]         @default([])
   genres            String[]
   styles            String[]
   isMix             Boolean          @default(false)
