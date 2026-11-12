@@ -14,7 +14,9 @@ test "$(git diff --name-only "$previous" "$schema_commit" | sort)" = "$(printf '
 original_schema="$(git rev-parse "$previous:apps/backend/prisma/schema.prisma")"
 without_labels="$(git show "$schema_commit:apps/backend/prisma/schema.prisma" | sed '/^  labels            String\[\]         @default(\[\])$/d' | git hash-object --stdin)"
 test "$original_schema" = "$without_labels" || { echo 'STOP: schema contains changes other than release labels'; exit 1; }
-ready="$(docker exec -i vinyl-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -v ON_ERROR_STOP=1' <<'SQL'
+database="$(docker exec vinyl-backend node -e 'process.stdout.write(decodeURIComponent(new URL(process.env.DATABASE_URL).pathname.slice(1)))')"
+test -n "$database" || { echo 'STOP: application database name is missing'; exit 1; }
+ready="$(docker exec -i -e VINYL_DATABASE="$database" vinyl-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$VINYL_DATABASE" -At -v ON_ERROR_STOP=1' <<'SQL'
 SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='Release' AND column_name='labels' AND udt_name='_text' AND is_nullable='NO');
 SQL
 )"
@@ -22,7 +24,7 @@ test "$ready" = t || { echo 'STOP: labels database column must be prepared and b
 backup="/root/vinyl-backups/labels-ui-deploy-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$backup"
 printf '%s\n' "$previous" > "$backup/original-commit.txt"
-docker exec vinyl-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl' | gzip > "$backup/database.sql.gz"
+docker exec -e VINYL_DATABASE="$database" vinyl-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$VINYL_DATABASE" --no-owner --no-acl' | gzip > "$backup/database.sql.gz"
 gzip -t "$backup/database.sql.gz"
 echo "Database backup: $backup/database.sql.gz"
 # This checkpoint records the already-applied, backward-compatible labels column.
