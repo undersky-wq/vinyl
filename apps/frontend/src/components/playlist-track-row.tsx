@@ -6,46 +6,7 @@ import { SiteLang } from '../lib/language';
 import { normalizeDurationLabel } from '../lib/time';
 import { CoverImage } from './cover-image';
 import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
-
-const KEY_COLORS: Record<string, string> = {
-  C: '#d67adf',
-  Am: '#dfb2e5',
-  G: '#8a7aa3',
-  Em: '#b7afc5',
-  D: '#6f93c7',
-  Bm: '#b6c8df',
-  A: '#55b8e9',
-  'F#m': '#9ad9ea',
-  Gbm: '#9ad9ea',
-  E: '#49d2d5',
-  'C#m': '#86dddd',
-  Dbm: '#86dddd',
-  B: '#50c989',
-  'G#m': '#97d8c0',
-  Abm: '#97d8c0',
-  'F#': '#73e86e',
-  'D#m': '#9def98',
-  Ebm: '#9def98',
-  'C#': '#aee650',
-  'A#m': '#cceb9b',
-  Bbm: '#cceb9b',
-  'G#': '#ffe75a',
-  Fm: '#fff0a1',
-  'D#': '#ffb85b',
-  Cm: '#ffd8a1',
-  'A#': '#e9484e',
-  Gm: '#ef9295',
-  F: '#f544a1',
-  Dm: '#f28bc4',
-};
-
-function getKeyColor(key?: string | null) {
-  if (!key) {
-    return null;
-  }
-
-  return KEY_COLORS[key.trim()] || null;
-}
+import { HarmonicKey } from './harmonic-key';
 
 function formatTrackDuration(durationRaw?: string | null, durationSec?: number | null) {
   return normalizeDurationLabel(durationRaw, durationSec, '-');
@@ -155,9 +116,7 @@ export function PlaylistTrackRow({
 
       <div className="playlist-track__bpm">{bpm ? `${bpm} BPM` : '—'}</div>
 
-      <div className="playlist-track__key" style={{ color: getKeyColor(keyValue) || undefined }}>
-        {keyValue || '—'}
-      </div>
+      <div className="playlist-track__key"><HarmonicKey value={keyValue}/></div>
 
       <div className="playlist-track__actions">
         {showFavorite ? <FavoriteButton trackId={trackId} lang={lang} /> : null}

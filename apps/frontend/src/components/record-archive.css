@@ -292,6 +292,25 @@ html:is([data-visual-variant='shelf'],:has(.paper-favorites-page)) body:has(.pap
 .paper-archive .paper-track-line.is-playing{position:relative}
 .paper-archive .paper-track-line.is-playing::before{content:'';position:absolute;left:-9px;top:20%;bottom:20%;width:2px;background:#d52f35;border-radius:2px}
 .paper-archive .paper-track-bpm,.paper-archive .paper-track-key{flex:0 0 38px;text-align:right;color:#777;font:12px Arial;white-space:nowrap}
+.paper-playlist-sort-position{position:absolute;left:calc(var(--list-left,8vw) + 56px);right:3vw;z-index:100005;height:34px;background:var(--shelf-web-bg,#fff)}
+.paper-playlist-sort{display:flex;align-items:center;gap:10px;min-height:32px;color:var(--shelf-web-muted,#777);font:12px Arial,Helvetica,sans-serif}
+.paper-playlist-sort-leading{flex:1;min-width:0}
+.paper-archive .paper-playlist-sort button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:32px;width:auto;padding:0;border:0;border-radius:0;background:none;box-shadow:none;font:inherit;color:inherit;cursor:pointer}
+.paper-archive .paper-playlist-sort button[aria-pressed=true]{color:#27874c}
+html[data-shelf-theme='dark'] .paper-archive .paper-playlist-sort button[aria-pressed=true]{color:#58b97e}
+.paper-archive .paper-playlist-sort .paper-playlist-sort-column{flex:0 0 38px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:12px}
+.paper-playlist-sort-arrow{display:flex;width:28px;height:14px;line-height:14px}
+.paper-playlist-sort-arrow svg{flex:none;color:var(--shelf-web-muted,#777);opacity:.5;transition:color .18s,opacity .18s}
+.paper-playlist-sort-arrow svg.is-active{color:inherit;opacity:1}
+.paper-playlist-sort-actions{flex:0 0 54px}
+.paper-playlist-sort-duration{flex:0 0 42px}
+.paper-playlist-sort-duration>.harmonic-filter{display:flex;justify-content:center}
+.paper-archive:has(>.paper-playlist-sort-position) .paper-list-tracks.is-compact-track :is(.paper-track-bpm,.paper-track-key){text-align:center}
+.paper-archive:has(>.paper-playlist-sort-position) .paper-list-tracks.is-compact-track .paper-track-line>time{text-align:center}
+.paper-playlist-sort-position:has(button:focus-visible){z-index:100005}
+.paper-archive.is-grid:not(.is-open):has(>.paper-playlist-sort-position)>.paper-row{clip-path:inset(calc(var(--grid-top) + 60px) 0 var(--grid-bottom) 0)}
+@media(min-width:901px){.paper-playlist-sort-position{right:max(17vw,160px)}}
+@media(max-width:700px){.paper-playlist-sort-position{left:calc(3vw + 52px);right:3vw}.paper-playlist-sort{gap:5px}.paper-archive .paper-playlist-sort .paper-playlist-sort-column{flex-basis:28px;font-size:10px}.paper-playlist-sort-actions{flex-basis:48px}.paper-playlist-sort-duration{flex-basis:32px}.paper-archive.is-grid:not(.is-open):has(>.paper-playlist-sort-position)>.paper-row{clip-path:inset(calc(var(--grid-top) + 44px) 0 var(--grid-bottom) 0)}}
 .paper-archive .paper-list-tracks{transition:top .5s cubic-bezier(.16,1,.3,1)}
 .paper-archive.is-stretching .paper-list-tracks{transition:none}
 .paper-order-status{position:absolute;right:3vw;top:65px;z-index:100003;color:#777;font:12px Arial;max-width:30vw}

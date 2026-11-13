@@ -10,6 +10,7 @@ import { buildFallbackWaveform, useResponsiveWaveform } from '../lib/waveform';
 import { usePlayerActions, usePlayerTransport } from '../providers/player-provider';
 import { Playlist, PlaylistSummary } from '../types';
 import { PlaylistTrackRow } from './playlist-track-row';
+import { getHarmonicKeyOrder } from '../lib/harmonic-key';
 
 type PlaylistBrowserProps = {
   lang: SiteLang;
@@ -22,28 +23,6 @@ type PlaylistDropSide = 'before' | 'after';
 type TrackSortField = 'key' | 'bpm';
 type TrackSortDirection = 'asc' | 'desc';
 type TrackSort = { field: TrackSortField; direction: TrackSortDirection } | null;
-
-// Camelot wheel order. Conventional keys are mapped to their Traktor/Camelot equivalent.
-const CAMELOT_KEY_ORDER: Record<string, number> = {
-  '1A': 0, 'G#M': 0, ABM: 0, '1B': 1, B: 1,
-  '2A': 2, 'D#M': 2, EBM: 2, '2B': 3, 'F#': 3, GB: 3,
-  '3A': 4, 'A#M': 4, BBM: 4, '3B': 5, 'C#': 5, DB: 5,
-  '4A': 6, FM: 6, '4B': 7, 'G#': 7, AB: 7,
-  '5A': 8, CM: 8, '5B': 9, 'D#': 9, EB: 9,
-  '6A': 10, GM: 10, '6B': 11, 'A#': 11, BB: 11,
-  '7A': 12, DM: 12, '7B': 13, F: 13,
-  '8A': 14, AM: 14, '8B': 15, C: 15,
-  '9A': 16, EM: 16, '9B': 17, G: 17,
-  '10A': 18, BM: 18, '10B': 19, D: 19,
-  '11A': 20, 'F#M': 20, GBM: 20, '11B': 21, A: 21,
-  '12A': 22, 'C#M': 22, DBM: 22, '12B': 23, E: 23,
-};
-
-function getCamelotKeyOrder(value?: string | null) {
-  if (!value?.trim()) return null;
-  const normalized = value.trim().replace(/♯/g, '#').replace(/♭/g, 'b').toUpperCase();
-  return CAMELOT_KEY_ORDER[normalized] ?? null;
-}
 
 function compareNullableNumbers(a: number | null, b: number | null, direction: TrackSortDirection) {
   if (a === null && b === null) return 0;
@@ -303,8 +282,8 @@ export function PlaylistBrowser({
         const comparison = trackSort.field === 'bpm'
           ? compareNullableNumbers(a.track.bpm ?? null, b.track.bpm ?? null, trackSort.direction)
           : compareNullableNumbers(
-              getCamelotKeyOrder(a.track.keyValue),
-              getCamelotKeyOrder(b.track.keyValue),
+              getHarmonicKeyOrder(a.track.keyValue),
+              getHarmonicKeyOrder(b.track.keyValue),
               trackSort.direction,
             );
         return comparison || a.manualIndex - b.manualIndex;
@@ -594,7 +573,7 @@ export function PlaylistBrowser({
                 type="button"
                 className={`playlist-track-sort__button playlist-track-sort__button--key${trackSort?.field === 'key' ? ' active' : ''}`}
                 aria-pressed={trackSort?.field === 'key'}
-                data-site-tooltip={lang === 'ru' ? 'Сортировать по кругу Camelot' : 'Sort by Camelot wheel'}
+                data-site-tooltip={lang === 'ru' ? 'Сортировать по кварто-квинтовому кругу' : 'Sort by circle of fifths'}
                 onClick={() => cycleTrackSort('key')}
               >
                 <span>KEY</span>

@@ -31,6 +31,7 @@ import { CopyMusicLink } from './copy-music-link';
 import { SquareCoverEditor } from './square-cover-input';
 import { TrackUploadButton } from './track-upload-button';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
+import { HarmonicKey } from './harmonic-key';
 
 type ReleaseDetailProps = {
   lang: SiteLang;
@@ -47,56 +48,16 @@ function formatTrackDuration(durationRaw?: string | null, durationSec?: number |
   return normalizeDurationLabel(durationRaw, durationSec, '-');
 }
 
-const KEY_COLORS: Record<string, string> = {
-  C: '#d67adf',
-  Am: '#dfb2e5',
-  G: '#8a7aa3',
-  Em: '#b7afc5',
-  D: '#6f93c7',
-  Bm: '#b6c8df',
-  A: '#55b8e9',
-  'F#m': '#9ad9ea',
-  Gbm: '#9ad9ea',
-  E: '#49d2d5',
-  'C#m': '#86dddd',
-  Dbm: '#86dddd',
-  B: '#50c989',
-  'G#m': '#97d8c0',
-  Abm: '#97d8c0',
-  'F#': '#73e86e',
-  'D#m': '#9def98',
-  Ebm: '#9def98',
-  'C#': '#aee650',
-  'A#m': '#cceb9b',
-  Bbm: '#cceb9b',
-  'G#': '#ffe75a',
-  Fm: '#fff0a1',
-  'D#': '#ffb85b',
-  Cm: '#ffd8a1',
-  'A#': '#e9484e',
-  Gm: '#ef9295',
-  F: '#f544a1',
-  Dm: '#f28bc4',
-};
-
-function getKeyColor(key?: string | null) {
-  if (!key) {
-    return null;
-  }
-
-  return KEY_COLORS[key.trim()] || null;
-}
-
 function EditableTrackMeta({
   label,
   value,
-  color,
+  harmonic,
   disabled,
   onSave,
 }: {
   label: string;
   value?: string | number | null;
-  color?: string | null;
+  harmonic?: boolean;
   disabled?: boolean;
   onSave: (value: string) => Promise<void>;
 }) {
@@ -146,7 +107,6 @@ function EditableTrackMeta({
     <button
       type="button"
       className={`track-meta-pill${value ? ' active' : ''}`}
-      style={color ? { color } : undefined}
       disabled={disabled}
       onClick={() => {
         if (!disabled) {
@@ -154,7 +114,7 @@ function EditableTrackMeta({
         }
       }}
     >
-      {value || label}
+      {harmonic?<HarmonicKey value={typeof value==='string'?value:null}/>:value || label}
     </button>
   );
 }
@@ -1510,7 +1470,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                       key={`${track.id}-key`}
                       label="KEY"
                       value={trackMeta.key}
-                      color={getKeyColor(trackMeta.key)}
+                      harmonic
                       disabled={user?.role !== 'ADMIN'}
                       onSave={async (value) => {
                         await handleTrackMetaSave(track.id, {

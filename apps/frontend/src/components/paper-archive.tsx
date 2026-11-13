@@ -39,6 +39,9 @@ import { useShelfMotionPreview } from './use-shelf-motion-preview';
 import { shelfScrollStep } from '../lib/shelf-scroll-step';
 import { shuffledShelf } from '../lib/shelf-shake';
 import { ShelfShakeControl } from './shelf-shake-control';
+import { HarmonicKey } from './harmonic-key';
+import { PlaylistTrackSort } from './playlist-track-sort';
+import { filterByHarmonicKeys,sortByTrackMetadata,type TrackSort } from '../lib/harmonic-key';
 import { animateShelfShuffle } from '../lib/animate-shelf-shuffle';
 import { useShelfDesignSettings } from '../lib/shelf-design-settings';
 import { coverCompositorFrames, coverEntryFrame, type CoverEntryScene } from '../lib/cover-compositor-motion';
@@ -174,6 +177,10 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
   const suppressCoverClick = useRef(0);
   const initialRouteApplied = useRef(false);
   const [activePlaylist, setActivePlaylist] = useState<string | null>(null);
+  const [playlistSort,setPlaylistSort]=useState<{playlistId:string;sort:TrackSort}|null>(null);
+  const currentPlaylistSort=playlistSort?.playlistId===activePlaylist?playlistSort.sort:null;
+  const [playlistKeys,setPlaylistKeys]=useState<{playlistId:string;keys:number[]}|null>(null);
+  const currentPlaylistKeys=playlistKeys?.playlistId===activePlaylist?playlistKeys.keys:null;
   const isTrackCollection = Boolean(activePlaylist) || favoritesMode;
   const collectionView = !isTrackCollection && !mixesMode && !originalsMode && !favoritesMode && !activePlaylist;
   const [showPlaylists, setShowPlaylists] = useState(false);
@@ -264,6 +271,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     : stackMode ? 'stack' : stretch < .5 ? 'shelf' : stretch < 1.5 ? 'grid' : 'tracks';
   // A tiny overshoot past the grid is still a cover view, not a playable row.
   const isTrackListInteractive = listMix > .85;
+  const playlistSortActive=Boolean(activePlaylist&&isTrackListInteractive&&(currentPlaylistSort||currentPlaylistKeys?.length));
   const [listPan, setListPan] = useState(0);
   // Quantized scroll snapshots only update the mounted window, not every frame.
   const [windowTravel, setWindowTravel] = useState(0);
@@ -312,12 +320,13 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       tracks: [{...item.track, audioUrl: item.track.audioFiles?.find(f => f.storageUrl)?.storageUrl || ''}],
     })) : (appliedSearch || appliedIdentityFilter ? searchCatalog || allReleases : mixesMode || favoritesMode ? allReleases : allReleases.filter(r=>!r.isMix)).map(r => releaseDetails[r.id] ? { ...r, ...releaseDetails[r.id], tracks: favoritesMode ? r.tracks : releaseDetails[r.id].tracks } : r);
     const filtered=source.filter(r => (!activeStyles.length || r.styles.some(style => activeStyles.includes(style))) && matchesReleaseSearch(r, appliedSearch) && matchesReleaseIdentity(r, appliedIdentityFilter));
+    if(activePlaylist&&isTrackListInteractive)return sortByTrackMetadata(filterByHarmonicKeys(filtered,currentPlaylistKeys||[],r=>r.tracks[0]?.key),currentPlaylistSort,r=>({bpm:r.tracks[0]?.bpm,key:r.tracks[0]?.key}));
     return shuffleSeed&&collectionView?shuffledShelf(filtered,shuffleSeed):filtered;
-  }, [allReleases, searchCatalog, releaseDetails, activeStyles, appliedSearch, appliedIdentityFilter, activePlaylist, playlists, mixesMode, favoritesMode,shuffleSeed,collectionView]);
+  }, [allReleases, searchCatalog, releaseDetails, activeStyles, appliedSearch, appliedIdentityFilter, activePlaylist, playlists, mixesMode, favoritesMode,shuffleSeed,collectionView,isTrackListInteractive,currentPlaylistSort,currentPlaylistKeys]);
   const [mobileCardHeights, setMobileCardHeights] = useState<Record<string, number>>({});
   const listLayout = useMemo(() => {
     // Full-width playlist rows begin below the persistent playlist selector.
-    let y = gridBounds.top + (viewport.width <= 700 ? 0 : 16);
+    let y = gridBounds.top + (viewport.width <= 700 ? 0 : 16) + (activePlaylist?44:0);
     const mobile = viewport.width <= 700;
     const positions = releases.map(r => {
       const top = y;
@@ -331,7 +340,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       return top;
     });
     return { positions, height: y + gridBounds.bottom };
-  }, [releases, listSize, gridBounds, isTrackCollection, playlists.length, viewport, mixesMode, originalsMode, openMixComments, mobileCardHeights]);
+  }, [releases, listSize, gridBounds, isTrackCollection, playlists.length, viewport, mixesMode, originalsMode, openMixComments, mobileCardHeights,activePlaylist]);
   useLayoutEffect(() => {
     const anchor = identityScrollAnchor.current;
     if (!anchor || filtering || !isTrackListInteractive) return;
@@ -591,37 +600,43 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
           (search?.bottom || 72) - origin, nav?.offsetHeight || 88,
           title?.offsetHeight || 36, player ? player.top - origin : viewport.height - 24,
           stackMode || stretch >= .5, headingGap);
+        const contentTop = activePlaylist && stretch >= 1.85
+          ? layout.headingTop + (heading?.height || title?.offsetHeight || 20) + 10
+          : layout.contentTop;
         setLayoutProperties(element, {
           '--mobile-nav-top': `${layout.navigationTop}px`,
           '--mobile-heading-top': `${layout.headingTop}px`,
           '--mobile-context-viewport-top': `${layout.headingTop}px`,
-          '--mobile-content-top': `${layout.contentTop}px`,
+          '--mobile-content-top': `${contentTop}px`,
           '--mobile-content-bottom': `${layout.bottom}px`,
           '--mobile-panel-height': `${layout.panelHeight}px`,
           '--mobile-shelf-floor': `${layout.shelfFloor}px`,
           '--cover': `${layout.coverSize}px`,
         });
         setMobileGeometry(current => current.coverSize === layout.coverSize && current.shelfFloor === layout.shelfFloor ? current : {coverSize:layout.coverSize,shelfFloor:layout.shelfFloor});
-        setGridBounds(current => current.top === layout.contentTop && current.bottom === layout.bottom ? current : {top:layout.contentTop,bottom:layout.bottom});
+        setGridBounds(current => current.top === contentTop && current.bottom === layout.bottom ? current : {top:contentTop,bottom:layout.bottom});
         return;
       }
       const measuredTop = Math.ceil(Math.max(search?.bottom || 88, heading?.bottom || 0)) + (viewport.width <= 700 ? 2 : 14);
-      const nextTop = measuredTop;
+      const modes = document.querySelector('.archive-page-header .paper-layout-controls')?.getBoundingClientRect();
+      const nextTop = activePlaylist && stretch >= 1.85 && modes ? modes.bottom - origin + 10 - 16 : measuredTop;
       const nextBottom = player ? Math.ceil(viewport.height - player.top) + 8 : 84;
       setGridBounds(current => current.top === nextTop && current.bottom === nextBottom ? current : {top:nextTop,bottom:nextBottom});
     };
     measure();
     const measurement = frameMeasurement(measure);
     const observer = new ResizeObserver(measurement.schedule);
-    for (const node of [document.querySelector('.archive-page-header .paper-search'), element.querySelector('.paper-sections'), element.querySelector('.paper-heading'), document.querySelector('.mini-player')]) if (node) observer.observe(node);
+    for (const node of [document.querySelector('.archive-page-header .paper-search'), document.querySelector('.archive-page-header .paper-layout-controls'), element.querySelector('.paper-sections'), element.querySelector('.paper-heading'), document.querySelector('.mini-player')]) if (node) observer.observe(node);
     window.visualViewport?.addEventListener('resize', measurement.schedule);
     return () => { measurement.cancel();observer.disconnect();window.visualViewport?.removeEventListener('resize',measurement.schedule); };
-  }, [viewport, hasPlayerTrack, geometryLayout]);
+  }, [viewport, hasPlayerTrack, geometryLayout, activePlaylist, stretch >= 1.85]);
   useLayoutEffect(() => {
     const row = stage.current?.querySelector('.paper-row');
     if (row) row.scrollTop = gridMix >= 1 ? gridPan * (1-listMix) + listPan * listMix : 0;
   }, [gridMix, gridPan, listMix, listPan]);
   function selectPlaylist(id: string | null) {
+    setPlaylistSort(null);
+    setPlaylistKeys(null);
     clearIdentityFilter();
     pendingShelfCenter.current = true;
     if (id === null) setShowPlaylists(false);
@@ -1246,7 +1261,7 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
     }
   }
   async function movePlaylistTrack(from: string, to: string, side: 'before' | 'after' = 'before') {
-    if (!activePlaylist || savingOrder || from === to) return;
+    if (!activePlaylist || savingOrder || playlistSortActive || from === to) return;
     const playlist = playlists.find(p => p.id === activePlaylist);
     if (!playlist) return;
     const ids = [...playlist.items].sort((a,b) => a.sortOrder-b.sortOrder).map(i => i.track.id);
@@ -1603,6 +1618,9 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       playlists={playlists.map(playlist => ({ id: playlist.id, name: playlist.name, count: playlist.items.length }))} selectedPlaylist={activePlaylist}
       onClose={() => setMobilePicker(null)} onSection={chooseMobileSection} onPlaylist={selectPlaylist}
       onGenres={styles => applyStyleSelection(normalizeStyleSelection(styles, new Set(styleCounts.map(([style]) => style))))} />
+    {activePlaylist&&listMix>.01&&<div className="paper-playlist-sort-position" style={{top:gridBounds.top+(viewport.width<=700?0:16),opacity:listMix,pointerEvents:isTrackListInteractive?'auto':'none'}}>
+      <PlaylistTrackSort ru={ru} sort={currentPlaylistSort} selectedKeys={currentPlaylistKeys||[]} keyValues={playlists.find(p=>p.id===activePlaylist)?.items.map(item=>item.track.key)||[]} onKeysChange={keys=>{setPlaylistKeys({playlistId:activePlaylist,keys});setDragTrack(null);setDropTarget(null);setHovered(null);setListPan(0);stage.current?.querySelector('.paper-row')?.scrollTo({top:0});}} onChange={sort=>{setPlaylistSort({playlistId:activePlaylist,sort});setDragTrack(null);setDropTarget(null);setHovered(null);setListPan(0);stage.current?.querySelector('.paper-row')?.scrollTo({top:0});}}/>
+    </div>}
     <div className="paper-row" aria-label={originalsMode ? 'All tracks' : mixesMode ? 'All mixes' : 'All releases'} onScroll={e => {
       setWindowScroll(Math.floor(e.currentTarget.scrollTop / 128) * 128);
     }} onPointerDown={e => {
@@ -1762,7 +1780,8 @@ export function RecordShelfStage({ releases: allReleases, lang, favoritesMode = 
       if (e.button !== 1) return;
       finishMiddleLayout();
       if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-    }} onLostPointerCapture={() => {if (middleDrag.current) finishMiddleLayout();if(touchDrag.current)stage.current?.classList.remove('is-scrolling');touchDrag.current = null;}} onPointerCancel={() => {if (middleDrag.current) finishMiddleLayout();if(touchDrag.current)stage.current?.classList.remove('is-scrolling');touchDrag.current = null;}} onAuxClick={e => {if(e.button === 1) e.preventDefault();}} onPointerLeave={() => setHovered(null)}><div className="paper-transport" ref={transport}>{visibleIndices.map((i, visibleRank) => {
+    }} onLostPointerCapture={() => {if (middleDrag.current) finishMiddleLayout();if(touchDrag.current)stage.current?.classList.remove('is-scrolling');touchDrag.current = null;}} onPointerCancel={() => {if (middleDrag.current) finishMiddleLayout();if(touchDrag.current)stage.current?.classList.remove('is-scrolling');touchDrag.current = null;}} onAuxClick={e => {if(e.button === 1) e.preventDefault();}} onPointerLeave={() => setHovered(null)}>
+    <div className="paper-transport" ref={transport}>{visibleIndices.map((i, visibleRank) => {
       const r = releases[i];
       const p = sleeves[i].position / 24;
       const side = selected === null ? 0 : gridMix >= 1 ? (i % columns < Math.ceil(columns / 2) ? -1 : 1) : i < selected ? -1 : 1;
@@ -1831,14 +1850,14 @@ style={{ '--position': p, '--stack-hover-offset': `calc(var(--stack-size) * ${st
           <span className="paper-release-identity-row paper-release-identity-labels">{r.labels?.length ? r.labels.map(label => <span className="paper-release-label" key={label}><button type="button" className="paper-release-browse" aria-pressed={isIdentityActive('label', label)} aria-label={`${ru ? 'Релизы лейбла' : 'Releases on label'}: ${label}`} data-site-tooltip={isIdentityActive('label', label) ? (ru ? 'Отменить фильтр лейбла' : 'Clear label filter') : (ru ? 'Все релизы этого лейбла' : 'All releases on this label')} onClick={() => browseReleaseIdentity('label', label, r.id)}><Eye size={16} aria-hidden="true"/></button><span>{label}</span></span>) : <span className="paper-release-label"><span className="paper-release-control-slot" aria-hidden="true"/><span>{ru ? 'Лейбл не указан' : 'Label unavailable'}</span></span>}</span>
         </span><ShelfReleaseYear id={r.id} year={r.year} lang={uiLang} editable={isTrackListInteractive}/></h2>}{mixesMode && canFlip ? flip : null}</>}
         {mixesMode ? <ShelfMixTrack release={r} lang={uiLang} queueReleases={releases} yearInHeading timelineControls actions={null} onCommentsOpenChange={(open,count)=>setOpenMixComments(current=>{const next=new Map(current);if(open)next.set(r.id,count);else next.delete(r.id);return next;})} /> : r.tracks.map(t => <div key={t.id} data-track-id={t.id} className={`paper-track-line${dragTrack === t.id ? ' is-dragging' : ''}${dropTarget?.trackId === t.id ? ` is-drop-${dropTarget.side}` : ''}${currentTrack?.id === t.id ? ' is-playing' : ''}`}
-          draggable={Boolean(activePlaylist) && !savingOrder && isTrackListInteractive}
+          draggable={Boolean(activePlaylist) && !savingOrder && !playlistSortActive && isTrackListInteractive}
           onDragStart={e => {if ((e.target as Element).closest('.paper-track-actions')) {e.preventDefault();return;} e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',t.id);setDragTrack(t.id);suppressTrackClick.current=Infinity;}}
           onDragOver={e => {if (activePlaylist && dragTrack) {e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDropTarget({trackId:t.id,side:e.clientY<rect.top+rect.height/2?'before':'after'});}}}
           onDragEnd={() => {setDragTrack(null);setDropTarget(null);suppressTrackClick.current=performance.now()+250;}}>
-          {activePlaylist && <button className="paper-track-grip" disabled={savingOrder} aria-label="Move track. Alt and up or down arrow" onClick={e=>e.stopPropagation()} onKeyDown={e=>{if(e.altKey && (e.key==='ArrowUp'||e.key==='ArrowDown')) {e.preventDefault();const movingDown=e.key==='ArrowDown';const other=releases[i+(movingDown?1:-1)]?.tracks[0];if(other)void movePlaylistTrack(t.id,other.id,movingDown?'after':'before');}}}>⠿</button>}
+          {activePlaylist && <button className="paper-track-grip" disabled={savingOrder||playlistSortActive} aria-label="Move track. Alt and up or down arrow" onClick={e=>e.stopPropagation()} onKeyDown={e=>{if(e.altKey && (e.key==='ArrowUp'||e.key==='ArrowDown')) {e.preventDefault();const movingDown=e.key==='ArrowDown';const other=releases[i+(movingDown?1:-1)]?.tracks[0];if(other)void movePlaylistTrack(t.id,other.id,movingDown?'after':'before');}}}>⠿</button>}
           <button className="paper-track-play" disabled={!t.audioUrl} onClick={() => play(t.id,r)}>{mixesMode ? null : <small>{isTrackCollection ? i + 1 : t.position || '—'}</small>}<span className={isTrackCollection?'paper-track-primary':undefined}>{isTrackCollection ? <><span className="paper-track-primary-line"><b>{r.artist}</b><em>{t.title}</em></span>{activePlaylist && <span className="paper-release-styles paper-compact-genres" aria-label={ru ? 'Стили релиза' : 'Release styles'}>{r.styles.length ? r.styles.map((style,index) => [index > 0 ? ' · ' : null,<em key={style} className={`paper-release-style${activeStyles.includes(style) ? ' is-active' : ''}`}>{style}</em>]) : (ru ? 'Стиль не указан' : 'Style unavailable')}</span>}</> : t.title}</span>{isTrackCollection && <span className="paper-track-release">{r.title}</span>}</button>
           {!mixesMode && <span className="paper-track-bpm" data-site-tooltip="BPM">{t.bpm ?? '—'}</span>}
-          {(activePlaylist || (!mixesMode && !favoritesMode)) && <span className="paper-track-key" data-site-tooltip="Key">{t.key || '—'}</span>}
+          {(activePlaylist || (!mixesMode && !favoritesMode)) && <HarmonicKey className="paper-track-key" tooltip="Key" value={t.key}/>}
           {trackActions(t.id)}<time>{normalizeDurationLabel(t.durationRaw,t.durationSec,'—')}</time>
         </div>)}
         {!r.tracks.length && <p>{r.tracksLoaded === false ? (detailErrors[r.id] ? <button onClick={() => setDetailErrors(current => ({...current,[r.id]:false}))}>{ru ? 'Повторить загрузку' : 'Retry loading'}</button> : (ru ? 'Загрузка треков…' : 'Loading tracks…')) : (ru ? 'Треклист недоступен' : 'Tracklist unavailable')}</p>}

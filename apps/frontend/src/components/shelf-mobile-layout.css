@@ -45,8 +45,9 @@
 @media(max-width:700px) {
   /* The scrolling collection cannot paint into the section/context header. */
   html[data-visual-variant='shelf'] .paper-archive:is(.is-grid,.is-listing,.is-stack):not(.is-open) .paper-row {
-    clip-path:inset(var(--grid-top,160px) 0 var(--grid-bottom,84px) 0)!important;
+    clip-path:inset(calc(var(--grid-top,160px) + var(--playlist-controls-height,0px)) 0 var(--grid-bottom,84px) 0)!important;
   }
+  html[data-visual-variant='shelf'] .paper-archive:has(>.paper-playlist-sort-position) {--playlist-controls-height:44px;}
   /* The expanded sleeve is fixed to the viewport, not the closed grid window. */
   html[data-visual-variant='shelf'] .paper-archive.is-grid.is-open .paper-row {
     clip-path:none!important;
