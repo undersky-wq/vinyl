@@ -15,6 +15,7 @@
 html[data-shelf-theme='dark'] .harmonic-filter-wheel g{color:var(--key-dark)}
 .harmonic-filter-wheel path{fill:currentColor;fill-opacity:.13;stroke:var(--shelf-web-bg,#fff);stroke-width:2;cursor:pointer;transition:fill-opacity .18s,stroke .18s}
 .harmonic-filter-wheel path:hover{fill-opacity:.32}
+.harmonic-filter-wheel path:focus{outline:none!important}
 .harmonic-filter-wheel .is-selected path{fill-opacity:.5;stroke:currentColor;stroke-width:2}
 .harmonic-filter-wheel path:focus-visible{outline:none;stroke:var(--shelf-web-ink,#171717);stroke-width:3}
 .harmonic-filter-wheel text{fill:currentColor;font:600 13px Arial,Helvetica,sans-serif;pointer-events:none}
