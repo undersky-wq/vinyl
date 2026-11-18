@@ -1,3 +1,5 @@
+@import './admin-appearance.css';
+
 html:has(.paper-profile-page),html body:has(.paper-profile-page){background:#fff!important;color:#111;height:auto!important;max-height:none!important;min-height:100dvh;overscroll-behavior:auto}
 /* One document scroller: a second auto-overflow body can trap wheel chaining. */
 html:has(.paper-profile-page){overflow-x:clip!important;overflow-y:auto!important;scrollbar-width:none;-ms-overflow-style:none}
