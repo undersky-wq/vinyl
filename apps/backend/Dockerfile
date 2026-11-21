@@ -25,7 +25,7 @@ ARG SOURCE_REVISION=unknown
 LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 ENV NODE_ENV=production
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg python3-venv \
+    && apt-get install -y --no-install-recommends ffmpeg python3-venv wget \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m venv /opt/track-source \
     && /opt/track-source/bin/pip install --no-cache-dir 'yt-dlp[default]==2026.10.26' 'curl-cffi==0.17.0'
