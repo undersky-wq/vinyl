@@ -6,6 +6,7 @@ import { createReleaseTrack, deleteReleaseTrack, deleteTrackAudio, deleteRelease
 import { Release } from '../types';
 import { SiteLang } from '../lib/language';
 import { TrackUploadButton } from './track-upload-button';
+import { TrackSourceImport } from './track-source-import';
 import { ReleaseGalleryEditor } from './release-gallery-editor';
 
 export function ShelfReleaseForm({ release, lang }: { release: Release; lang: SiteLang }) {
@@ -62,7 +63,9 @@ export function ShelfReleaseForm({ release, lang }: { release: Release; lang: Si
       <div className="shelf-form-track-analysis">
         <label>BPM<input key={`bpm-${track.bpm}`} type="number" min="1" step="any" aria-label="BPM" defaultValue={track.bpm ?? ''} placeholder="—" disabled={busy} onBlur={event=>{const raw=event.currentTarget.value.trim();const bpm=raw===''?null:Number(raw);if(bpm!==null&&(!Number.isFinite(bpm)||bpm<=0)){setStatus(ru?'BPM должен быть положительным числом':'BPM must be a positive number');return;}if(bpm!==(track.bpm??null))void run(async()=>{await updateTrackMetadata(track.id,{bpm});await reload();});}}/></label>
         <label>Key<input key={`key-${track.key}`} aria-label={ru?'Тональность':'Key'} defaultValue={track.key ?? ''} placeholder="8A / Am" disabled={busy} onBlur={event=>{const key=event.currentTarget.value.trim()||null;if(key!==(track.key??null))void run(async()=>{await updateTrackMetadata(track.id,{key});await reload();});}}/></label>
-      </div></div>
+      </div>
+      {!track.audioFiles.length && <TrackSourceImport trackId={track.id} lang={lang} onImported={reload} />}
+      </div>
       <div className="shelf-form-audio"><span className={track.audioFiles.length?'has-audio':''}>{track.audioFiles.length ? (ru?'MP3 загружен':'MP3 uploaded') : (ru?'Нет MP3':'No MP3')}</span><TrackUploadButton trackId={track.id} lang={lang} onUploaded={reload}/></div>
       <div className="shelf-form-track-actions">{track.audioFiles.length>0&&<button type="button" disabled={busy} aria-label={ru?'Удалить MP3':'Delete MP3'} onClick={()=>{if(confirm(ru?'Удалить MP3?':'Delete MP3?'))void run(async()=>{for(const file of track.audioFiles)await deleteTrackAudio(file.id);await reload();});}}><Trash2 size={15}/></button>}
       <button type="button" disabled={busy} aria-label={ru?'Удалить трек':'Delete track'} onClick={()=>{if(confirm(ru?`Удалить трек «${track.title}»?`:`Delete track “${track.title}”?`))void run(async()=>{await deleteReleaseTrack(track.id);await reload();});}}>×</button></div>

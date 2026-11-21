@@ -1954,6 +1954,50 @@ textarea {
   animation: track-upload-spin 0.9s linear infinite;
 }
 
+.track-source-import {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.track-source-import button {
+  padding: 5px 9px;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.track-source-import button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.track-source-import__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .78rem;
+}
+
+.track-source-import__dialog {
+  margin: auto;
+  width: min(550px, calc(100vw - 28px));
+  padding: 20px;
+  border: 1px solid #57545e;
+  border-radius: 14px;
+  background: #201e25;
+  color: #f8f6fa;
+  text-align: left;
+  white-space: normal;
+}
+
+.track-source-import__dialog::backdrop { background: rgb(0 0 0 / 65%); }
+.track-source-import__dialog ul { padding: 0; list-style: none; }
+.track-source-import__dialog li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; }
+.track-source-import__dialog small { display: block; opacity: .8; }
+
 .track-upload__status {
   font-size: 0.76rem;
   color: #ffb3c2;

@@ -30,6 +30,8 @@ import { FavoriteButton, TrackPlaylistMenu } from './track-actions';
 import { CopyMusicLink } from './copy-music-link';
 import { SquareCoverEditor } from './square-cover-input';
 import { TrackUploadButton } from './track-upload-button';
+import { TrackSourceImport } from './track-source-import';
+import { useWebEditMode } from './admin-edit-mode-sync';
 import { getNearestTimelineComment, TimelineCommentMarkers } from './timeline-comment-markers';
 import { HarmonicKey } from './harmonic-key';
 
@@ -876,6 +878,7 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
 
   const meta = [release.year, release.country].filter(Boolean).join(' • ');
   const isAdmin = user?.role === 'ADMIN';
+  const webEditMode = useWebEditMode();
   useEffect(() => {
     if (isAdmin) rememberReleaseAudioStatus(release.id, isReleaseAudioComplete({ tracks }));
   }, [isAdmin, release.id, tracks]);
@@ -1446,6 +1449,10 @@ export function ReleaseDetail({ release, lang }: ReleaseDetailProps) {
                       await handleTrackTextSave(track.id, { title: value });
                     }}
                   />
+                  {isAdmin && webEditMode && !audioFile && (
+                    <TrackSourceImport trackId={track.id} lang={lang}
+                      onImported={async () => { const fresh = await getRelease(release.id); setTracks(fresh.tracks); }} />
+                  )}
                 </div>
 
                 <span className="track-row__duration muted">

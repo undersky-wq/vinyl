@@ -49,6 +49,24 @@ export class AudioController {
     return this.audioService.deleteAudio(id);
   }
 
+  @Post('tracks/:trackId/source-search/:source')
+  @UseGuards(AdminGuard)
+  findSourceMatches(@Param('trackId') trackId: string, @Param('source') source: string) {
+    return this.audioService.findSourceMatches(trackId, source);
+  }
+
+  @Post('tracks/:trackId/source-import/:matchId')
+  @UseGuards(AdminGuard)
+  importSourceMatch(@Param('trackId') trackId: string, @Param('matchId') matchId: string) {
+    return this.audioService.startSourceImport(trackId, matchId);
+  }
+
+  @Get('tracks/:trackId/source-import/:jobId')
+  @UseGuards(AdminGuard)
+  sourceImportStatus(@Param('trackId') trackId: string, @Param('jobId') jobId: string) {
+    return this.audioService.getSourceImportStatus(trackId, jobId);
+  }
+
   @Post('backfill-durations')
   @UseGuards(AdminGuard)
   backfillDurations() {

@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, HttpException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { parseBuffer } from 'music-metadata';
 import { tmpdir } from 'node:os';
@@ -13,6 +14,15 @@ import { UploadAudioBodyDto } from './dto/upload-audio.dto';
 import { waveformFromPcm } from './waveform-data';
 
 const execFileAsync = promisify(execFile);
+const SOURCE_MAX_BYTES = 50 * 1024 * 1024;
+type AudioSource = 'youtube' | 'bandcamp';
+type SourceMatch = {
+  title: string;
+  url: string;
+  duration: number | null;
+  score: number;
+  media: { id: string | number; bandId?: number };
+};
 
 type BackfillStatus = {
   id: string | null;
@@ -43,6 +53,14 @@ type NormalizeProgress = Omit<NormalizeStatus, 'id' | 'status' | 'error'>;
 
 @Injectable()
 export class AudioService {
+  private readonly sourceMatches = new Map<string, {
+    trackId: string; artist: string; title: string; source: AudioSource; match: SourceMatch; expires: number;
+  }>();
+  private readonly audioWrites = new Set<string>();
+  private sourceWorkers = 0;
+  private readonly sourceJobs = new Map<string, {
+    trackId: string; status: 'running' | 'done' | 'failed'; error?: string;
+  }>();
   private backfillStatus: BackfillStatus = {
     id: null,
     status: 'idle',
@@ -283,7 +301,131 @@ export class AudioService {
     return null;
   }
 
-  async uploadAudio(file: Express.Multer.File, body: UploadAudioBodyDto) {
+  private async runTrackSource(action: 'search' | 'download', source: AudioSource, payload: object, path?: string) {
+    if (this.sourceWorkers >= 2) {
+      throw new ServiceUnavailableException('Поиск и загрузка заняты. Попробуйте чуть позже.');
+    }
+    this.sourceWorkers++;
+    try {
+      return await execFileAsync(
+        process.env.TRACK_SOURCE_PYTHON || 'python',
+        [join(process.cwd(), 'scripts', 'track-source.py'), action, source, JSON.stringify(payload), ...(path ? [path] : [])],
+        { timeout: action === 'search' ? 25_000 : 180_000, maxBuffer: 512 * 1024, windowsHide: true },
+      );
+    } catch {
+      throw new BadGatewayException('Источник не ответил или не предоставил аудио. Попробуйте позже.');
+    } finally {
+      this.sourceWorkers--;
+    }
+  }
+
+  private async getEmptySourceTrack(trackId: string) {
+    const track = await this.prisma.track.findUnique({
+      where: { id: trackId },
+      select: { title: true, artists: true, durationSec: true,
+        release: { select: { artist: true } }, _count: { select: { audioFiles: true } } },
+    });
+    if (!track) throw new BadRequestException('Трек не найден');
+    if (track._count.audioFiles) throw new ConflictException('У трека уже есть аудио.');
+    return { title: track.title, artist: track.artists.filter(Boolean).join(', ') || track.release.artist,
+      duration: track.durationSec };
+  }
+
+  async findSourceMatches(trackId: string, source: string) {
+    if (source !== 'youtube' && source !== 'bandcamp') throw new BadRequestException('Неизвестный источник.');
+    const track = await this.getEmptySourceTrack(trackId);
+    const { stdout } = await this.runTrackSource('search', source, track);
+    let matches: SourceMatch[];
+    try {
+      matches = JSON.parse(stdout) as SourceMatch[];
+      if (!Array.isArray(matches)) throw new Error('Invalid search response');
+    } catch {
+      throw new BadGatewayException('Источник вернул некорректные результаты поиска.');
+    }
+    const now = Date.now();
+    for (const [id, value] of this.sourceMatches) {
+      if (value.expires <= now) this.sourceMatches.delete(id);
+    }
+    return matches.filter(match => match.score >= 75).slice(0, 5).map(match => {
+      while (this.sourceMatches.size >= 300) {
+        const oldest = this.sourceMatches.keys().next().value;
+        if (!oldest) break;
+        this.sourceMatches.delete(oldest);
+      }
+      const id = randomUUID();
+      this.sourceMatches.set(id, { trackId, artist: track.artist, title: track.title, source, match, expires: now + 10 * 60_000 });
+      return { id, title: match.title, url: match.url, duration: match.duration, score: match.score };
+    });
+  }
+
+  startSourceImport(trackId: string, matchId: string) {
+    const active = [...this.sourceJobs.values()].filter(job => job.status === 'running');
+    if (active.some(job => job.trackId === trackId)) throw new ConflictException('Трек уже загружается.');
+    if (active.length >= 2) throw new ServiceUnavailableException('Загрузка занята. Попробуйте чуть позже.');
+    const id = randomUUID();
+    const job: { trackId: string; status: 'running' | 'done' | 'failed'; error?: string } = { trackId, status: 'running' };
+    this.sourceJobs.set(id, job);
+    void this.importSourceMatch(trackId, matchId).then(() => {
+      job.status = 'done';
+    }).catch((error: unknown) => {
+      job.status = 'failed';
+      job.error = error instanceof HttpException ? error.message : 'Не удалось сохранить аудио.';
+    }).finally(() => {
+      setTimeout(() => this.sourceJobs.delete(id), 10 * 60_000).unref();
+    });
+    return { id };
+  }
+
+  getSourceImportStatus(trackId: string, id: string) {
+    const job = this.sourceJobs.get(id);
+    if (!job || job.trackId !== trackId) throw new BadRequestException('Загрузка не найдена. Проверьте, появилось ли аудио у трека.');
+    return { status: job.status, error: job.error };
+  }
+
+  private async importSourceMatch(trackId: string, id: string) {
+    const candidate = this.sourceMatches.get(id);
+    if (!candidate || candidate.trackId !== trackId || candidate.expires <= Date.now()) {
+      throw new BadRequestException('Результат поиска устарел. Повторите поиск.');
+    }
+    const track = await this.getEmptySourceTrack(trackId);
+    if (track.title !== candidate.title || track.artist !== candidate.artist) {
+      throw new ConflictException('Название или исполнитель изменились. Повторите поиск.');
+    }
+    const folder = await fs.mkdtemp(join(tmpdir(), 'vinyl-source-'));
+    try {
+      const base = join(folder, 'track');
+      await this.runTrackSource('download', candidate.source, candidate.match.media, base);
+      const path = base + '.mp3';
+      const size = (await fs.stat(path).catch(() => null))?.size || 0;
+      if (!size || size > SOURCE_MAX_BYTES) throw new BadGatewayException('Источник не предоставил MP3 до 50 МБ.');
+      const buffer = await fs.readFile(path);
+      const metadata = await parseBuffer(buffer, { mimeType: 'audio/mpeg', size }).catch(() => null);
+      if (!metadata?.format.duration || !metadata.format.codec?.includes('Layer 3')) {
+        throw new BadGatewayException('Полученный файл не содержит MP3-аудио.');
+      }
+      if (track.duration && Math.abs(metadata.format.duration - track.duration) > Math.max(20, track.duration * 0.15)) {
+        throw new BadGatewayException('Длительность файла отличается от длительности трека.');
+      }
+      return await this.uploadAudio({
+        mimetype: 'audio/mpeg', originalname: `${track.artist} - ${track.title}.mp3`, buffer, size,
+      }, { trackId }, true);
+    } finally {
+      await fs.rm(folder, { recursive: true, force: true });
+    }
+  }
+
+  async uploadAudio(file: Pick<Express.Multer.File, 'mimetype' | 'originalname' | 'buffer' | 'size'>, body: UploadAudioBodyDto, onlyIfEmpty = false) {
+    if (this.audioWrites.has(body.trackId)) throw new ConflictException('Аудио этого трека уже загружается.');
+    this.audioWrites.add(body.trackId);
+    try {
+      if (onlyIfEmpty) await this.getEmptySourceTrack(body.trackId);
+      return await this.saveAudio(file, body);
+    } finally {
+      this.audioWrites.delete(body.trackId);
+    }
+  }
+
+  private async saveAudio(file: Pick<Express.Multer.File, 'mimetype' | 'originalname' | 'buffer' | 'size'>, body: UploadAudioBodyDto) {
     if (!['audio/mpeg', 'audio/mp3'].includes(file.mimetype)) {
       throw new BadRequestException('Поддерживаются только MP3');
     }

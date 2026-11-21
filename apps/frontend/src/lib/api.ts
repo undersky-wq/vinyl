@@ -564,6 +564,35 @@ export async function reorderPlaylists(playlistIds: string[]) {
   return parseJsonResponse<PlaylistSummary[]>(response);
 }
 
+export type TrackSourceMatch = { id: string; title: string; url: string; duration?: number | null; score: number };
+
+export async function findTrackSources(trackId: string, source: 'youtube' | 'bandcamp', signal: AbortSignal) {
+  const response = await fetch(`${API_URL}/audio/tracks/${encodeURIComponent(trackId)}/source-search/${source}`, {
+    method: 'POST', credentials: 'include', signal,
+  });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Search failed'));
+  return parseJsonResponse<TrackSourceMatch[]>(response);
+}
+
+export async function importTrackSource(trackId: string, matchId: string) {
+  const base = `${API_URL}/audio/tracks/${encodeURIComponent(trackId)}/source-import`;
+  const response = await fetch(`${base}/${encodeURIComponent(matchId)}`, {
+    method: 'POST', credentials: 'include',
+  });
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Audio import failed'));
+  const { id } = await parseJsonResponse<{ id: string }>(response);
+  const stopAt = Date.now() + 240_000;
+  while (Date.now() < stopAt) {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    const progress = await fetch(`${base}/${encodeURIComponent(id)}`, { credentials: 'include', cache: 'no-store' });
+    if (!progress.ok) throw new Error(await getResponseErrorMessage(progress, 'Audio import status unavailable'));
+    const job = await parseJsonResponse<{ status: 'running' | 'done' | 'failed'; error?: string }>(progress);
+    if (job.status === 'done') return;
+    if (job.status === 'failed') throw new Error(job.error || 'Audio import failed');
+  }
+  throw new Error('Загрузка ещё выполняется. Обновите страницу, чтобы проверить результат.');
+}
+
 export async function uploadTrackAudio(trackId: string, file: File, onProgress?: (percent: number) => void) {
   const payload = new FormData();
   payload.append('file', file);

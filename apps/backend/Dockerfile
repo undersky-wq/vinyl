@@ -1,10 +1,15 @@
-FROM node:24-alpine AS deps
+FROM node:24-bookworm-slim AS base
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM base AS deps
 WORKDIR /app/apps/backend
 
 COPY apps/backend/package.json apps/backend/package-lock.json ./
 RUN npm ci
 
-FROM node:24-alpine AS builder
+FROM base AS builder
 WORKDIR /app/apps/backend
 
 COPY --from=deps /app/apps/backend/node_modules ./node_modules
@@ -14,12 +19,17 @@ COPY apps/backend ./
 RUN npm run prisma:generate
 RUN npm run build
 
-FROM node:24-alpine AS runner
+FROM base AS runner
 WORKDIR /app/apps/backend
 ARG SOURCE_REVISION=unknown
 LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 ENV NODE_ENV=production
-RUN apk add --no-cache ffmpeg
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg python3-venv \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m venv /opt/track-source \
+    && /opt/track-source/bin/pip install --no-cache-dir 'yt-dlp[default]==2026.10.26' 'curl-cffi==0.17.0'
+ENV TRACK_SOURCE_PYTHON=/opt/track-source/bin/python
 
 COPY --from=builder /app/apps/backend/node_modules ./node_modules
 COPY --from=builder /app/apps/backend/dist ./dist
